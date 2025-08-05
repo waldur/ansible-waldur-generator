@@ -21,6 +21,7 @@ from ansible_waldur_generator.models import (
     BaseGenerationContext,
 )
 from ansible_waldur_generator.plugins.crud.config import CrudModuleConfig
+from ansible_waldur_generator.plugins.crud.context import CrudRunnerContext
 
 
 class CrudContextBuilder(BaseContextBuilder):
@@ -67,28 +68,26 @@ class CrudContextBuilder(BaseContextBuilder):
             examples_data, default_flow_style=False, sort_keys=False
         )
 
-        runner_context = {
-            "resource_type": self.module_config.resource_type,
-            "existence_check_func": self.module_config.existence_check.sdk_op.sdk_function,
-            "present_create_func": self.module_config.present_create.sdk_op.sdk_function,
-            "present_create_model_class": self.module_config.present_create.sdk_op.model_class,
-            "absent_destroy_func": self.module_config.absent_destroy.sdk_op.sdk_function,
-            "absent_destroy_path_param": self.module_config.absent_destroy.config.get(
-                "path_param_field", "uuid"
-            ),
-            "model_param_names": self._get_model_param_names(),
-            "resolvers": self._build_flat_resolvers(),
-        }
-
-        # 5. Return the final, flattened context object, ready for rendering.
+        # 5. Return context object, ready for rendering.
         return BaseGenerationContext(
             description=self.module_config.description,
             module_name=module_name,
-            runner_context=runner_context,
             parameters=parameters,
             sdk_imports=sdk_imports,
             documentation_yaml=doc_yaml,
             examples_yaml=examples_yaml,
+            runner_context=CrudRunnerContext(
+                resource_type=self.module_config.resource_type,
+                existence_check_func=self.module_config.existence_check.sdk_op.sdk_function,
+                present_create_func=self.module_config.present_create.sdk_op.sdk_function,
+                present_create_model_class=self.module_config.present_create.sdk_op.model_class,
+                absent_destroy_func=self.module_config.absent_destroy.sdk_op.sdk_function,
+                absent_destroy_path_param=self.module_config.absent_destroy.config.get(
+                    "path_param_field", "uuid"
+                ),
+                model_param_names=self._get_model_param_names(),
+                resolvers=self._build_flat_resolvers(),
+            ),
         )
 
     def _get_model_param_names(self) -> List[str]:
