@@ -10,33 +10,10 @@ import sys
 import yaml
 from jinja2 import Environment, FileSystemLoader
 
+from ansible_waldur_generator.helpers import ValidationErrorCollector
+
 from .parser import ApiSpecParser, ConfigParser
 from .builder import ContextBuilder
-
-
-class ValidationErrorCollector:
-    """A simple class to collect and report validation errors."""
-
-    def __init__(self):
-        self.errors = []
-
-    def add_error(self, message: str):
-        self.errors.append(message)
-
-    @property
-    def has_errors(self) -> bool:
-        return len(self.errors) > 0
-
-    def report(self):
-        """Prints all collected errors to stderr and exits if any exist."""
-        if self.has_errors:
-            print(
-                "\nGeneration failed with the following configuration errors:",
-                file=sys.stderr,
-            )
-            for i, error in enumerate(self.errors, 1):
-                print(f"  {i}. {error}", file=sys.stderr)
-            sys.exit(1)
 
 
 class Generator:

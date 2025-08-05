@@ -7,13 +7,15 @@ from copy import deepcopy
 from typing import Dict, List, Any, Optional
 
 from .models import SdkOperation, ModuleConfig, ModuleIdempotencySection, ModuleResolver
-from .helpers import to_snake_case
+from .helpers import ValidationErrorCollector, to_snake_case
 
 
 class ApiSpecParser:
     """Parses an OpenAPI specification into a map of SdkOperation objects."""
 
-    def __init__(self, api_spec_data: Dict[str, Any], collector):
+    def __init__(
+        self, api_spec_data: Dict[str, Any], collector: ValidationErrorCollector
+    ):
         self.api_spec = api_spec_data
         self.collector = collector
         self.sdk_base_path = "waldur_api_client"
@@ -108,7 +110,10 @@ class ConfigParser:
     """
 
     def __init__(
-        self, config_data: Dict[str, Any], op_map: Dict[str, SdkOperation], collector
+        self,
+        config_data: Dict[str, Any],
+        op_map: Dict[str, SdkOperation],
+        collector: ValidationErrorCollector,
     ):
         self.config = config_data
         self.op_map = op_map

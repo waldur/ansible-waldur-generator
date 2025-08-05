@@ -10,14 +10,17 @@ import yaml
 from typing import Dict, List, Any
 
 from .models import ModuleConfig, ResourceGenerationContext, AnsibleModuleParams
-from .helpers import AUTH_OPTIONS, OPENAPI_TO_ANSIBLE_TYPE_MAP
+from .helpers import AUTH_OPTIONS, OPENAPI_TO_ANSIBLE_TYPE_MAP, ValidationErrorCollector
 
 
 class ContextBuilder:
     """Builds a flattened Jinja2 context from a normalized ModuleConfig."""
 
     def __init__(
-        self, module_config: ModuleConfig, api_spec_data: Dict[str, Any], collector
+        self,
+        module_config: ModuleConfig,
+        api_spec_data: Dict[str, Any],
+        collector: ValidationErrorCollector,
     ):
         """
         Initializes the builder.

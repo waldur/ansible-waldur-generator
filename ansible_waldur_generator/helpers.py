@@ -1,6 +1,7 @@
 """Shared helper functions and constants."""
 
 import re
+import sys
 
 # Mapping from OpenAPI types to Ansible module types.
 OPENAPI_TO_ANSIBLE_TYPE_MAP = {
@@ -30,3 +31,28 @@ def to_snake_case(name):
     """Converts CamelCase to snake_case."""
     s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
     return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
+
+
+class ValidationErrorCollector:
+    """A simple class to collect and report validation errors."""
+
+    def __init__(self):
+        self.errors = []
+
+    def add_error(self, message: str):
+        self.errors.append(message)
+
+    @property
+    def has_errors(self) -> bool:
+        return len(self.errors) > 0
+
+    def report(self):
+        """Prints all collected errors to stderr and exits if any exist."""
+        if self.has_errors:
+            print(
+                "\nGeneration failed with the following configuration errors:",
+                file=sys.stderr,
+            )
+            for i, error in enumerate(self.errors, 1):
+                print(f"  {i}. {error}", file=sys.stderr)
+            sys.exit(1)
