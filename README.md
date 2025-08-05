@@ -1,93 +1,176 @@
-# ansible-waldur-generator
+# Ansible Waldur Module Generator
 
+This repository contains a Proof-of-Concept (PoC) for an Ansible Waldur module generator. It reads a standard OpenAPI specification and a lean generator configuration file to produce high-quality, idiomatic Ansible modules for managing resources via a Python Waldur SDK.
 
+The generator is designed with a "Convention over Configuration" philosophy, allowing for extremely simple configuration for standard resources, while still providing a powerful advanced format for complex, non-standard cases.
 
-## Getting started
+## Key Features
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+-   **Clean Architecture**: Logic is separated into dedicated Parser, Builder, and Orchestrator components for maintainability and testability.
+-   **Convention-driven**: Infers SDK module paths from OpenAPI `tags`.
+-   **Schema-driven**: Automatically generates Ansible module parameters (name, type, choices, description, required status) from OpenAPI `requestBody` schemas.
+-   **Smart Resolvers**: Automatically generates code to convert user-friendly names or UUIDs into API URLs, using efficient `retrieve` (for UUIDs) and `list` (for names) lookups.
+-   **Strict Validation**: Fails early with clear error messages if the configuration is inconsistent with the API specification (e.g., a required resolver is missing).
+-   **Type-safe**: Generates code that uses typed model classes from the SDK for request bodies.
+-   **Conditional Code Generation**: Helper functions (like resolvers) are only added to the generated module if they are actually needed.
+-   **Automatic Documentation**: Generates not just the module code, but also the complete `DOCUMENTATION` and `EXAMPLES` sections in valid YAML format.
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+## Getting Started
 
-## Add your files
+### Prerequisites
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+-   Python 3.8+
+-   [Poetry](https://python-poetry.org/docs/#installation) (for dependency management and running scripts)
 
+### Installation
+
+1.  Clone the repository:
+    ```bash
+    git clone <your-repo-url>
+    cd ansible-waldur-generator
+    ```
+
+2.  Install the required Python dependencies using Poetry:
+    ```bash
+    poetry install
+    ```
+    This will create a virtual environment and install packages like `PyYAML`, `Jinja2`, and `Pytest`.
+
+### Running the Generator
+
+To generate the Ansible modules, run the `generate` script defined in `pyproject.toml`:
+
+```bash
+poetry run generate
 ```
-cd existing_repo
-git remote add origin https://code.opennodecloud.com/waldur/ansible-waldur-generator.git
-git branch -M main
-git push -uf origin main
+
+By default, this command will:
+-   Read `inputs/generator_config.yaml` and `inputs/waldur_api.yaml`.
+-   Use the template from `generator/templates/`.
+-   Place the generated file (`waldur_project.py`) into the `outputs/` directory.
+
+You can customize the paths using command-line options:
+```bash
+poetry run generate --config my_config.yaml --output-dir ./dist
+```
+Run `poetry run generate --help` for a full list of options.
+
+### Understanding the Generator Configuration
+
+The `generator_config.yaml` file is the heart of the generator, where you define the modules you want to create.
+
+This format is designed for standard resources that follow typical CRUD (Create-Read-Update-Delete) patterns. You define the resource and map standard actions to your SDK's `operationId`s.
+
+**File: `inputs/generator_config.yaml`**
+```yaml
+modules:
+  # The key 'project' is used for the module filename waldur_project.
+  project:
+    # The value is used for user-facing strings (e.g., in error messages).
+    resource_type: project
+    
+    # Optional. If omitted, it will be auto-generated as "Manage Projects in Waldur."
+    description: "Manage Projects in Waldur."
+    
+    # This mandatory block maps standard Ansible actions to your SDK's operationIds.
+    operations:
+       list: projects_list      # Used to check if the resource exists.
+       create: projects_create  # Used when state=present and resource doesn't exist.
+       destroy: projects_destroy  # Used when state=absent and resource exists.
+
+    # This optional block defines how to resolve certain parameters from a
+    # user-friendly name/UUID into an API URL, which is often required by the SDK.
+    resolvers:
+      # 'customer' is the name of the Ansible parameter to be resolved.
+      customer:
+        # The operationId used to find the resource by name.
+        list: customers_list
+        # The operationId used to find the resource by UUID (more efficient).
+        retrieve: customers_retrieve
+        # A user-friendly error message if the resource can't be found.
+        error_message: "Customer '{value}' not found."
 ```
 
-## Integrate with your tools
+## Architecture
 
-- [ ] [Set up project integrations](https://code.opennodecloud.com/waldur/ansible-waldur-generator/-/settings/integrations)
+The generator's architecture is designed to decouple the Ansible logic from the API implementation details. It achieves this by using the `generator_config.yaml` as a "bridge" between the OpenAPI specification and the generated code.
 
-## Collaborate with your team
+```mermaid
+graph TD
+    subgraph "API Contract"
+        B[waldur_api.yaml]
+    end
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+    subgraph "Resource defenition"
+        A[generator_config.yaml]
+    end
 
-## Test and Deploy
+    subgraph "Engine"
+        C{Generator Script}
+        D[Jinja2 Template <br>resource_module.py.j2]
+    end
 
-Use the built-in continuous integration in GitLab.
+    subgraph "Output"
+        E[Generated Ansible Module <br>waldur_project.py]
+    end
+    
+    A --> C
+    B --> C
+    C -- Builds complete context from both sources --> D
+    D -- Renders final code --> E
+```
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+### Component Responsibilities
 
-***
 
-# Editing this README
+```mermaid
+sequenceDiagram
+    participant G as Generator
+    participant AP as ApiSpecParser
+    participant CP as ConfigParser
+    participant CB as ContextBuilder
+    participant T as Template
+    
+    G->>AP: parse(simple_api.yaml)
+    AP-->>G: SdkOperation[]
+    
+    G->>CP: parse(generator_config.yaml)
+    CP-->>G: ModuleConfig[]
+    
+    loop Each Module
+        G->>CB: build_context(config)
+        CB-->>G: GenerationContext
+        
+        G->>T: render(context)
+        T-->>G: module_code
+        
+        G->>G: write_file()
+    end
+```
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+1.  **Inputs**:
+    -   `generator_config.yaml`: The **single source of truth for logic**. Defines which modules to create, maps Ansible actions (`list`, `create`) to API `operationId`s, and configures special behaviors like resolvers.
+    -   `simple_api.yaml`: The **single source of truth for data**. Defines API endpoints, `tags` (for SDK mapping), and `schemas` for request bodies, which determine the Ansible module's parameters.
 
-## Suggestions for a good README
+2.  **`parser.py` (The Analyst)**:
+    -   **`ApiSpecParser`**: Reads the OpenAPI spec and transforms every endpoint definition into a structured `SdkOperation` data object.
+    -   **`ConfigParser`**: Reads the user's `generator_config.yaml`. It normalizes the simplified format into the advanced format and performs initial validation by cross-referencing the `operationId`s with the data provided by the `ApiSpecParser`. Its output is a list of clean, validated `ModuleConfig` objects.
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+3.  **`builder.py` (The Assembler)**:
+    -   **`ContextBuilder`**: Takes a single, validated `ModuleConfig` object. Its job is to perform the "last mile" of data transformation, turning the abstract configuration into the concrete data needed by the template. This includes:
+        -   Inferring Ansible parameter details (`type`, `required`, `choices`) from the `model_schema`.
+        -   Performing deeper validation (e.g., checking that a field requiring a URL has a resolver).
+        -   Collecting all necessary `import` statements for SDK functions and models.
+        -   Building the Python data structures that will become the `DOCUMENTATION` and `EXAMPLES` YAML blocks.
 
-## Name
-Choose a self-explaining name for your project.
+4.  **`generator.py` (The Orchestrator)**:
+    -   **`Generator`**: The main class that drives the process. It's a thin layer that:
+        -   Initializes the parser and builder.
+        -   Calls the parser to get the list of `ModuleConfig` objects.
+        -   Loops through each `ModuleConfig`, creating a `ContextBuilder` for it.
+        -   Calls the builder to get the final `GenerationContext`.
+        -   Renders the Jinja2 template with the context.
+        -   Writes the final module file to disk.
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+This architecture ensures that each component has a single, well-defined responsibility, making the system highly modular and testable.
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
