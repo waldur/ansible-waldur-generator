@@ -68,10 +68,10 @@ modules:
   project:
     # The value is used for user-facing strings (e.g., in error messages).
     resource_type: project
-    
+
     # Optional. If omitted, it will be auto-generated as "Manage Projects in Waldur."
     description: "Manage Projects in Waldur."
-    
+
     # This mandatory block maps standard Ansible actions to your SDK's operationIds.
     operations:
        list: projects_list      # Used to check if the resource exists.
@@ -113,7 +113,7 @@ graph TD
     subgraph "Output"
         E[Generated Ansible Module <br>waldur_project.py]
     end
-    
+
     A --> C
     B --> C
     C -- Builds complete context from both sources --> D
@@ -130,20 +130,20 @@ sequenceDiagram
     participant CP as ConfigParser
     participant CB as ContextBuilder
     participant T as Template
-    
+
     G->>AP: parse(simple_api.yaml)
     AP-->>G: SdkOperation[]
-    
+
     G->>CP: parse(generator_config.yaml)
     CP-->>G: ModuleConfig[]
-    
+
     loop Each Module
         G->>CB: build_context(config)
         CB-->>G: GenerationContext
-        
+
         G->>T: render(context)
         T-->>G: module_code
-        
+
         G->>G: write_file()
     end
 ```
@@ -173,4 +173,3 @@ sequenceDiagram
         -   Writes the final module file to disk.
 
 This architecture ensures that each component has a single, well-defined responsibility, making the system highly modular and testable.
-

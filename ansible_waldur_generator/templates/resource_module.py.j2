@@ -42,7 +42,7 @@ def _resolve_to_url(module, client, list_func, retrieve_func, value, error_messa
     """
     if not value:
         return None
-    
+
     # If the value already looks like a URL, return it directly.
     if str(value).startswith(('http://', 'https://')):
         return value
@@ -55,12 +55,12 @@ def _resolve_to_url(module, client, list_func, retrieve_func, value, error_messa
         else:
             # Use the 'list' function for name-based lookups.
             resources = list_func.sync(client=client, name_exact=value)
-        
+
         if not resources:
             module.fail_json(msg=error_message.format(value=value))
         if len(resources) > 1:
             module.fail_json(msg=f"Multiple resources found for '{value}'. Please use UUID for uniqueness.")
-            
+
         return resources[0].url
     except Exception as e:
         module.fail_json(msg=f"Failed to resolve '{value}': {str(e)}")
@@ -84,14 +84,14 @@ def main():
     )
 
     module = AnsibleModule(
-        argument_spec=argument_spec, 
+        argument_spec=argument_spec,
         supports_check_mode=True,
     )
 
     client = AuthenticatedClient(base_url=module.params['api_url'], token=module.params['access_token'])
     has_changed = False
     resource = None
-    
+
     # 1. Check for resource existence using the specified lookup parameter.
     try:
         # Note: The convention is that the existence check uses the 'name' parameter.
@@ -136,7 +136,7 @@ def main():
                     for key in model_param_names
                     if key in module.params and module.params[key] is not None
                 }
-                
+
                 # 3b. Resolve any parameters that require name/UUID to URL conversion.
                 # This will overwrite the user-provided name with the resolved URL in model_args.
                 {% if resolvers %}
@@ -153,7 +153,7 @@ def main():
                 {% endif %}
 
                 # 3c. Instantiate the request model and call the SDK create function.
-                request_body = {{ present_create_model_class }}(**model_args)                
+                request_body = {{ present_create_model_class }}(**model_args)
                 resource = {{ present_create_func }}.sync(client=client, body=request_body)
                 has_changed = True
             except Exception as e:
