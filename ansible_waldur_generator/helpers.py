@@ -2,6 +2,7 @@
 
 import re
 import sys
+import types
 
 # Mapping from OpenAPI types to Ansible module types.
 OPENAPI_TO_ANSIBLE_TYPE_MAP = {
@@ -58,51 +59,47 @@ class ValidationErrorCollector:
             sys.exit(1)
 
 
-class CodeLiteral:
-    """A wrapper to mark a string that should be rendered as raw Python code."""
-
-    def __init__(self, value):
-        self.value = value
-
-    def __repr__(self):
-        return str(self.value)
-
-
 def to_python_code_string(data, indent_level=0):
     """
     Recursively serializes a Python data structure into a pretty-printed
-    string of Python code. It respects the CodeLiteral marker.
+    string of Python code.
     """
     indent = " " * indent_level
 
-    if isinstance(data, CodeLiteral):
-        # If it's a CodeLiteral, render its value directly without quotes.
-        return data.value
+    match data:
+        case x if isinstance(x, types.ModuleType):
+            # If it's a module, render its value directly without quotes.
+            return data.__name__.split(".")[-1]
 
-    if isinstance(data, str):
-        # Standard strings are safely quoted.
-        return repr(data)
+        case x if isinstance(x, type):
+            # If it's a type, render its value directly without quotes.
+            return data.__name__.split(".")[-1]
 
-    if isinstance(data, (int, float, bool, type(None))):
-        # These types have a perfect string representation already.
-        return str(data)
+        case str():
+            # Standard strings are safely quoted.
+            return repr(data)
 
-    if isinstance(data, list):
-        # Recursively serialize list items.
-        items = [to_python_code_string(item, indent_level + 4) for item in data]
-        return "[\n" + ",\n".join(items) + f",\n{indent}]"
+        case int() | float() | bool() | None:
+            # These types have a perfect string representation already.
+            return str(data)
 
-    if isinstance(data, dict):
-        # Recursively serialize dictionary items.
-        lines = ["{"]
-        for key, value in data.items():
-            # Keys are always strings, so we repr() them.
-            key_repr = repr(key)
-            # Values are processed by our generic function.
-            value_repr = to_python_code_string(value, indent_level + 4)
-            lines.append(f"{' ' * (indent_level + 4)}{key_repr}: {value_repr},")
-        lines.append(f"{indent}}}")
-        return "\n".join(lines)
+        case list():
+            # Recursively serialize list items.
+            items = [to_python_code_string(item, indent_level + 4) for item in data]
+            return "[\n" + ",\n".join(items) + f",\n{indent}]"
 
-    # Fallback for any other type
-    return str(data)
+        case dict():
+            # Recursively serialize dictionary items.
+            lines = ["{"]
+            for key, value in data.items():
+                # Keys are always strings, so we repr() them.
+                key_repr = repr(key)
+                # Values are processed by our generic function.
+                value_repr = to_python_code_string(value, indent_level + 4)
+                lines.append(f"{' ' * (indent_level + 4)}{key_repr}: {value_repr},")
+            lines.append(f"{indent}}}")
+            return "\n".join(lines)
+
+        case _:
+            # Fallback for any other type
+            return str(data)

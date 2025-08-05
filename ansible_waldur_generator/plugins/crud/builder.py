@@ -13,7 +13,6 @@ from ansible_waldur_generator.api_parser import ApiSpecParser
 from ansible_waldur_generator.helpers import (
     AUTH_OPTIONS,
     OPENAPI_TO_ANSIBLE_TYPE_MAP,
-    CodeLiteral,
     ValidationErrorCollector,
     to_python_code_string,
 )
@@ -89,29 +88,24 @@ class CrudContextBuilder(BaseContextBuilder):
 
     def _build_runner_context_data(self) -> Dict[str, Any]:
         """
-        Builds the runner_context as a dictionary of native Python objects,
-        using CodeLiteral to mark values that should not be quoted.
+        Builds the runner_context as a dictionary.
         """
         conf = self.module_config
 
         resolvers_data = {}
         for name, resolver in conf.resolvers.items():
             resolvers_data[name] = {
-                "list_func": CodeLiteral(resolver.list_op.sdk_function),
-                "retrieve_func": CodeLiteral(resolver.retrieve_op.sdk_function),
+                "list_func": resolver.list_op.sdk_function_module,
+                "retrieve_func": resolver.retrieve_op.sdk_function_module,
                 "error_message": resolver.error_message,
             }
 
         return {
             "resource_type": conf.resource_type,
-            "existence_check_func": CodeLiteral(
-                conf.existence_check.sdk_op.sdk_function
-            ),
-            "present_create_func": CodeLiteral(conf.present_create.sdk_op.sdk_function),
-            "present_create_model_class": CodeLiteral(
-                conf.present_create.sdk_op.model_class or "None"
-            ),
-            "absent_destroy_func": CodeLiteral(conf.absent_destroy.sdk_op.sdk_function),
+            "existence_check_func": conf.existence_check.sdk_op.sdk_function_module,
+            "present_create_func": conf.present_create.sdk_op.sdk_function_module,
+            "present_create_model_class": conf.present_create.sdk_op.model_class_value,
+            "absent_destroy_func": conf.absent_destroy.sdk_op.sdk_function_module,
             "absent_destroy_path_param": conf.absent_destroy.config.get(
                 "path_param_field", "uuid"
             ),
@@ -236,8 +230,7 @@ class CrudContextBuilder(BaseContextBuilder):
                 imports.add((op.model_module, op.model_class))
 
         return [
-            {"module": mod.replace("-", "_"), "function": func}
-            for mod, func in sorted(list(imports))
+            {"module": mod, "function": func} for mod, func in sorted(list(imports))
         ]
 
     def _build_flat_resolvers(self) -> Dict[str, Dict[str, Any]]:

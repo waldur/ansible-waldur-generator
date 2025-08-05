@@ -72,6 +72,8 @@ class SdkOperation:
 
     sdk_module: str
     sdk_function: str
+    sdk_function_module: Any
+    model_class_value: type
     model_class: Optional[str] = None
     model_module: Optional[str] = None
     model_schema: Optional[Dict[str, Any]] = None

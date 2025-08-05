@@ -1,3 +1,4 @@
+import importlib
 from typing import Dict, List, Any, Optional
 
 from .models import SdkOperation
@@ -43,7 +44,7 @@ class ApiSpecParser:
     ) -> Optional[SdkOperation]:
         """Extracts all relevant information for a single operation."""
         # Convention: the first tag determines the resource and thus the SDK module.
-        resource_name = tags[0]
+        resource_name = tags[0].replace("-", "_")
 
         sdk_module = f"{self.sdk_base_path}.api.{resource_name}"
         sdk_function = op_id
@@ -71,7 +72,11 @@ class ApiSpecParser:
         return SdkOperation(
             sdk_module=sdk_module,
             sdk_function=sdk_function,
+            sdk_function_module=importlib.import_module(f"{sdk_module}.{sdk_function}"),
             model_class=model_class,
+            model_class_value=model_module
+            and getattr(importlib.import_module(model_module), model_class)
+            or None,
             model_module=model_module,
             model_schema=model_schema,
             raw_spec=operation,
