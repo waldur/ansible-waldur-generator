@@ -20,31 +20,31 @@ Example SdkOperation for reference:
 projects_create_op = SdkOperation(
     sdk_module='waldur_api_client.api.projects',
     sdk_function='projects_create',
-    
+
     model_class='ProjectRequest',
     model_module='waldur_api_client.models.project_request',
     model_schema={
         'type': 'object',
         'properties': {
             'uuid': {
-                'type': 'string', 
-                'format': 'uuid', 
-                'readOnly': True, 
+                'type': 'string',
+                'format': 'uuid',
+                'readOnly': True,
                 'description': 'The UUID of the project, assigned by the server.'
             },
             'name': {
-                'type': 'string', 
+                'type': 'string',
                 'description': 'The name of the new project.'
             },
             'customer': {
-                'type': 'string', 
-                'format': 'uri', 
+                'type': 'string',
+                'format': 'uri',
                 'description': 'URL of the customer organization.'
             },
         },
         'required': ['name', 'customer']
     },
-    
+
     raw_spec={
         'summary': 'Create a new project',
         'operationId': 'projects_create',
@@ -110,22 +110,26 @@ class ModuleResolver:
 
 
 @dataclass
-class ModuleConfig:
+class BaseModuleConfig:
+    """Base class for all module configurations. Contains common fields."""
+
+    module_key: str
+    description: str
+
+
+@dataclass
+class ResourceModuleConfig(BaseModuleConfig):
     """
     Represents the complete, normalized configuration for a single Ansible module
     to be generated.
     """
 
-    module_key: str  # The key from the generator_config.yaml (e.g., 'project')
     resource_type: str
-    description: str
 
-    # Sections defining the module's logic.
     existence_check: ModuleIdempotencySection
     present_create: ModuleIdempotencySection
     absent_destroy: ModuleIdempotencySection
 
-    # Optional sections.
     resolvers: Dict[str, ModuleResolver] = field(default_factory=dict)
     skip_resolver_check: List[str] = field(default_factory=list)
 

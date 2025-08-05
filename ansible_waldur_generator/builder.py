@@ -9,7 +9,7 @@ import lists, and documentation blocks.
 import yaml
 from typing import Dict, List, Any
 
-from .models import ModuleConfig, ResourceGenerationContext, AnsibleModuleParams
+from .models import ResourceModuleConfig, ResourceGenerationContext, AnsibleModuleParams
 from .helpers import AUTH_OPTIONS, OPENAPI_TO_ANSIBLE_TYPE_MAP, ValidationErrorCollector
 
 
@@ -18,7 +18,7 @@ class ContextBuilder:
 
     def __init__(
         self,
-        module_config: ModuleConfig,
+        module_config: ResourceModuleConfig,
         api_spec_data: Dict[str, Any],
         collector: ValidationErrorCollector,
     ):

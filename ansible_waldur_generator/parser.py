@@ -6,7 +6,12 @@ transforms them into structured, typed objects from `generator.models`.
 from copy import deepcopy
 from typing import Dict, List, Any, Optional
 
-from .models import SdkOperation, ModuleConfig, ModuleIdempotencySection, ModuleResolver
+from .models import (
+    SdkOperation,
+    ResourceModuleConfig,
+    ModuleIdempotencySection,
+    ModuleResolver,
+)
 from .helpers import ValidationErrorCollector, to_snake_case
 
 
@@ -119,7 +124,7 @@ class ConfigParser:
         self.op_map = op_map
         self.collector = collector
 
-    def parse(self) -> List[ModuleConfig]:
+    def parse(self) -> List[ResourceModuleConfig]:
         """
         Main entry point for parsing the generator configuration. It iterates through
         each module definition, normalizes it, builds a structured object,
@@ -184,7 +189,7 @@ class ConfigParser:
 
     def _build_object(
         self, module_key: str, config: Dict[str, Any]
-    ) -> Optional[ModuleConfig]:
+    ) -> Optional[ResourceModuleConfig]:
         """
         Constructs a ModuleConfig dataclass instance from the normalized config dict.
         This method links the configuration with the SdkOperation objects.
@@ -259,7 +264,7 @@ class ConfigParser:
                 ),
             )
 
-        return ModuleConfig(
+        return ResourceModuleConfig(
             module_key=module_key,
             resource_type=config.get("resource_type", module_key),
             description=config.get("description", ""),
@@ -270,7 +275,7 @@ class ConfigParser:
             skip_resolver_check=config.get("skip_resolver_check", []),
         )
 
-    def _validate(self, module_config: ModuleConfig):
+    def _validate(self, module_config: ResourceModuleConfig):
         """Performs validations that require the fully constructed ModuleConfig object."""
         # Validate that each resolver's list operation supports name-based filtering.
         for name, resolver in module_config.resolvers.items():
