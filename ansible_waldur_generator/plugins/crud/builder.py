@@ -17,9 +17,9 @@ from ansible_waldur_generator.helpers import (
 from ansible_waldur_generator.interfaces.builder import BaseContextBuilder
 from ansible_waldur_generator.models import (
     AnsibleModuleParams,
-    ResourceGenerationContext,
 )
 from ansible_waldur_generator.plugins.crud.config import CrudModuleConfig
+from ansible_waldur_generator.plugins.crud.context import CrudGenerationContext
 
 
 class CrudContextBuilder(BaseContextBuilder):
@@ -41,7 +41,7 @@ class CrudContextBuilder(BaseContextBuilder):
         self.api_spec = api_spec_data
         self.collector = collector
 
-    def build(self) -> ResourceGenerationContext:
+    def build(self) -> CrudGenerationContext:
         """
         Main entry point to build the full, flattened context for a single module.
         It orchestrates the creation of all necessary data for the template.
@@ -67,7 +67,7 @@ class CrudContextBuilder(BaseContextBuilder):
         )
 
         # 5. Return the final, flattened context object, ready for rendering.
-        return ResourceGenerationContext(
+        return CrudGenerationContext(
             module_name=module_name,
             resource_type=self.module_config.resource_type,
             description=self.module_config.description,

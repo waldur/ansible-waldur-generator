@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+from ansible_waldur_generator.helpers import ValidationErrorCollector
 from ansible_waldur_generator.interfaces.builder import BaseContextBuilder
 from ansible_waldur_generator.interfaces.parser import BaseConfigParser
 
@@ -14,12 +15,12 @@ class BasePlugin(ABC):
 
     @abstractmethod
     def get_parser(
-        self, module_key, raw_config, op_map, collector
+        self, module_key: str, raw_config, op_map, collector: ValidationErrorCollector
     ) -> BaseConfigParser: ...
 
     @abstractmethod
     def get_builder(
-        self, module_config, api_spec_data, collector
+        self, module_config, api_spec_data, collector: ValidationErrorCollector
     ) -> BaseContextBuilder: ...
 
     @abstractmethod
