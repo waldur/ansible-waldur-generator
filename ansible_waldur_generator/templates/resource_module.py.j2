@@ -147,7 +147,7 @@ def main():
                         list_func={{ resolver.list_func }},
                         retrieve_func={{ resolver.retrieve_func }},
                         value=module.params['{{ param_name }}'],
-                        error_message='{{ resolver.error_message }}'
+                        error_message="{{ resolver.error_message }}",
                     )
                 {% endfor %}
                 {% endif %}
