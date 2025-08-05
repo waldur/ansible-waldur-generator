@@ -2,6 +2,9 @@
 This module defines the core data structures used throughout the Ansible module generator.
 Using dataclasses provides type hinting, immutability (where desired), and a clear
 structure for the data passed between the parser, builder, and generator components.
+
+It uses a class hierarchy for GenerationContext to provide strong typing for
+different module types.
 """
 
 from dataclasses import dataclass, field, asdict
@@ -128,26 +131,43 @@ class ModuleConfig:
 
 
 @dataclass
-class GenerationContext:
+class BaseGenerationContext:
     """
-    The final, flattened data object passed from the ContextBuilder to the Jinja2 template.
+    Data object passed from the ContextBuilder to the Jinja2 template.
     It contains simple, direct keys for the template to consume, minimizing logic in the template itself.
-    """
 
-    # === Top-level Information for the Module ===
+    Base class for all generation contexts contains fields that are
+    common to every type of generated module, such as documentation and imports.
+    """
 
     # The final name of the module file, e.g., 'waldur_project'.
     module_name: str
 
-    # The user-friendly name of the resource, e.g., 'project'. Used in messages and docs.
-    resource_type: str
-
     # The short description for the module's documentation header.
     description: str
 
-    # === SDK Function and Model Information ===
-    # These fields provide direct access to the names of SDK functions and classes,
-    # so the template doesn't have to navigate complex nested objects.
+    # The complete, generated dictionary of parameters for Ansible's `argument_spec`.
+    parameters: AnsibleModuleParams
+
+    # A list of unique SDK imports required by the module's logic.
+    # Example: [{'module': 'waldur_api_client.api.projects', 'function': 'projects_create'}]
+    sdk_imports: List[Dict[str, str]]
+
+    # The full `DOCUMENTATION` block, pre-rendered as a single, valid YAML string.
+    documentation_yaml: str
+
+    # The full `EXAMPLES` block, pre-rendered as a single, valid YAML string.
+    examples_yaml: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Converts the dataclass instance to a dictionary for Jinja2."""
+        return asdict(self)
+
+
+@dataclass
+class ResourceGenerationContext(BaseGenerationContext):
+    # The user-friendly name of the resource, e.g., 'project'. Used in messages and docs.
+    resource_type: str
 
     # The name of the SDK function for the existence check (e.g., 'projects_list').
     existence_check_func: str
@@ -167,24 +187,9 @@ class GenerationContext:
     # The name of the field on the resource object to use as the path parameter for deletion (e.g., 'uuid').
     absent_destroy_path_param: str
 
-    # === Data Structures for Template Logic and Documentation ===
-
-    # The complete, generated dictionary of parameters for Ansible's `argument_spec`.
-    parameters: AnsibleModuleParams
-
     # A simplified dictionary of resolvers for the template to iterate over.
     # Example: {'customer': {'list_func': 'customers_list', 'retrieve_func': 'customers_retrieve', ...}}
     resolvers: Dict[str, Dict[str, Any]]
-
-    # A list of unique SDK imports required by the module's logic.
-    # Example: [{'module': 'waldur_api_client.api.projects', 'function': 'projects_create'}]
-    sdk_imports: List[Dict[str, str]]
-
-    # The full `DOCUMENTATION` block, pre-rendered as a single, valid YAML string.
-    documentation_yaml: str
-
-    # The full `EXAMPLES` block, pre-rendered as a single, valid YAML string.
-    examples_yaml: str
 
     def to_dict(self) -> Dict[str, Any]:
         """

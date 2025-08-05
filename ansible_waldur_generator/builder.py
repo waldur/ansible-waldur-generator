@@ -9,8 +9,8 @@ import lists, and documentation blocks.
 import yaml
 from typing import Dict, List, Any
 
-from .models import ModuleConfig, GenerationContext, AnsibleModuleParams
-from .helpers import OPENAPI_TO_ANSIBLE_TYPE_MAP
+from .models import ModuleConfig, ResourceGenerationContext, AnsibleModuleParams
+from .helpers import AUTH_OPTIONS, OPENAPI_TO_ANSIBLE_TYPE_MAP
 
 
 class ContextBuilder:
@@ -31,7 +31,7 @@ class ContextBuilder:
         self.api_spec = api_spec_data
         self.collector = collector
 
-    def build(self) -> GenerationContext:
+    def build(self) -> ResourceGenerationContext:
         """
         Main entry point to build the full, flattened context for a single module.
         It orchestrates the creation of all necessary data for the template.
@@ -57,7 +57,7 @@ class ContextBuilder:
         )
 
         # 5. Return the final, flattened context object, ready for rendering.
-        return GenerationContext(
+        return ResourceGenerationContext(
             module_name=module_name,
             resource_type=self.module_config.resource_type,
             description=self.module_config.description,
@@ -223,16 +223,7 @@ class ContextBuilder:
             "options": {},
         }
         std_opts = {
-            "access_token": {
-                "description": "An access token.",
-                "required": True,
-                "type": "str",
-            },
-            "api_url": {
-                "description": "Fully qualified URL to the API.",
-                "required": True,
-                "type": "str",
-            },
+            **AUTH_OPTIONS,
             "state": {
                 "description": "Should the resource be present or absent.",
                 "choices": ["present", "absent"],

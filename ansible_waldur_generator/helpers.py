@@ -12,9 +12,21 @@ OPENAPI_TO_ANSIBLE_TYPE_MAP = {
     "object": "dict",
 }
 
+AUTH_OPTIONS = {
+    "access_token": {
+        "description": "An access token.",
+        "required": True,
+        "type": "str",
+    },
+    "api_url": {
+        "description": "Fully qualified URL to the API.",
+        "required": True,
+        "type": "str",
+    },
+}
+
 
 def to_snake_case(name):
     """Converts CamelCase to snake_case."""
     s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
     return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
-
