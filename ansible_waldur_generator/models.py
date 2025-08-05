@@ -79,62 +79,6 @@ class SdkOperation:
 
 
 @dataclass
-class ModuleIdempotencySection:
-    """
-    Represents a configuration section for an idempotency action, like
-    'existence_check', 'create', or 'absent'.
-    """
-
-    operationId: str
-
-    # This field will be populated by the parser with the full SdkOperation object.
-    sdk_op: Optional[SdkOperation] = None
-
-    # Additional configuration specific to the section.
-    config: Dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass
-class ModuleResolver:
-    """
-    Represents the configuration for a single parameter resolver.
-    """
-
-    list_op_id: str
-    retrieve_op_id: str
-    error_message: str
-
-    # These fields will be populated by the parser.
-    list_op: Optional[SdkOperation] = None
-    retrieve_op: Optional[SdkOperation] = None
-
-
-@dataclass
-class BaseModuleConfig:
-    """Base class for all module configurations. Contains common fields."""
-
-    module_key: str
-    description: str
-
-
-@dataclass
-class ResourceModuleConfig(BaseModuleConfig):
-    """
-    Represents the complete, normalized configuration for a single Ansible module
-    to be generated.
-    """
-
-    resource_type: str
-
-    existence_check: ModuleIdempotencySection
-    present_create: ModuleIdempotencySection
-    absent_destroy: ModuleIdempotencySection
-
-    resolvers: Dict[str, ModuleResolver] = field(default_factory=dict)
-    skip_resolver_check: List[str] = field(default_factory=list)
-
-
-@dataclass
 class BaseGenerationContext:
     """
     Data object passed from the ContextBuilder to the Jinja2 template.

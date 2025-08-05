@@ -1,114 +1,15 @@
-"""
-Parses and validates the input files (OpenAPI spec, generator config) and
-transforms them into structured, typed objects from `generator.models`.
-"""
-
 from copy import deepcopy
-from typing import Dict, List, Any, Optional
-
-from .models import (
-    SdkOperation,
-    ResourceModuleConfig,
+from typing import Any
+from ansible_waldur_generator.helpers import ValidationErrorCollector
+from ansible_waldur_generator.models import SdkOperation
+from ansible_waldur_generator.plugins.crud.config import (
     ModuleIdempotencySection,
     ModuleResolver,
+    CrudModuleConfig,
 )
-from .helpers import ValidationErrorCollector, to_snake_case
 
 
-class ApiSpecParser:
-    """Parses an OpenAPI specification into a map of SdkOperation objects."""
-
-    def __init__(
-        self, api_spec_data: Dict[str, Any], collector: ValidationErrorCollector
-    ):
-        self.api_spec = api_spec_data
-        self.collector = collector
-        self.sdk_base_path = "waldur_api_client"
-
-    def parse(self) -> Dict[str, SdkOperation]:
-        """
-        Main entry point for parsing the API spec.
-
-        Iterates through all paths and operations in the spec, creates an
-        SdkOperation object for each, and returns a dictionary mapping
-        operationId to the SdkOperation object.
-
-        Returns:
-            A dictionary mapping each operationId to its corresponding SdkOperation.
-        """
-        op_map = {}
-        for path, methods in self.api_spec.get("paths", {}).items():
-            for method, operation in methods.items():
-                op_id = operation.get("operationId")
-                if not op_id:
-                    self.collector.add_error(
-                        f"Operation {method.upper()} {path} is missing 'operationId'."
-                    )
-                    continue
-
-                tags = operation.get("tags")
-                if not tags:
-                    self.collector.add_error(f"Operation '{op_id}' is missing 'tags'.")
-                    continue
-
-                sdk_operation = self._build_sdk_operation(op_id, tags, operation)
-                if sdk_operation:
-                    op_map[op_id] = sdk_operation
-        return op_map
-
-    def _build_sdk_operation(
-        self, op_id: str, tags: List[str], operation: Dict[str, Any]
-    ) -> Optional[SdkOperation]:
-        """Extracts all relevant information for a single operation."""
-        # Convention: the first tag determines the resource and thus the SDK module.
-        resource_name = tags[0]
-
-        sdk_module = f"{self.sdk_base_path}.api.{resource_name}"
-        sdk_function = op_id
-
-        model_class, model_module, model_schema = None, None, None
-
-        # Check for a requestBody to determine the model information.
-        schema_ref = (
-            operation.get("requestBody", {})
-            .get("content", {})
-            .get("application/json", {})
-            .get("schema", {})
-            .get("$ref")
-        )
-        if schema_ref:
-            model_name = schema_ref.split("/")[-1]
-            model_class = model_name
-            model_module = f"{self.sdk_base_path}.models.{to_snake_case(model_name)}"
-            try:
-                model_schema = self._get_schema_by_ref(schema_ref)
-            except ValueError as e:
-                self.collector.add_error(f"For operation '{op_id}': {e}")
-                return None
-
-        return SdkOperation(
-            sdk_module=sdk_module,
-            sdk_function=sdk_function,
-            model_class=model_class,
-            model_module=model_module,
-            model_schema=model_schema,
-            raw_spec=operation,
-        )
-
-    def _get_schema_by_ref(self, ref: str) -> Dict[str, Any]:
-        """Follows a JSON schema $ref to retrieve the schema definition."""
-        parts = ref.lstrip("#/").split("/")
-        schema = self.api_spec
-        for part in parts:
-            schema = schema.get(part)
-            if schema is None:
-                raise ValueError(
-                    f"Invalid $ref, part '{part}' not found in spec: {ref}"
-                )
-        return schema
-
-
-class ConfigParser:
+class CrudConfigParser:
     """
     Parses the generator configuration, normalizes it, and validates it
     against the parsed API specification.
@@ -116,38 +17,30 @@ class ConfigParser:
 
     def __init__(
         self,
-        config_data: Dict[str, Any],
-        op_map: Dict[str, SdkOperation],
+        module_key: str,
+        config_data: dict[str, Any],
+        op_map: dict[str, SdkOperation],
         collector: ValidationErrorCollector,
     ):
+        self.module_key = module_key
         self.config = config_data
         self.op_map = op_map
         self.collector = collector
 
-    def parse(self) -> List[ResourceModuleConfig]:
-        """
-        Main entry point for parsing the generator configuration. It iterates through
-        each module definition, normalizes it, builds a structured object,
-        and validates it.
-        """
-        module_configs = []
-        for module_key, raw_config in self.config.get("modules", {}).items():
-            # Use a deep copy to prevent normalization of one module from affecting another.
-            config = deepcopy(raw_config)
+    def parse(self) -> CrudModuleConfig:
+        # Use a deep copy to prevent normalization of one module from affecting another.
+        config = deepcopy(self.config)
 
-            # 1. Expand the simplified config format into the advanced format.
-            self._normalize_config(config)
+        # 1. Expand the simplified config format into the advanced format.
+        self._normalize_config(config)
 
-            # 2. Build the structured ModuleConfig object from the normalized dict.
-            module_config_obj = self._build_object(module_key, config)
-            if module_config_obj:
-                # 3. Perform validations that require the full object structure.
-                self._validate(module_config_obj)
-                module_configs.append(module_config_obj)
+        # 2. Build the structured ModuleConfig object from the normalized dict.
+        module_config_obj = self._build_object(self.module_key, config)
+        # 3. Perform validations that require the full object structure.
+        self._validate(module_config_obj)
+        return module_config_obj
 
-        return module_configs
-
-    def _normalize_config(self, config: Dict[str, Any]):
+    def _normalize_config(self, config: dict[str, Any]):
         """
         Expands the simplified `resource_type` format into the more explicit
         advanced format for consistent processing.
@@ -188,8 +81,8 @@ class ConfigParser:
                 del config["absent"]
 
     def _build_object(
-        self, module_key: str, config: Dict[str, Any]
-    ) -> Optional[ResourceModuleConfig]:
+        self, module_key: str, config: dict[str, Any]
+    ) -> CrudModuleConfig:
         """
         Constructs a ModuleConfig dataclass instance from the normalized config dict.
         This method links the configuration with the SdkOperation objects.
@@ -197,7 +90,7 @@ class ConfigParser:
 
         def _get_idempotency_section(
             section_name: str,
-        ) -> Optional[ModuleIdempotencySection]:
+        ) -> ModuleIdempotencySection | None:
             """Internal helper to create a ModuleIdempotencySection from a config key."""
             section_data = config.get(section_name, {})
             op_id = section_data.get("operationId")
@@ -264,7 +157,7 @@ class ConfigParser:
                 ),
             )
 
-        return ResourceModuleConfig(
+        return CrudModuleConfig(
             module_key=module_key,
             resource_type=config.get("resource_type", module_key),
             description=config.get("description", ""),
@@ -275,7 +168,7 @@ class ConfigParser:
             skip_resolver_check=config.get("skip_resolver_check", []),
         )
 
-    def _validate(self, module_config: ResourceModuleConfig):
+    def _validate(self, module_config: CrudModuleConfig):
         """Performs validations that require the fully constructed ModuleConfig object."""
         # Validate that each resolver's list operation supports name-based filtering.
         for name, resolver in module_config.resolvers.items():

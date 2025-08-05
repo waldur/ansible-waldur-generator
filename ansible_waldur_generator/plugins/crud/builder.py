@@ -9,17 +9,24 @@ import lists, and documentation blocks.
 import yaml
 from typing import Dict, List, Any
 
-from .models import ResourceModuleConfig, ResourceGenerationContext, AnsibleModuleParams
-from .helpers import AUTH_OPTIONS, OPENAPI_TO_ANSIBLE_TYPE_MAP, ValidationErrorCollector
+from ansible_waldur_generator.helpers import (
+    AUTH_OPTIONS,
+    OPENAPI_TO_ANSIBLE_TYPE_MAP,
+    ValidationErrorCollector,
+)
+from ansible_waldur_generator.interfaces.builder import BaseContextBuilder
+from ansible_waldur_generator.models import (
+    AnsibleModuleParams,
+    ResourceGenerationContext,
+)
+from ansible_waldur_generator.plugins.crud.config import CrudModuleConfig
 
 
-class ContextBuilder:
-    """Builds a flattened Jinja2 context from a normalized ModuleConfig."""
-
+class CrudContextBuilder(BaseContextBuilder):
     def __init__(
         self,
-        module_config: ResourceModuleConfig,
-        api_spec_data: Dict[str, Any],
+        module_config: CrudModuleConfig,
+        api_spec_data: dict[str, Any],
         collector: ValidationErrorCollector,
     ):
         """
@@ -199,7 +206,8 @@ class ContextBuilder:
                 imports.add((op.model_module, op.model_class))
 
         return [
-            {"module": mod, "function": func} for mod, func in sorted(list(imports))
+            {"module": mod.replace("-", "_"), "function": func}
+            for mod, func in sorted(list(imports))
         ]
 
     def _build_flat_resolvers(self) -> Dict[str, Dict[str, Any]]:
