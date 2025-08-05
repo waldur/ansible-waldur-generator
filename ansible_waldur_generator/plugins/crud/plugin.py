@@ -18,6 +18,3 @@ class CrudPlugin(BasePlugin):
 
     def get_builder(self, module_config: CrudModuleConfig, api_parser, collector):
         return CrudContextBuilder(module_config, api_parser, collector)
-
-    def get_template_name(self) -> str:
-        return "crud_module.py.j2"

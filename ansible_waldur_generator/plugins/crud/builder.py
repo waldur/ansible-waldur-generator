@@ -13,7 +13,9 @@ from ansible_waldur_generator.api_parser import ApiSpecParser
 from ansible_waldur_generator.helpers import (
     AUTH_OPTIONS,
     OPENAPI_TO_ANSIBLE_TYPE_MAP,
+    CodeLiteral,
     ValidationErrorCollector,
+    to_python_code_string,
 )
 from ansible_waldur_generator.interfaces.builder import BaseContextBuilder
 from ansible_waldur_generator.models import (
@@ -21,7 +23,6 @@ from ansible_waldur_generator.models import (
     BaseGenerationContext,
 )
 from ansible_waldur_generator.plugins.crud.config import CrudModuleConfig
-from ansible_waldur_generator.plugins.crud.context import CrudRunnerContext
 
 
 class CrudContextBuilder(BaseContextBuilder):
@@ -68,6 +69,11 @@ class CrudContextBuilder(BaseContextBuilder):
             examples_data, default_flow_style=False, sort_keys=False
         )
 
+        runner_context_data = self._build_runner_context_data()
+        runner_context_string = to_python_code_string(
+            runner_context_data, indent_level=4
+        )
+
         # 5. Return context object, ready for rendering.
         return BaseGenerationContext(
             description=self.module_config.description,
@@ -76,19 +82,42 @@ class CrudContextBuilder(BaseContextBuilder):
             sdk_imports=sdk_imports,
             documentation_yaml=doc_yaml,
             examples_yaml=examples_yaml,
-            runner_context=CrudRunnerContext(
-                resource_type=self.module_config.resource_type,
-                existence_check_func=self.module_config.existence_check.sdk_op.sdk_function,
-                present_create_func=self.module_config.present_create.sdk_op.sdk_function,
-                present_create_model_class=self.module_config.present_create.sdk_op.model_class,
-                absent_destroy_func=self.module_config.absent_destroy.sdk_op.sdk_function,
-                absent_destroy_path_param=self.module_config.absent_destroy.config.get(
-                    "path_param_field", "uuid"
-                ),
-                model_param_names=self._get_model_param_names(),
-                resolvers=self._build_flat_resolvers(),
-            ),
+            runner_import_path="ansible_waldur_generator.plugins.crud.runner",
+            runner_class_name="CrudResourceRunner",
+            runner_context_string=runner_context_string,
         )
+
+    def _build_runner_context_data(self) -> Dict[str, Any]:
+        """
+        Builds the runner_context as a dictionary of native Python objects,
+        using CodeLiteral to mark values that should not be quoted.
+        """
+        conf = self.module_config
+
+        resolvers_data = {}
+        for name, resolver in conf.resolvers.items():
+            resolvers_data[name] = {
+                "list_func": CodeLiteral(resolver.list_op.sdk_function),
+                "retrieve_func": CodeLiteral(resolver.retrieve_op.sdk_function),
+                "error_message": resolver.error_message,
+            }
+
+        return {
+            "resource_type": conf.resource_type,
+            "existence_check_func": CodeLiteral(
+                conf.existence_check.sdk_op.sdk_function
+            ),
+            "present_create_func": CodeLiteral(conf.present_create.sdk_op.sdk_function),
+            "present_create_model_class": CodeLiteral(
+                conf.present_create.sdk_op.model_class or "None"
+            ),
+            "absent_destroy_func": CodeLiteral(conf.absent_destroy.sdk_op.sdk_function),
+            "absent_destroy_path_param": conf.absent_destroy.config.get(
+                "path_param_field", "uuid"
+            ),
+            "model_param_names": self._get_model_param_names(),
+            "resolvers": resolvers_data,
+        }
 
     def _get_model_param_names(self) -> List[str]:
         """Helper to get a list of parameter names from the model schema."""

@@ -101,11 +101,9 @@ class Generator:
                 if collector.has_errors:
                     continue
 
-                # 2d. Get the template name from the plugin and render.
-                template_name = plugin.get_template_name()
-                rendered_template = self.jinja_env.get_template(template_name).render(
-                    context.to_dict()
-                )
+                rendered_template = self.jinja_env.get_template(
+                    "generic_module.py.j2"
+                ).render(context.to_dict())
 
                 output_path = os.path.join(output_dir, f"{context.module_name}.py")
                 with open(output_path, "w") as f:

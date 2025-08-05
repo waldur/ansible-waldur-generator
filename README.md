@@ -17,7 +17,7 @@ The generator is designed with a "Convention over Configuration" philosophy, all
 
 ### Prerequisites
 
--   Python 3.8+
+-   Python 3.11+
 -   [Poetry](https://python-poetry.org/docs/#installation) (for dependency management and running scripts)
 
 ### Installation
@@ -164,8 +164,6 @@ sequenceDiagram
         Generator->>Builder: Build context
         Builder-->>Generator: Generation context
 
-        Generator->>Plugin: get_template_name()
-        Plugin-->>Generator: Template name
         Generator->>Generator: Render & write module
     end
 ```
@@ -185,7 +183,6 @@ sequenceDiagram
     -   **`BasePlugin`**: An abstract base class that defines the "contract" every plugin must follow. It requires three methods:
         -   `get_parser()`: Must return a parser object responsible for understanding the plugin-specific sections of `generator_config.yaml`.
         -   `get_builder()`: Must return a builder object responsible for creating the final Jinja2 context for this plugin's template.
-        -   `get_template_name()`: Must return the filename of the Jinja2 template to use for this module type.
 
 3.  **Concrete Plugins (e.g., `plugins/resource/`)**:
     -   Each plugin is a self-contained unit, typically a directory. It contains:
@@ -225,9 +222,6 @@ This architecture makes adding support for a new module type straightforward and
 
         def get_builder(self, ...):
             return FactsContextBuilder(...)
-
-        def get_template_name(self):
-            return "facts_module.py.j2"
     ```
 
 6.  **Update Entry Points**:

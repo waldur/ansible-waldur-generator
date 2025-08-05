@@ -31,6 +31,3 @@ class BasePlugin(ABC):
         api_parser: ApiSpecParser,
         collector: ValidationErrorCollector,
     ) -> BaseContextBuilder: ...
-
-    @abstractmethod
-    def get_template_name(self) -> str: ...
