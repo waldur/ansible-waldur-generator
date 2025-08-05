@@ -6,14 +6,12 @@ The generator is designed with a "Convention over Configuration" philosophy, all
 
 ## Key Features
 
--   **Clean Architecture**: Logic is separated into dedicated Parser, Builder, and Orchestrator components for maintainability and testability.
--   **Convention-driven**: Infers SDK module paths from OpenAPI `tags`.
+-   **Plugin-Based Architecture**: The generator is fully extensible. New module types (`resource`, `action`, `facts`, etc.) can be added as self-contained plugins without modifying the core generator code.
+-   **Entry Point Discovery**: Plugins are discovered automatically using Python's standard `importlib.metadata` entry points, allowing them to be distributed as separate packages.
 -   **Schema-driven**: Automatically generates Ansible module parameters (name, type, choices, description, required status) from OpenAPI `requestBody` schemas.
--   **Smart Resolvers**: Automatically generates code to convert user-friendly names or UUIDs into API URLs, using efficient `retrieve` (for UUIDs) and `list` (for names) lookups.
--   **Strict Validation**: Fails early with clear error messages if the configuration is inconsistent with the API specification (e.g., a required resolver is missing).
--   **Type-safe**: Generates code that uses typed model classes from the SDK for request bodies.
--   **Conditional Code Generation**: Helper functions (like resolvers) are only added to the generated module if they are actually needed.
--   **Automatic Documentation**: Generates not just the module code, but also the complete `DOCUMENTATION` and `EXAMPLES` sections in valid YAML format.
+-   **Smart Resolvers**: Automatically generates code to convert user-friendly names or UUIDs into API URLs.
+-   **Strict Validation**: Fails early with clear, aggregated error messages if the configuration is inconsistent with the API specification.
+-   **Automatic Documentation**: Generates the complete `DOCUMENTATION` and `EXAMPLES` sections in valid YAML format.
 
 ## Getting Started
 
@@ -120,56 +118,124 @@ graph TD
     D -- Renders final code --> E
 ```
 
-### Component Responsibilities
+### Plugin-Based Architecture
+
+
+1. **Plugin Discovery**: The PluginManager uses Python's entry point system to automatically discover and register plugins at startup
+
+2. **Separation of Concerns**:
+   - Generator orchestrates the high-level workflow
+   - PluginManager handles plugin discovery and registry
+   - Each plugin encapsulates type-specific logic (parsing, building, templating)
+
+3. **Plugin Contract**: All plugins implement the BasePlugin interface with three required methods, ensuring consistency
+
+4. **Shared Resources**: The ApiSpecParser is used once and shared across all module generations
+
+5. **Type-Agnostic Core**: The Generator doesn't need to know about specific module types - it delegates everything to the appropriate plugin
+
+The diagram shows how the system processes each module definition through the plugin architecture, with clear handoffs between components and the plugin-specific processing that happens for each module type.
 
 
 ```mermaid
 sequenceDiagram
-    participant G as Generator
-    participant AP as ApiSpecParser
-    participant CP as ConfigParser
-    participant CB as ContextBuilder
-    participant T as Template
+    participant Generator
+    participant PluginManager
+    participant Plugin
+    participant Parser
+    participant Builder
 
-    G->>AP: parse(simple_api.yaml)
-    AP-->>G: SdkOperation[]
+    Note over Generator, Builder: Initialization
+    Generator->>PluginManager: Initialize & discover plugins
+    PluginManager->>Plugin: Register plugins by type
 
-    G->>CP: parse(generator_config.yaml)
-    CP-->>G: ModuleConfig[]
+    Note over Generator, Builder: Generation Loop
+    loop For each module in config
+        Generator->>PluginManager: Get plugin for type
+        PluginManager-->>Generator: Return plugin
 
-    loop Each Module
-        G->>CB: build_context(config)
-        CB-->>G: GenerationContext
+        Generator->>Plugin: get_parser()
+        Plugin-->>Generator: Return parser
+        Generator->>Parser: Parse config
+        Parser-->>Generator: Parsed config
 
-        G->>T: render(context)
-        T-->>G: module_code
+        Generator->>Plugin: get_builder()
+        Plugin-->>Generator: Return builder
+        Generator->>Builder: Build context
+        Builder-->>Generator: Generation context
 
-        G->>G: write_file()
+        Generator->>Plugin: get_template_name()
+        Plugin-->>Generator: Template name
+        Generator->>Generator: Render & write module
     end
 ```
 
-1.  **Inputs**:
-    -   `generator_config.yaml`: The **single source of truth for logic**. Defines which modules to create, maps Ansible actions (`list`, `create`) to API `operationId`s, and configures special behaviors like resolvers.
-    -   `simple_api.yaml`: The **single source of truth for data**. Defines API endpoints, `tags` (for SDK mapping), and `schemas` for request bodies, which determine the Ansible module's parameters.
+### Component Responsibilities
 
-2.  **`parser.py` (The Analyst)**:
-    -   **`ApiSpecParser`**: Reads the OpenAPI spec and transforms every endpoint definition into a structured `SdkOperation` data object.
-    -   **`ConfigParser`**: Reads the user's `generator_config.yaml`. It normalizes the simplified format into the advanced format and performs initial validation by cross-referencing the `operationId`s with the data provided by the `ApiSpecParser`. Its output is a list of clean, validated `ModuleConfig` objects.
+1.  **Core System (`generator.py`, `plugin_manager.py`)**:
+    -   **`Generator`**: The main orchestrator. It knows nothing about specific module types like `resource` or `action`. Its only job is to manage the high-level workflow:
+        1.  Initialize the `PluginManager`.
+        2.  Parse the API spec once (using the shared `ApiSpecParser`).
+        3.  Loop through the module definitions in `generator_config.yaml`.
+        4.  For each definition, ask the `PluginManager` for the correct plugin based on the `type` key.
+        5.  Delegate all subsequent parsing, building, and template selection to the returned plugin.
+    -   **`PluginManager`**: The discovery service. On startup, it queries Python's packaging metadata for any installed packages that have registered themselves under the `ansible_waldur_generator.plugins` entry point. It loads these plugins and keeps a registry of which `type` string maps to which plugin object.
 
-3.  **`builder.py` (The Assembler)**:
-    -   **`ContextBuilder`**: Takes a single, validated `ModuleConfig` object. Its job is to perform the "last mile" of data transformation, turning the abstract configuration into the concrete data needed by the template. This includes:
-        -   Inferring Ansible parameter details (`type`, `required`, `choices`) from the `model_schema`.
-        -   Performing deeper validation (e.g., checking that a field requiring a URL has a resolver).
-        -   Collecting all necessary `import` statements for SDK functions and models.
-        -   Building the Python data structures that will become the `DOCUMENTATION` and `EXAMPLES` YAML blocks.
+2.  **Plugin Interface (`plugins/base_plugin.py`)**:
+    -   **`BasePlugin`**: An abstract base class that defines the "contract" every plugin must follow. It requires three methods:
+        -   `get_parser()`: Must return a parser object responsible for understanding the plugin-specific sections of `generator_config.yaml`.
+        -   `get_builder()`: Must return a builder object responsible for creating the final Jinja2 context for this plugin's template.
+        -   `get_template_name()`: Must return the filename of the Jinja2 template to use for this module type.
 
-4.  **`generator.py` (The Orchestrator)**:
-    -   **`Generator`**: The main class that drives the process. It's a thin layer that:
-        -   Initializes the parser and builder.
-        -   Calls the parser to get the list of `ModuleConfig` objects.
-        -   Loops through each `ModuleConfig`, creating a `ContextBuilder` for it.
-        -   Calls the builder to get the final `GenerationContext`.
-        -   Renders the Jinja2 template with the context.
-        -   Writes the final module file to disk.
+3.  **Concrete Plugins (e.g., `plugins/resource/`)**:
+    -   Each plugin is a self-contained unit, typically a directory. It contains:
+        -   **`parser.py`**: A subclass of `BaseConfigParser` that knows how to parse and validate the YAML configuration for its specific type (e.g., handling the `operations` and `resolvers` sections for a `resource` module).
+        -   **`builder.py`**: A subclass of `BaseContextBuilder` that knows how to construct the final `GenerationContext` for its type.
+        -   **`plugin.py`**: A small file that defines the main plugin class (e.g., `ResourcePlugin`) and associates it with one or more `type` names (e.g., `TYPE_NAMES = ['resource', 'marketplace_resource']`). This class is what gets registered via the entry point.
 
-This architecture ensures that each component has a single, well-defined responsibility, making the system highly modular and testable.
+### How to Add a New Plugin
+
+This architecture makes adding support for a new module type straightforward and clean:
+
+1.  **Create Plugin Directory**:
+    Create a new directory: `generator/plugins/facts/`.
+
+2.  **Implement Parser**:
+    Create `generator/plugins/facts/parser.py` with a `FactsConfigParser` class. It will know how to parse the `facts`-specific YAML structure (e.g., `operation`, `return_key`, `identifier`).
+
+3.  **Implement Builder**:
+    Create `generator/plugins/facts/builder.py` with a `FactsContextBuilder` class. It will build the specific `FactsGenerationContext` needed by the `facts` template.
+
+4.  **Create Template**:
+    Create a new template file: `generator/templates/facts_module.py.j2`.
+
+5.  **Register the Plugin**:
+    Create `generator/plugins/facts/plugin.py`:
+    ```python
+    from ..base_plugin import BasePlugin
+    from .parser import FactsConfigParser
+    from .builder import FactsContextBuilder
+
+    class FactsPlugin(BasePlugin):
+        def get_type_name(self):
+            return 'facts'
+
+        def get_parser(self, ...):
+            return FactsConfigParser(...)
+
+        def get_builder(self, ...):
+            return FactsContextBuilder(...)
+
+        def get_template_name(self):
+            return "facts_module.py.j2"
+    ```
+
+6.  **Update Entry Points**:
+    Add the new plugin to `pyproject.toml`:
+    ```toml
+    [tool.poetry.plugins."ansible_waldur_generator.plugins"]
+    # ... existing plugins
+    facts = "generator.plugins.facts.plugin:FactsPlugin"
+    ```
+
+After these steps, running `poetry install` will make the new `facts` type instantly available to the generator without any changes to the core `generator.py` or `plugin_manager.py` files.
