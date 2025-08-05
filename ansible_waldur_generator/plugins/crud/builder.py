@@ -1,5 +1,5 @@
 """
-Builds the final GenerationContext object required by the Jinja2 template.
+Builds the final CrudGenerationContext object required by the Jinja2 template.
 
 This class is the "workhorse" that transforms a validated ModuleConfig object
 into all the Ansible-specific data structures, such as module parameters,
@@ -18,9 +18,9 @@ from ansible_waldur_generator.helpers import (
 from ansible_waldur_generator.interfaces.builder import BaseContextBuilder
 from ansible_waldur_generator.models import (
     AnsibleModuleParams,
+    BaseGenerationContext,
 )
 from ansible_waldur_generator.plugins.crud.config import CrudModuleConfig
-from ansible_waldur_generator.plugins.crud.context import CrudGenerationContext
 
 
 class CrudContextBuilder(BaseContextBuilder):
@@ -42,7 +42,7 @@ class CrudContextBuilder(BaseContextBuilder):
         self.api_parser = api_parser
         self.collector = collector
 
-    def build(self) -> CrudGenerationContext:
+    def build(self) -> BaseGenerationContext:
         """
         Main entry point to build the full, flattened context for a single module.
         It orchestrates the creation of all necessary data for the template.
@@ -67,26 +67,40 @@ class CrudContextBuilder(BaseContextBuilder):
             examples_data, default_flow_style=False, sort_keys=False
         )
 
-        # 5. Return the final, flattened context object, ready for rendering.
-        return CrudGenerationContext(
-            module_name=module_name,
-            resource_type=self.module_config.resource_type,
-            description=self.module_config.description,
-            # Extract simple function and class names for the template
-            existence_check_func=self.module_config.existence_check.sdk_op.sdk_function,
-            present_create_func=self.module_config.present_create.sdk_op.sdk_function,
-            present_create_model_class=self.module_config.present_create.sdk_op.model_class,
-            present_create_model_schema=self.module_config.present_create.sdk_op.model_schema,
-            absent_destroy_func=self.module_config.absent_destroy.sdk_op.sdk_function,
-            absent_destroy_path_param=self.module_config.absent_destroy.config.get(
+        runner_context = {
+            "resource_type": self.module_config.resource_type,
+            "existence_check_func": self.module_config.existence_check.sdk_op.sdk_function,
+            "present_create_func": self.module_config.present_create.sdk_op.sdk_function,
+            "present_create_model_class": self.module_config.present_create.sdk_op.model_class,
+            "absent_destroy_func": self.module_config.absent_destroy.sdk_op.sdk_function,
+            "absent_destroy_path_param": self.module_config.absent_destroy.config.get(
                 "path_param_field", "uuid"
             ),
+            "model_param_names": self._get_model_param_names(),
+            "resolvers": self._build_flat_resolvers(),
+        }
+
+        # 5. Return the final, flattened context object, ready for rendering.
+        return BaseGenerationContext(
+            description=self.module_config.description,
+            module_name=module_name,
+            runner_context=runner_context,
             parameters=parameters,
-            resolvers=self._build_flat_resolvers(),
             sdk_imports=sdk_imports,
             documentation_yaml=doc_yaml,
             examples_yaml=examples_yaml,
         )
+
+    def _get_model_param_names(self) -> List[str]:
+        """Helper to get a list of parameter names from the model schema."""
+        schema = self.module_config.present_create.sdk_op.model_schema
+        if not schema or "properties" not in schema:
+            return []
+        return [
+            name
+            for name, prop in schema["properties"].items()
+            if not prop.get("readOnly", False)
+        ]
 
     def _extract_choices_from_prop(self, prop_schema: Dict[str, Any]) -> List[str]:
         """

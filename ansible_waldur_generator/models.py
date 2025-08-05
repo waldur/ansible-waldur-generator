@@ -107,6 +107,8 @@ class BaseGenerationContext:
     # The full `EXAMPLES` block, pre-rendered as a single, valid YAML string.
     examples_yaml: str
 
+    runner_context: dict
+
     def to_dict(self) -> Dict[str, Any]:
         """Converts the dataclass instance to a dictionary for Jinja2."""
         return asdict(self)
