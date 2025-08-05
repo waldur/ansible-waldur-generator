@@ -69,7 +69,6 @@ class Generator:
 
         # 1. Parse API spec once to get a map of all available SDK operations.
         api_parser = ApiSpecParser(self.api_spec_data, collector)
-        op_map = api_parser.parse()
         collector.report()  # Fail fast on API spec errors
 
         # 2. Iterate through modules and delegate to the appropriate plugin.
@@ -86,7 +85,9 @@ class Generator:
 
             try:
                 # 2b. Get the specific parser from the plugin and run it.
-                parser = plugin.get_parser(module_key, raw_config, op_map, collector)
+                parser = plugin.get_parser(
+                    module_key, raw_config, api_parser, collector
+                )
                 module_config = parser.parse()
 
                 if collector.has_errors or not module_config:
@@ -94,9 +95,7 @@ class Generator:
                     continue
 
                 # 2c. Get the specific builder from the plugin and run it.
-                builder = plugin.get_builder(
-                    module_config, self.api_spec_data, collector
-                )
+                builder = plugin.get_builder(module_config, api_parser, collector)
                 context = builder.build()
 
                 if collector.has_errors:

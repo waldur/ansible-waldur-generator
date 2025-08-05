@@ -14,36 +14,29 @@ class ApiSpecParser:
         self.collector = collector
         self.sdk_base_path = "waldur_api_client"
 
-    def parse(self) -> Dict[str, SdkOperation]:
+    def get_operation(self, operation_id: str) -> Optional[SdkOperation]:
         """
-        Main entry point for parsing the API spec.
+        Get a single operation from the API spec by its operationId.
 
-        Iterates through all paths and operations in the spec, creates an
-        SdkOperation object for each, and returns a dictionary mapping
-        operationId to the SdkOperation object.
+        Args:
+            operation_id: The operationId to look for.
 
         Returns:
-            A dictionary mapping each operationId to its corresponding SdkOperation.
+            SdkOperation object if found, None otherwise.
         """
-        op_map = {}
-        for path, methods in self.api_spec.get("paths", {}).items():
-            for method, operation in methods.items():
+        for methods in self.api_spec.get("paths", {}).values():
+            for operation in methods.values():
                 op_id = operation.get("operationId")
-                if not op_id:
-                    self.collector.add_error(
-                        f"Operation {method.upper()} {path} is missing 'operationId'."
-                    )
+                if op_id != operation_id:
                     continue
 
                 tags = operation.get("tags")
                 if not tags:
                     self.collector.add_error(f"Operation '{op_id}' is missing 'tags'.")
-                    continue
+                    return None
 
-                sdk_operation = self._build_sdk_operation(op_id, tags, operation)
-                if sdk_operation:
-                    op_map[op_id] = sdk_operation
-        return op_map
+                return self._build_sdk_operation(op_id, tags, operation)
+        return None
 
     def _build_sdk_operation(
         self, op_id: str, tags: List[str], operation: Dict[str, Any]
@@ -70,7 +63,7 @@ class ApiSpecParser:
             model_class = model_name
             model_module = f"{self.sdk_base_path}.models.{to_snake_case(model_name)}"
             try:
-                model_schema = self._get_schema_by_ref(schema_ref)
+                model_schema = self.get_schema_by_ref(schema_ref)
             except ValueError as e:
                 self.collector.add_error(f"For operation '{op_id}': {e}")
                 return None
@@ -84,7 +77,7 @@ class ApiSpecParser:
             raw_spec=operation,
         )
 
-    def _get_schema_by_ref(self, ref: str) -> Dict[str, Any]:
+    def get_schema_by_ref(self, ref: str) -> Dict[str, Any]:
         """Follows a JSON schema $ref to retrieve the schema definition."""
         parts = ref.lstrip("#/").split("/")
         schema = self.api_spec

@@ -9,6 +9,7 @@ import lists, and documentation blocks.
 import yaml
 from typing import Dict, List, Any
 
+from ansible_waldur_generator.api_parser import ApiSpecParser
 from ansible_waldur_generator.helpers import (
     AUTH_OPTIONS,
     OPENAPI_TO_ANSIBLE_TYPE_MAP,
@@ -26,7 +27,7 @@ class CrudContextBuilder(BaseContextBuilder):
     def __init__(
         self,
         module_config: CrudModuleConfig,
-        api_spec_data: dict[str, Any],
+        api_parser: ApiSpecParser,
         collector: ValidationErrorCollector,
     ):
         """
@@ -34,11 +35,11 @@ class CrudContextBuilder(BaseContextBuilder):
 
         Args:
             module_config (ModuleConfig): The validated configuration for one module.
-            api_spec_data (dict): The full OpenAPI specification data, needed for resolving refs.
+            api_parser (ApiSpecParser): The OpenAPI specification parser, needed for resolving refs.
             collector: The validation error collector instance.
         """
         self.module_config = module_config
-        self.api_spec = api_spec_data
+        self.api_parser = api_parser
         self.collector = collector
 
     def build(self) -> CrudGenerationContext:
@@ -87,21 +88,6 @@ class CrudContextBuilder(BaseContextBuilder):
             examples_yaml=examples_yaml,
         )
 
-    def _get_schema_by_ref(self, ref: str) -> Dict[str, Any]:
-        """
-        Helper to follow a JSON schema $ref within the stored API spec.
-        Example ref: '#/components/schemas/ProjectRequest'
-        """
-        parts = ref.lstrip("#/").split("/")
-        schema = self.api_spec
-        for part in parts:
-            schema = schema.get(part)
-            if schema is None:
-                raise ValueError(
-                    f"Invalid $ref, part '{part}' not found in spec: {ref}"
-                )
-        return schema
-
     def _extract_choices_from_prop(self, prop_schema: Dict[str, Any]) -> List[str]:
         """
         Extracts a list of enum choices from a property schema.
@@ -116,7 +102,9 @@ class CrudContextBuilder(BaseContextBuilder):
                 if "$ref" in sub_ref:
                     try:
                         # Correctly resolve the reference against the full API spec.
-                        target_schema = self._get_schema_by_ref(sub_ref["$ref"])
+                        target_schema = self.api_parser.get_schema_by_ref(
+                            sub_ref["$ref"]
+                        )
                         if "enum" in target_schema:
                             choices.extend(target_schema["enum"])
                     except (ValueError, KeyError) as e:

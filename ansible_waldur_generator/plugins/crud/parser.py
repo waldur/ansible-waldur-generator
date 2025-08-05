@@ -1,7 +1,7 @@
 from copy import deepcopy
 from typing import Any
+from ansible_waldur_generator.api_parser import ApiSpecParser
 from ansible_waldur_generator.helpers import ValidationErrorCollector
-from ansible_waldur_generator.models import SdkOperation
 from ansible_waldur_generator.plugins.crud.config import (
     ModuleIdempotencySection,
     ModuleResolver,
@@ -19,12 +19,12 @@ class CrudConfigParser:
         self,
         module_key: str,
         config_data: dict[str, Any],
-        op_map: dict[str, SdkOperation],
+        api_parser: ApiSpecParser,
         collector: ValidationErrorCollector,
     ):
         self.module_key = module_key
         self.config = config_data
-        self.op_map = op_map
+        self.api_parser = api_parser
         self.collector = collector
 
     def parse(self) -> CrudModuleConfig:
@@ -101,7 +101,7 @@ class CrudConfigParser:
                 )
                 return None
 
-            sdk_op = self.op_map.get(op_id)
+            sdk_op = self.api_parser.get_operation(op_id)
             if not sdk_op:
                 self.collector.add_error(
                     f"Module '{module_key}': OperationId '{op_id}' for section '{section_name}' not found in API spec."
@@ -138,8 +138,8 @@ class CrudConfigParser:
                 )
                 continue
 
-            list_op = self.op_map.get(list_op_id)
-            retrieve_op = self.op_map.get(retrieve_op_id)
+            list_op = self.api_parser.get_operation(list_op_id)
+            retrieve_op = self.api_parser.get_operation(retrieve_op_id)
 
             if not list_op or not retrieve_op:
                 self.collector.add_error(
