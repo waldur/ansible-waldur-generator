@@ -46,10 +46,15 @@ class ApiSpecParser:
         # Convention: the first tag determines the resource and thus the SDK module.
         resource_name = tags[0].replace("-", "_")
 
-        sdk_module = f"{self.sdk_base_path}.api.{resource_name}"
-        sdk_function = op_id
+        sdk_module_name = f"{self.sdk_base_path}.api.{resource_name}"
+        sdk_function_name = op_id
 
-        model_class_name, model_module, model_schema = None, None, None
+        model_class_name, model_module_name, model_schema, model_class = (
+            None,
+            None,
+            None,
+            None,
+        )
 
         # Check for a requestBody to determine the model information.
         schema_ref = (
@@ -62,22 +67,38 @@ class ApiSpecParser:
         if schema_ref:
             model_name = schema_ref.split("/")[-1]
             model_class_name = model_name
-            model_module = f"{self.sdk_base_path}.models.{to_snake_case(model_name)}"
+            model_module_name = (
+                f"{self.sdk_base_path}.models.{to_snake_case(model_name)}"
+            )
             try:
                 model_schema = self.get_schema_by_ref(schema_ref)
-            except ValueError as e:
-                self.collector.add_error(f"For operation '{op_id}': {e}")
+                model_module = importlib.import_module(model_module_name)
+                model_class = getattr(model_module, model_class_name)
+            except (ValueError, ImportError, AttributeError) as e:
+                self.collector.add_error(
+                    f"For operation '{op_id}': Could not import model class '{model_class_name}' from '{model_module_name}': {e}"
+                )
                 return None
 
+        try:
+            # The function itself is now the primary object we import.
+            # Assuming SDK functions are directly in the module.
+            sdk_function_module = importlib.import_module(
+                f"{sdk_module_name}.{sdk_function_name}"
+            )
+        except (ImportError, AttributeError) as e:
+            self.collector.add_error(
+                f"For operation '{op_id}': Could not import SDK function '{sdk_function_name}' from '{sdk_module_name}': {e}"
+            )
+            return None
+
         return SdkOperation(
-            sdk_module_name=sdk_module,
-            sdk_function_name=sdk_function,
-            sdk_function=importlib.import_module(f"{sdk_module}.{sdk_function}"),
+            sdk_module_name=sdk_module_name,
+            sdk_function_name=sdk_function_name,
+            sdk_function=sdk_function_module,
             model_class_name=model_class_name,
-            model_class=model_module
-            and getattr(importlib.import_module(model_module), model_class_name)
-            or None,
-            model_module_name=model_module,
+            model_class=model_class,
+            model_module_name=model_module_name,
             model_schema=model_schema,
             raw_spec=operation,
         )
