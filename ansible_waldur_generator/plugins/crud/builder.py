@@ -6,6 +6,7 @@ into all the Ansible-specific data structures, such as module parameters,
 import lists, and documentation blocks.
 """
 
+import pprint
 import yaml
 from typing import Dict, List, Any
 
@@ -73,6 +74,11 @@ class CrudContextBuilder(BaseContextBuilder):
             runner_context_data, indent_level=4
         )
 
+        argument_spec_data = self._build_argument_spec_data(parameters)
+        argument_spec_string = pprint.pformat(
+            argument_spec_data, indent=4, width=120, sort_dicts=False
+        )
+
         # 5. Return context object, ready for rendering.
         return BaseGenerationContext(
             description=self.module_config.description,
@@ -84,7 +90,33 @@ class CrudContextBuilder(BaseContextBuilder):
             runner_import_path="ansible_waldur_generator.plugins.crud.runner",
             runner_class_name="CrudResourceRunner",
             runner_context_string=runner_context_string,
+            argument_spec_string=argument_spec_string,
         )
+
+    def _build_argument_spec_data(
+        self, parameters: AnsibleModuleParams
+    ) -> Dict[str, Any]:
+        """
+        Constructs the 'argument_spec' as a native Python dictionary.
+        """
+        spec = {
+            "access_token": {"type": "str", "required": True, "no_log": True},
+            "api_url": {"type": "str", "required": True},
+            "state": {
+                "type": "str",
+                "default": "present",
+                "choices": ["present", "absent"],
+            },
+        }
+        for name, opts in parameters.items():
+            param_spec = {
+                "type": opts["type"],
+                "required": opts.get("required", False),
+            }
+            if opts.get("choices"):
+                param_spec["choices"] = opts["choices"]
+            spec[name] = param_spec
+        return spec
 
     def _build_runner_context_data(self) -> Dict[str, Any]:
         """

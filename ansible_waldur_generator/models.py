@@ -55,6 +55,8 @@ class BaseGenerationContext:
     # The complete, generated dictionary of parameters for Ansible's `argument_spec`.
     parameters: AnsibleModuleParams
 
+    argument_spec_string: str
+
     # A list of unique SDK imports required by the module's logic.
     # Example: [{'module': 'waldur_api_client.api.projects', 'function': 'projects_create'}]
     sdk_imports: List[Dict[str, str]]
