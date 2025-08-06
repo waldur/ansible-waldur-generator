@@ -19,6 +19,7 @@ AUTH_OPTIONS = {
         "description": "An access token.",
         "required": True,
         "type": "str",
+        "no_log": True,  # Sensitive information, do not log
     },
     "api_url": {
         "description": "Fully qualified URL to the API.",

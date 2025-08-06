@@ -25,6 +25,17 @@ from ansible_waldur_generator.models import (
 from ansible_waldur_generator.plugins.crud.config import CrudModuleConfig
 
 
+BASE_SPEC = {
+    **AUTH_OPTIONS,  # Include standard auth options
+    "state": {
+        "description": "Should the resource be present or absent.",
+        "choices": ["present", "absent"],
+        "default": "present",
+        "type": "str",
+    },
+}
+
+
 class CrudContextBuilder(BaseContextBuilder):
     def __init__(
         self,
@@ -99,15 +110,7 @@ class CrudContextBuilder(BaseContextBuilder):
         """
         Constructs the 'argument_spec' as a native Python dictionary.
         """
-        spec = {
-            "access_token": {"type": "str", "required": True, "no_log": True},
-            "api_url": {"type": "str", "required": True},
-            "state": {
-                "type": "str",
-                "default": "present",
-                "choices": ["present", "absent"],
-            },
-        }
+        spec = {**BASE_SPEC}
         for name, opts in parameters.items():
             param_spec = {
                 "type": opts["type"],
@@ -288,16 +291,7 @@ class CrudContextBuilder(BaseContextBuilder):
             "requirements": ["python = 3.11", "waldur-api-client"],
             "options": {},
         }
-        std_opts = {
-            **AUTH_OPTIONS,
-            "state": {
-                "description": "Should the resource be present or absent.",
-                "choices": ["present", "absent"],
-                "default": "present",
-                "type": "str",
-            },
-        }
-        doc["options"].update(std_opts)
+        doc["options"].update(BASE_SPEC)
 
         for name, opts in parameters.items():
             # Filter for keys relevant to documentation and ensure 'required' is always present.
