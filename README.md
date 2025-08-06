@@ -57,13 +57,15 @@ Run `poetry run generate --help` for a full list of options.
 
 The `generator_config.yaml` file is the heart of the generator, where you define the modules you want to create.
 
-This format is designed for standard resources that follow typical CRUD (Create-Read-Update-Delete) patterns. You define the resource and map standard actions to your SDK's `operationId`s.
 
 **File: `inputs/generator_config.yaml`**
 ```yaml
 modules:
   # The key 'project' is used for the module filename waldur_project.
   project:
+    # This module type is is designed for standard resources that follow typical CRUD (Create-Read-Update-Delete) patterns. You define the resource and map standard actions to your SDK's `operationId`s.
+    type: crud
+
     # The value is used for user-facing strings (e.g., in error messages).
     resource_type: project
 
