@@ -190,7 +190,7 @@ sequenceDiagram
     -   Each plugin is a self-contained unit, typically a directory. It contains:
         -   **`parser.py`**: A subclass of `BaseConfigParser` that knows how to parse and validate the YAML configuration for its specific type (e.g., handling the `operations` and `resolvers` sections for a `resource` module).
         -   **`builder.py`**: A subclass of `BaseContextBuilder` that knows how to construct the final `GenerationContext` for its type.
-        -   **`plugin.py`**: A small file that defines the main plugin class (e.g., `ResourcePlugin`) and associates it with one or more `type` names (e.g., `TYPE_NAMES = ['resource', 'marketplace_resource']`). This class is what gets registered via the entry point.
+        -   **`plugin.py`**: A small file that defines the main plugin class (e.g., `ResourcePlugin`) and associates it with `type` name. This class is what gets registered via the entry point.
 
 ### How to Add a New Plugin
 
