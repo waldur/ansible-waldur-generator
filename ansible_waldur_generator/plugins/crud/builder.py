@@ -95,17 +95,17 @@ class CrudContextBuilder(BaseContextBuilder):
         resolvers_data = {}
         for name, resolver in conf.resolvers.items():
             resolvers_data[name] = {
-                "list_func": resolver.list_op.sdk_function_module,
-                "retrieve_func": resolver.retrieve_op.sdk_function_module,
+                "list_func": resolver.list_op.sdk_function,
+                "retrieve_func": resolver.retrieve_op.sdk_function,
                 "error_message": resolver.error_message,
             }
 
         return {
             "resource_type": conf.resource_type,
-            "existence_check_func": conf.existence_check.sdk_op.sdk_function_module,
-            "present_create_func": conf.present_create.sdk_op.sdk_function_module,
-            "present_create_model_class": conf.present_create.sdk_op.model_class_value,
-            "absent_destroy_func": conf.absent_destroy.sdk_op.sdk_function_module,
+            "existence_check_func": conf.existence_check.sdk_op.sdk_function,
+            "present_create_func": conf.present_create.sdk_op.sdk_function,
+            "present_create_model_class": conf.present_create.sdk_op.model_class,
+            "absent_destroy_func": conf.absent_destroy.sdk_op.sdk_function,
             "absent_destroy_path_param": conf.absent_destroy.config.get(
                 "path_param_field", "uuid"
             ),
@@ -224,10 +224,10 @@ class CrudContextBuilder(BaseContextBuilder):
             if not op:
                 continue
             # Add the function import
-            imports.add((op.sdk_module, op.sdk_function))
+            imports.add((op.sdk_module_name, op.sdk_function_name))
             # Add the model class import if it exists
-            if op.model_module and op.model_class:
-                imports.add((op.model_module, op.model_class))
+            if op.model_module_name and op.model_class_name:
+                imports.add((op.model_module_name, op.model_class_name))
 
         return [
             {"module": mod, "function": func} for mod, func in sorted(list(imports))
@@ -238,8 +238,8 @@ class CrudContextBuilder(BaseContextBuilder):
         flat_resolvers = {}
         for name, resolver in self.module_config.resolvers.items():
             flat_resolvers[name] = {
-                "list_func": resolver.list_op.sdk_function,
-                "retrieve_func": resolver.retrieve_op.sdk_function,
+                "list_func": resolver.list_op.sdk_function_name,
+                "retrieve_func": resolver.retrieve_op.sdk_function_name,
                 "error_message": resolver.error_message,
             }
         return flat_resolvers

@@ -180,6 +180,6 @@ class CrudConfigParser:
 
             if not has_name_exact_filter:
                 self.collector.add_error(
-                    f"Module '{module_config.module_key}', resolver '{name}': The 'list' operation '{resolver.list_op.sdk_function}' must support "
+                    f"Module '{module_config.module_key}', resolver '{name}': The 'list' operation '{resolver.list_op.sdk_function_name}' must support "
                     f"a 'name_exact' query parameter, but it was not found."
                 )

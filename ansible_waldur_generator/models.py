@@ -8,59 +8,11 @@ different module types.
 """
 
 from dataclasses import dataclass, field, asdict
+from types import ModuleType
 from typing import Optional, List, Dict, Any
 
 # A type alias for clarity, representing a dictionary of Ansible parameter options.
 AnsibleModuleParams = Dict[str, Dict[str, Any]]
-
-
-"""
-Example SdkOperation for reference:
-
-projects_create_op = SdkOperation(
-    sdk_module='waldur_api_client.api.projects',
-    sdk_function='projects_create',
-
-    model_class='ProjectRequest',
-    model_module='waldur_api_client.models.project_request',
-    model_schema={
-        'type': 'object',
-        'properties': {
-            'uuid': {
-                'type': 'string',
-                'format': 'uuid',
-                'readOnly': True,
-                'description': 'The UUID of the project, assigned by the server.'
-            },
-            'name': {
-                'type': 'string',
-                'description': 'The name of the new project.'
-            },
-            'customer': {
-                'type': 'string',
-                'format': 'uri',
-                'description': 'URL of the customer organization.'
-            },
-        },
-        'required': ['name', 'customer']
-    },
-
-    raw_spec={
-        'summary': 'Create a new project',
-        'operationId': 'projects_create',
-        'tags': ['projects'],
-        'requestBody': {
-            'content': {
-                'application/json': {
-                    'schema': {
-                        '$ref': '#/components/schemas/ProjectRequest'
-                    }
-                }
-            }
-        }
-    }
-)
-"""
 
 
 @dataclass(frozen=True)
@@ -70,12 +22,16 @@ class SdkOperation:
     parsed from the OpenAPI specification. 'frozen=True' makes instances immutable.
     """
 
-    sdk_module: str
-    sdk_function: str
-    sdk_function_module: Any
-    model_class_value: type
-    model_class: Optional[str] = None
-    model_module: Optional[str] = None
+    sdk_module_name: str  # e.g., 'waldur_api_client.api.projects'
+    sdk_function_name: str  # e.g., 'projects_create'
+    sdk_function: ModuleType  # The actual imported function object/module
+
+    model_class_name: Optional[str] = None  # e.g., 'ProjectRequest'
+    model_module_name: Optional[str] = (
+        None  # e.g., 'waldur_api_client.models.project_request'
+    )
+    model_class: Optional[type] = None  # The actual imported class object
+
     model_schema: Optional[Dict[str, Any]] = None
     raw_spec: Dict[str, Any] = field(default_factory=dict)
 
