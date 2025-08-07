@@ -59,15 +59,15 @@ class FactsConfigParser(BaseConfigParser):
             {
                 "name": "project",
                 "type": "str",
-                "required": True,
+                "required": not config.get("many", False),
                 "description": "The name or UUID of the project.",
                 "resolver": {
                     "list": "projects_list",
                     "retrieve": "projects_retrieve",
                     "filter_key": "project_uuid",
                 },
-            }
-        ]
+            },
+        ] + config.get("context_params", [])
 
         return FactsModuleConfig(
             module_key=self.module_key,
@@ -79,4 +79,5 @@ class FactsConfigParser(BaseConfigParser):
             retrieve_op=retrieve_section,
             identifier_param="name",
             context_params=context_params,
+            many=config.get("many", False),
         )

@@ -11,5 +11,6 @@ class FactsModuleConfig(BaseModuleConfig):
     resource_type: str
     list_op: ModuleIdempotencySection
     retrieve_op: ModuleIdempotencySection
+    many: bool
     identifier_param: str = "name"
     context_params: list[dict] = field(default_factory=list)

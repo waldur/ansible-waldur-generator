@@ -1,3 +1,4 @@
+import pprint
 import yaml
 from typing import Dict, List, Any
 
@@ -36,7 +37,9 @@ class FactsContextBuilder(BaseContextBuilder):
         )
 
         argument_spec_data = self._build_argument_spec_data(parameters)
-        argument_spec_string = to_python_code_string(argument_spec_data, indent_level=4)
+        argument_spec_string = pprint.pformat(
+            argument_spec_data, indent=4, width=120, sort_dicts=False
+        )
 
         doc_yaml = yaml.dump(
             doc_data, default_flow_style=False, sort_keys=False, indent=2, width=1000
@@ -83,15 +86,15 @@ class FactsContextBuilder(BaseContextBuilder):
         params[conf.identifier_param] = {
             "name": conf.identifier_param,
             "type": "str",
-            "required": True,
+            "required": not conf.many,
             "description": f"The name or UUID of the {conf.resource_type.replace('_', ' ')}.",
         }
         for p_conf in conf.context_params:
             params[p_conf["name"]] = {
                 "name": p_conf["name"],
                 "type": "str",
-                "required": p_conf.get("required", True),
-                "description": p_conf["description"],
+                "required": p_conf.get("required", False),
+                "description": p_conf.get("description"),
             }
         return params
 

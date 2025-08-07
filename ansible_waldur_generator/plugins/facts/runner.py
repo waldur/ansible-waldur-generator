@@ -38,7 +38,8 @@ class FactsRunner(BaseRunner):
                 return
 
             # If it's a name, use the 'list' function with an exact name filter.
-            api_call_kwargs["name_exact"] = value
+            if value:
+                api_call_kwargs["name_exact"] = value
 
             # 4. Resolve all context parameters (e.g., 'project').
             # The context provides a dictionary of resolvers for this purpose.
