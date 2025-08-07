@@ -23,15 +23,17 @@ EXAMPLES = """
 {{ examples_yaml | trim | indent(0) }}
 """
 
+ARGUMENT_SPEC = {{ argument_spec_string }}
+
+RUNNER_CONTEXT = {{ runner_context_string }}
+
 def main():
-    argument_spec = {{ argument_spec_string | indent(4) }}
-    runner_context = {{ runner_context_string | indent(4) }}
 
     module = AnsibleModule(
-        argument_spec=argument_spec,
+        argument_spec=ARGUMENT_SPEC,
         supports_check_mode=True,
     )
-    runner = {{ runner_class_name }}(module, runner_context)
+    runner = {{ runner_class_name }}(module, RUNNER_CONTEXT)
     runner.run()
 
 

@@ -235,3 +235,146 @@ This architecture makes adding support for a new module type straightforward and
     ```
 
 After these steps, running `poetry install` will make the new `facts` type instantly available to the generator without any changes to the core `generator.py` or `plugin_manager.py` files.
+
+## How to Use the Generated Modules
+
+Once the generator has created the module files in the `outputs/` directory, you can use them immediately with Ansible just like any other module. There are two primary ways to run them: using an ad-hoc command for quick tests, or within a standard playbook.
+
+### Prerequisites
+
+Before running a module, you must tell Ansible where to find it. The simplest method is to set the `ANSIBLE_LIBRARY` environment variable to point to your output directory.
+
+Execute this command from the root of your project. This setting will last for your current terminal session.
+
+```bash
+export ANSIBLE_LIBRARY=./outputs
+```
+
+Alternatively, you can create an `ansible.cfg` file in your project root with the following content:
+```ini
+[defaults]
+library = ./outputs
+```
+
+### Method 1: Ad-Hoc Command (for Quick Testing)
+
+The `ansible` ad-hoc command is perfect for testing a single module's functionality without writing a full playbook.
+
+**Command Structure:**
+```bash
+ansible <host-pattern> -m <module_name> -a "<arguments>"
+```
+
+**Example: Getting Facts about an OpenStack Instance**
+
+Let's assume you have generated a module named `waldur_marketplace_os_get_instance`. The following command will execute it against `localhost` to find an instance named `My Test VM` within the project `My Test Project`.
+
+```bash
+# Ensure ANSIBLE_LIBRARY is set first!
+export ANSIBLE_LIBRARY=./outputs
+
+# Run the ad-hoc command
+ansible localhost -m waldur_marketplace_os_get_instance \
+  -a "name='My Test VM' \
+      project='My Test Project' \
+      api_url='https://api.example.com/api/' \
+      access_token='YOUR_SECRET_TOKEN'"
+```
+
+**Example Output (Success):**
+```json
+localhost | SUCCESS => {
+    "changed": false,
+    "instance": {
+        "uuid": "a1b2c3d4-e5f6-...",
+        "name": "My Test VM",
+        "state": "OK",
+        ...
+    }
+}
+```
+
+**Example from a Real Use Case:**
+
+Here is a practical example showing how to find an instance named `mariak8s` inside a project identified by its UUID. Note how the arguments are passed as a single string.
+
+```bash
+ANSIBLE_LIBRARY=./outputs poetry run ansible localhost \
+  -m waldur_marketplace_os_get_instance \
+  -a "name='mariak8s' \
+      project='39167edfe5cb4548b8193506c7488d42' \
+      api_url='http://127.0.0.1:8000/api/' \
+      access_token='YOUR_SECRET_TOKEN'"
+```
+
+> **Security Warning**: Passing `access_token` directly on the command line is insecure as it can be saved in your shell's history. This method is suitable for local development, but for production or shared environments, use Ansible Vault or environment variables as shown in the playbook method.
+
+### Method 2: Playbook (for Standard Use)
+
+This is the standard, recommended way to use Ansible modules for automation. It allows for more complex logic, better secret management, and version control.
+
+**Step 1: Create a Playbook (`test_playbook.yml`)**
+
+This playbook demonstrates how to call a generated `resource` module to ensure a project exists.
+
+```yaml
+- name: Test Generated Waldur Resource Module
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    # It is best practice to load secrets from a vault or environment variables
+    waldur_api_url: "https://api.example.com/api/"
+    waldur_access_token: "{{ lookup('env', 'WALDUR_ACCESS_TOKEN') }}"
+
+  tasks:
+    - name: Ensure a project named 'Ansible-Created Project' exists
+      # Use the name of your generated module
+      waldur_project:
+        api_url: "{{ waldur_api_url }}"
+        access_token: "{{ waldur_access_token }}"
+        state: present
+        name: "Ansible-Created Project"
+        description: "A project managed by Ansible."
+        customer: "Customer Name or UUID"
+      register: project_info
+
+    - name: Show the created or found project details
+      ansible.builtin.debug:
+        var: project_info.resource
+```
+
+**Step 2: Set Environment and Run**
+
+Ensure `ansible.cfg` or `ANSIBLE_LIBRARY` is configured, then set the token as an environment variable and run the playbook.
+
+```bash
+# Set the secret token in the environment
+export WALDUR_ACCESS_TOKEN='YOUR_SECRET_TOKEN'
+
+# Run the playbook
+ansible-playbook test_playbook.yml
+```
+
+**Example Output:**
+```
+PLAY [Test Generated Waldur Resource Module] ****************************
+
+TASK [Ensure a project named 'Ansible-Created Project' exists] ********
+changed: [localhost]
+
+TASK [Show the created or found project details] ***********************
+ok: [localhost] => {
+    "project_info.resource": {
+        "created": "...",
+        "customer": "...",
+        "description": "A project managed by Ansible.",
+        "name": "Ansible-Created Project",
+        "uuid": "f1g2h3i4-..."
+    }
+}
+
+PLAY RECAP ***************************************************************
+localhost                  : ok=2    changed=1    ...
+```

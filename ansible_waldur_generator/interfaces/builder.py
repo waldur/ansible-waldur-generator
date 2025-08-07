@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Any
 
+from ansible_waldur_generator.api_parser import ApiSpecParser
 from ansible_waldur_generator.helpers import ValidationErrorCollector
 from ansible_waldur_generator.interfaces.config import BaseModuleConfig
 from ansible_waldur_generator.models import BaseGenerationContext
@@ -12,7 +12,7 @@ class BaseContextBuilder(ABC):
     def __init__(
         self,
         module_config: BaseModuleConfig,
-        api_spec_data: dict[str, Any],
+        api_parser: ApiSpecParser,
         collector: ValidationErrorCollector,
     ):
         """
@@ -20,11 +20,11 @@ class BaseContextBuilder(ABC):
 
         Args:
             module_config (ModuleConfig): The validated configuration for one module.
-            api_spec_data (dict): The full OpenAPI specification data, needed for resolving refs.
+            api_parser (dict): The OpenAPI specification parser, needed for resolving refs.
             collector: The validation error collector instance.
         """
         self.module_config = module_config
-        self.api_spec = api_spec_data
+        self.api_parser = api_parser
         self.collector = collector
 
     @abstractmethod

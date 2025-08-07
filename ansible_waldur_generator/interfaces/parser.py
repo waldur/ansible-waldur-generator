@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
+from ansible_waldur_generator.api_parser import ApiSpecParser
 from ansible_waldur_generator.helpers import ValidationErrorCollector
 from ansible_waldur_generator.interfaces.config import BaseModuleConfig
-from ansible_waldur_generator.models import SdkOperation
 
 
 class BaseConfigParser(ABC):
@@ -13,12 +13,12 @@ class BaseConfigParser(ABC):
         self,
         module_key: str,
         raw_config: dict[str, Any],
-        op_map: dict[str, SdkOperation],
+        api_parser: ApiSpecParser,
         collector: ValidationErrorCollector,
     ):
         self.module_key = module_key
         self.raw_config = raw_config
-        self.op_map = op_map
+        self.api_parser = api_parser
         self.collector = collector
         self.context_str = f"Module '{module_key}'"
 

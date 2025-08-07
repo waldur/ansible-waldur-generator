@@ -2,6 +2,7 @@ from copy import deepcopy
 from typing import Any
 from ansible_waldur_generator.api_parser import ApiSpecParser
 from ansible_waldur_generator.helpers import ValidationErrorCollector
+from ansible_waldur_generator.interfaces.parser import BaseConfigParser
 from ansible_waldur_generator.plugins.crud.config import (
     ModuleIdempotencySection,
     ModuleResolver,
@@ -9,7 +10,7 @@ from ansible_waldur_generator.plugins.crud.config import (
 )
 
 
-class CrudConfigParser:
+class CrudConfigParser(BaseConfigParser):
     """
     Parses the generator configuration, normalizes it, and validates it
     against the parsed API specification.

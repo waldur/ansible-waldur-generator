@@ -33,3 +33,4 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.plugins.ansible_waldur_generator]
 "crud" = "ansible_waldur_generator.plugins.crud.plugin:CrudPlugin"
+"facts" = "ansible_waldur_generator.plugins.facts.plugin:FactsPlugin"

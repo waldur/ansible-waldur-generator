@@ -1,31 +1,10 @@
-import uuid
-from ansible.module_utils.basic import AnsibleModule
-from waldur_api_client.client import AuthenticatedClient
+from ansible_waldur_generator.interfaces.runner import BaseRunner
 
 
-def _is_uuid(val):
-    try:
-        uuid.UUID(str(val))
-        return True
-    except (ValueError, TypeError, AttributeError):
-        return False
-
-
-class CrudResourceRunner:
+class CrudResourceRunner(BaseRunner):
     """
     Handles the core logic for a standard CRUD-based Ansible module.
-    This class is generic and is configured by passing specific SDK functions
-    and model classes during initialization.
     """
-
-    def __init__(self, module: AnsibleModule, context: dict):
-        self.module = module
-        self.context = context  # The context contains all the generator-produced info
-        self.client = AuthenticatedClient(
-            base_url=module.params["api_url"], token=module.params["access_token"]
-        )
-        self.has_changed = False
-        self.resource = None
 
     def run(self):
         """The main execution path of the runner."""
@@ -109,28 +88,5 @@ class CrudResourceRunner:
 
     def exit(self):
         """Formats the final resource state and exits the module."""
-        resource_dict = (
-            self.resource.to_dict()
-            if self.resource and hasattr(self.resource, "to_dict")
-            else None
-        )
+        resource_dict = self.resource.to_dict() if self.resource else None
         self.module.exit_json(changed=self.has_changed, resource=resource_dict)
-
-    def _resolve_to_url(self, list_func, retrieve_func, value, error_message):
-        if not value:
-            return None
-        if str(value).startswith(("http://", "https://")):
-            return value
-        try:
-            if _is_uuid(value):
-                resource = retrieve_func.sync(client=self.client, uuid=value)
-                resources = [resource] if resource else []
-            else:
-                resources = list_func.sync(client=self.client, name_exact=value)
-            if not resources:
-                self.module.fail_json(msg=error_message.format(value=value))
-            if len(resources) > 1:
-                self.module.fail_json(msg=f"Multiple resources found for '{value}'.")
-            return resources[0].url
-        except Exception as e:
-            self.module.fail_json(msg=f"Failed to resolve '{value}': {e}")
