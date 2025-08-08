@@ -85,6 +85,10 @@ def to_python_code_string(data, indent_level=0):
             return str(data)
 
         case list():
+            # Handle the case of an empty list separately for clean output.
+            if not data:
+                return "[]"
+
             # Recursively serialize list items.
             items = [to_python_code_string(item, indent_level + 4) for item in data]
             return "[\n" + ",\n".join(items) + f",\n{indent}]"
