@@ -20,3 +20,4 @@ Run linters:
     - pre-commit run --all
     - poetry install
     - poetry run pytest
+
