@@ -143,42 +143,54 @@ class TestFactsRunner:
             "api_url": "http://api.com",
             "access_token": "test-token",
             "name": "web-sg",
-            "project": "Cloud Project",
-            "tenant": "Cloud Tenant",
+            "project": "Cloud Project",  # This will be resolved
+            "tenant": "Cloud Tenant",  # This will also be resolved
         }
 
-        # Simulate the resolver functions returning URLs for the context params.
-        # We use side_effect to handle different calls to the same mocked `_resolve_to_url`.
-        # This is a bit advanced, but shows how to handle it. A simpler way is to mock
-        # the helper directly. Let's patch `_resolve_to_url` for simplicity here.
+        # --- MOCK THE RESOLVERS ---
+        # Instead of mocking the internal _resolve_to_url method, we mock the
+        # SDK functions that the runner is expected to call for resolution.
 
-        def resolve_side_effect(*args, **kwargs):
-            value = kwargs.get("value")
-            if value == "Cloud Project":
-                return "http://api.com/projects/proj-uuid/"
-            if value == "Cloud Tenant":
-                return "http://api.com/tenants/tenant-uuid/"
-            return None
+        # Simulate the 'project' resolver finding a project by name.
+        project_resolver_mocks = mock_facts_runner_context["context_resolvers"][
+            "project"
+        ]
+        project_resolver_mocks["list_func"].sync.return_value = [
+            MagicMock(url="http://api.com/projects/proj-uuid/")
+        ]
 
-        # Simulate the `list_func` finding the resource.
+        # Simulate the 'tenant' resolver finding a tenant by name.
+        tenant_resolver_mocks = mock_facts_runner_context["context_resolvers"]["tenant"]
+        tenant_resolver_mocks["list_func"].sync.return_value = [
+            MagicMock(url="http://api.com/tenants/tenant-uuid/")
+        ]
+
+        # Simulate the main `list_func` finding the final resource.
         found_resource = MagicMock()
         mock_facts_runner_context["list_func"].sync.return_value = [found_resource]
 
         # Act
         runner = FactsRunner(mock_ansible_module, mock_facts_runner_context)
-        # Patch the internal helper method for this specific test
-        with patch.object(runner, "_resolve_to_url", side_effect=resolve_side_effect):
-            runner.run()
+        runner.run()
 
         # Assert
-        # Verify `list_func` was called with all filters.
+        # 1. Verify that the resolver functions were called correctly.
+        project_resolver_mocks["list_func"].sync.assert_called_once_with(
+            client=runner.client, name_exact="Cloud Project"
+        )
+        tenant_resolver_mocks["list_func"].sync.assert_called_once_with(
+            client=runner.client, name_exact="Cloud Tenant"
+        )
+
+        # 2. Verify `list_func` was called with all the resolved filters.
         mock_facts_runner_context["list_func"].sync.assert_called_once()
         call_args, call_kwargs = mock_facts_runner_context["list_func"].sync.call_args
-        assert call_kwargs["name_exact"] == "web-sg"
-        assert call_kwargs["project_uuid"] == "proj-uuid"
-        assert call_kwargs["tenant_uuid"] == "tenant-uuid"
 
-        # Check the final result.
+        assert call_kwargs.get("name_exact") == "web-sg"
+        assert call_kwargs.get("project_uuid") == "proj-uuid"
+        assert call_kwargs.get("tenant_uuid") == "tenant-uuid"
+
+        # 3. Check the final result.
         mock_ansible_module.exit_json.assert_called_once_with(
             changed=False, resource=found_resource.to_dict.return_value
         )
