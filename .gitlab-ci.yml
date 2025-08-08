@@ -16,8 +16,7 @@ Run linters:
     # If event is related to a created merge request
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
   script:
-    - pip install pre-commit poetry 
+    - pip install pre-commit poetry
     - pre-commit run --all
     - poetry install
     - poetry run pytest
-
