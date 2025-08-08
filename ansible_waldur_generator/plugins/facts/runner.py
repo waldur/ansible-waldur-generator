@@ -53,26 +53,28 @@ class FactsRunner(BaseRunner):
                         value=self.module.params[param_name],
                         error_message=resolver_info["error_message"],
                     )
-                    # Convention: Extract the UUID from the URL and use the specified
-                    # filter key to pass it to the SDK function.
-                    # e.g., 'project_uuid' = '...'.
-                    resolved_uuid = (
-                        resolved_url.split("/")[-1] if resolved_url else None
-                    )
+                    if resolved_url:
+                        # Split the URL by '/' and filter out any empty strings that
+                        # result from trailing slashes or double slashes.
+                        # Then take the last element of the resulting list.
+                        url_parts = [part for part in resolved_url.split("/") if part]
+                        resolved_uuid = url_parts[-1] if url_parts else None
+                    else:
+                        resolved_uuid = None
                     filter_key = resolver_info["filter_key"]
                     if resolved_uuid:
                         api_call_kwargs[filter_key] = resolved_uuid
 
-                sdk_func = self.context["list_func"]
-                results = sdk_func.sync(**api_call_kwargs)
+            sdk_func = self.context["list_func"]
+            results = sdk_func.sync(**api_call_kwargs)
 
-                if len(results) > 1:
-                    self.module.warn(
-                        f"Multiple {self.context['resource_type']}s found, returning the first one."
-                    )
+            if len(results) > 1:
+                self.module.warn(
+                    f"Multiple {self.context['resource_type']}s found, returning the first one."
+                )
 
-                # Store the first result.
-                self.resource = results[0] if results else None
+            # Store the first result.
+            self.resource = results[0] if results else None
 
         except Exception as e:
             # Catch any exception during the lookup and fail gracefully.
@@ -88,5 +90,6 @@ class FactsRunner(BaseRunner):
             self.module.fail_json(
                 msg=f"{self.context['resource_type'].capitalize()} not found with the specified parameters."
             )
+            return
 
         self.module.exit_json(changed=False, resource=self.resource.to_dict())
