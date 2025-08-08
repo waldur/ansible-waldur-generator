@@ -276,6 +276,7 @@ class OrderRunner(BaseRunner):
                 if param_value is not None and param_value != resource_value:
                     self.has_changed = True
                     break  # One change is enough to set the flag
+        self.exit()
 
     def exit(self):
         """

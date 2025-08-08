@@ -18,3 +18,4 @@ Run linters:
   script:
     - pip install pre-commit
     - pre-commit run --all
+    - poetry run pytest
