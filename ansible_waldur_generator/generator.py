@@ -6,6 +6,7 @@ and the final rendering of the output module files.
 """
 
 import os
+import subprocess
 import sys
 import yaml
 from jinja2 import Environment, FileSystemLoader
@@ -71,6 +72,9 @@ class Generator:
         api_parser = ApiSpecParser(self.api_spec_data, collector)
         collector.report()  # Fail fast on API spec errors
 
+        # Keep track of the files we actually create
+        generated_file_paths = []
+
         # 2. Iterate through modules and delegate to the appropriate plugin.
         for module_key, raw_config in self.config_data.get("modules", {}).items():
             module_type = raw_config.get("type")
@@ -108,11 +112,18 @@ class Generator:
                 output_path = os.path.join(output_dir, f"{context.module_name}.py")
                 with open(output_path, "w") as f:
                     f.write(rendered_template)
+                generated_file_paths.append(output_path)
                 print(f"Successfully generated module: {output_path}")
 
             except Exception as e:
                 collector.add_error(
                     f"Unexpected error in plugin for '{module_type}' on module '{module_key}': {e}"
                 )
+
+        subprocess.run(
+            ["ruff", "format", *generated_file_paths],
+            capture_output=True,
+            text=True,
+        )
 
         collector.report()  # Report any final errors
