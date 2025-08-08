@@ -218,7 +218,8 @@ Below is a detailed explanation of each available plugin.
             error_message: "Offering '{value}' not found."
 
           # This resolver is for the optional 'type' attribute.
-            type: "openstack_volume_types_list"
+          type:
+            list: "openstack_volume_types_list"
             retrieve: "openstack_volume_types_retrieve"
             error_message: "Volume type '{value}' not found."
     ```
