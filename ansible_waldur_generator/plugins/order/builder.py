@@ -124,7 +124,7 @@ class OrderContextBuilder(BaseContextBuilder):
         Creates the complete dictionary of Ansible module parameters by combining
         standard, built-in, and user-configured parameters.
         """
-        params: AnsibleModuleParams = {}
+        params: AnsibleModuleParams = {**BASE_SPEC}
 
         # Add standard parameters (name, project, offering) that are always present.
         params["name"] = {
@@ -277,32 +277,6 @@ class OrderContextBuilder(BaseContextBuilder):
                 param_spec["choices"] = opts["choices"]
             spec[name] = param_spec
         return spec
-
-    def _build_documentation_data(
-        self, module_name: str, parameters: AnsibleModuleParams
-    ) -> Dict[str, Any]:
-        """Builds the DOCUMENTATION block as a Python dictionary."""
-        doc = {
-            "module": module_name,
-            "short_description": self.module_config.description,
-            "version_added": "0.1.0",
-            "description": [self.module_config.description],
-            "requirements": ["python >= 3.8", "waldur-api-client"],
-            "options": {},
-        }
-        # Add base spec options (auth, state, etc.)
-        doc["options"].update(BASE_SPEC)
-        # Add module-specific parameters
-        for name, opts in parameters.items():
-            doc_data = {
-                k: v
-                for k, v in opts.items()
-                if k in ["description", "required", "type", "choices"] and v is not None
-            }
-            if "required" not in doc_data:
-                doc_data["required"] = False  # Ensure 'required' is always present
-            doc["options"][name] = doc_data
-        return doc
 
     def _build_examples_data(
         self, module_name: str, parameters: AnsibleModuleParams

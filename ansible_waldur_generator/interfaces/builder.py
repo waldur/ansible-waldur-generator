@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
+from typing import Any
 
 from ansible_waldur_generator.api_parser import ApiSpecParser
-from ansible_waldur_generator.helpers import ValidationErrorCollector
+from ansible_waldur_generator.helpers import AUTH_OPTIONS, ValidationErrorCollector
 from ansible_waldur_generator.interfaces.config import BaseModuleConfig
-from ansible_waldur_generator.models import BaseGenerationContext
+from ansible_waldur_generator.models import AnsibleModuleParams, BaseGenerationContext
 
 
 class BaseContextBuilder(ABC):
@@ -34,3 +35,27 @@ class BaseContextBuilder(ABC):
         It orchestrates the creation of all necessary data for the template.
         """
         ...
+
+    def _build_documentation_data(
+        self, module_name: str, parameters: AnsibleModuleParams
+    ) -> dict[str, Any]:
+        """Builds the DOCUMENTATION block as a Python dictionary."""
+        doc = {
+            "module": module_name,
+            "short_description": self.module_config.description,
+            "version_added": "0.1",
+            "description": [self.module_config.description],
+            "requirements": ["python = 3.11", "waldur-api-client"],
+            "options": {},
+        }
+        doc["options"].update({**AUTH_OPTIONS})
+        for name, opts in parameters.items():
+            doc_data = {
+                k: v
+                for k, v in opts.items()
+                if k in ["description", "required", "type", "choices"] and v is not None
+            }
+            if "required" not in doc_data:
+                doc_data["required"] = False
+            doc["options"][name] = doc_data
+        return doc

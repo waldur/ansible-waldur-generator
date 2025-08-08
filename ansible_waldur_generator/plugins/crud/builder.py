@@ -192,7 +192,7 @@ class CrudContextBuilder(BaseContextBuilder):
         method that infers parameters from the create operation's schema, validates them,
         and combines them with any explicitly defined parameters.
         """
-        params = {}
+        params: AnsibleModuleParams = {**BASE_SPEC}
         conf = self.module_config
 
         # 1. Add explicitly defined parameters first (e.g., from existence_check).
@@ -278,32 +278,6 @@ class CrudContextBuilder(BaseContextBuilder):
                 "error_message": resolver.error_message,
             }
         return flat_resolvers
-
-    def _build_documentation_data(
-        self, module_name: str, parameters: AnsibleModuleParams
-    ) -> Dict[str, Any]:
-        """Builds the DOCUMENTATION block as a Python dictionary."""
-        doc = {
-            "module": module_name,
-            "short_description": self.module_config.description,
-            "version_added": "0.1",
-            "description": [self.module_config.description],
-            "requirements": ["python = 3.11", "waldur-api-client"],
-            "options": {},
-        }
-        doc["options"].update(BASE_SPEC)
-
-        for name, opts in parameters.items():
-            # Filter for keys relevant to documentation and ensure 'required' is always present.
-            doc_data = {
-                k: v
-                for k, v in opts.items()
-                if k in ["description", "required", "type", "choices"] and v is not None
-            }
-            if "required" not in doc_data:
-                doc_data["required"] = False
-            doc["options"][name] = doc_data
-        return doc
 
     def _build_examples_data(
         self, module_name: str, parameters: AnsibleModuleParams

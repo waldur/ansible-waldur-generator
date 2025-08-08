@@ -158,30 +158,6 @@ class FactsContextBuilder(BaseContextBuilder):
             "context_resolvers": context_resolvers,
         }
 
-    def _build_documentation_data(
-        self, module_name: str, parameters: AnsibleModuleParams
-    ) -> Dict[str, Any]:
-        """Builds the DOCUMENTATION block as a Python dictionary."""
-        doc = {
-            "module": module_name,
-            "short_description": self.module_config.description,
-            "version_added": "0.1",
-            "description": [self.module_config.description],
-            "requirements": ["python = 3.11", "waldur-api-client"],
-            "options": {},
-        }
-        doc["options"].update({**AUTH_OPTIONS})
-        for name, opts in parameters.items():
-            doc_data = {
-                k: v
-                for k, v in opts.items()
-                if k in ["description", "required", "type", "choices"] and v is not None
-            }
-            if "required" not in doc_data:
-                doc_data["required"] = False
-            doc["options"][name] = doc_data
-        return doc
-
     def _build_examples_data(
         self, module_name: str, parameters: AnsibleModuleParams
     ) -> List[Dict[str, Any]]:
