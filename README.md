@@ -1,17 +1,16 @@
 # Ansible Waldur Module Generator
 
-This repository contains a Proof-of-Concept (PoC) for an Ansible Waldur module generator. It reads a standard OpenAPI specification and a lean generator configuration file to produce high-quality, idiomatic Ansible modules for managing resources via a Python Waldur SDK.
+This project is a code generator designed to automate the creation of Ansible modules for the Waldur API. By defining a module's behavior and its API interactions in a simple YAML configuration file, you can automatically generate the full Python code for a robust, well-documented, and idempotent Ansible module.
 
-The generator is designed with a "Convention over Configuration" philosophy, allowing for extremely simple configuration for standard resources, while still providing a powerful advanced format for complex, non-standard cases.
+The primary goal is to eliminate boilerplate code, enforce consistency across modules, and dramatically speed up the development process for managing Waldur resources with Ansible.
 
-## Key Features
+## Core Concept
 
--   **Plugin-Based Architecture**: The generator is fully extensible. New module types (`resource`, `action`, `facts`, etc.) can be added as self-contained plugins without modifying the core generator code.
--   **Entry Point Discovery**: Plugins are discovered automatically using Python's standard `importlib.metadata` entry points, allowing them to be distributed as separate packages.
--   **Schema-driven**: Automatically generates Ansible module parameters (name, type, choices, description, required status) from OpenAPI `requestBody` schemas.
--   **Smart Resolvers**: Automatically generates code to convert user-friendly names or UUIDs into API URLs.
--   **Strict Validation**: Fails early with clear, aggregated error messages if the configuration is inconsistent with the API specification.
--   **Automatic Documentation**: Generates the complete `DOCUMENTATION` and `EXAMPLES` sections in valid YAML format.
+The generator works by combining three main components:
+
+1.  **OpenAPI Specification (`waldur_api.yaml`):** The single source of truth for all available API endpoints, their parameters, and their data models.
+2.  **Generator Configuration (`generator_config.yaml`):** A user-defined YAML file where you describe the Ansible modules you want to create. This is where you map high-level logic (like "create a resource") to specific API operations.
+3.  **Plugins:** The engine of the generator. A plugin understands a specific workflow or pattern (e.g., fetching facts, simple CRUD, or complex marketplace orders) and contains the logic to build the corresponding Ansible module code.
 
 ## Getting Started
 
@@ -53,43 +52,176 @@ poetry run generate --config my_config.yaml --output-dir ./dist
 ```
 Run `poetry run generate --help` for a full list of options.
 
-### Understanding the Generator Configuration
+## The Plugin System
 
-The `generator_config.yaml` file is the heart of the generator, where you define the modules you want to create.
+The generator uses a plugin-based architecture to handle different types of module logic. Each plugin is specialized for a common interaction pattern with the Waldur API. When defining a module in `generator_config.yaml`, the `type` key determines which plugin will be used.
 
+Below is a detailed explanation of each available plugin.
 
-**File: `inputs/generator_config.yaml`**
-```yaml
-modules:
-  # The key 'project' is used for the module filename waldur_project.
-  project:
-    # This module type is is designed for standard resources that follow typical CRUD (Create-Read-Update-Delete) patterns. You define the resource and map standard actions to your SDK's `operationId`s.
-    type: crud
+---
 
-    # The value is used for user-facing strings (e.g., in error messages).
-    resource_type: project
+### 1. The `facts` Plugin
 
-    # Optional. If omitted, it will be auto-generated as "Manage Projects in Waldur."
-    description: "Manage Projects in Waldur."
+-   **Purpose:** For creating **read-only** Ansible modules that fetch information about existing resources. These modules never change the state of the system and are analogous to Ansible's `_facts` modules (e.g., `setup_facts`).
 
-    # This mandatory block maps standard Ansible actions to your SDK's operationIds.
-    operations:
-       list: projects_list      # Used to check if the resource exists.
-       create: projects_create  # Used when state=present and resource doesn't exist.
-       destroy: projects_destroy  # Used when state=absent and resource exists.
+-   **Workflow:**
+    1.  The module's primary goal is to find and return resource data.
+    2.  If the `many: true` option is set, the module returns a list of all resources matching the filter criteria.
+    3.  If `many: false` (the default), the module expects to find a single resource. It will fail if multiple resources are found, prompting the user to provide a more specific identifier (like a UUID).
+    4.  It can be configured with `context_params` (like `tenant` or `project`) to filter the search.
 
-    # This optional block defines how to resolve certain parameters from a
-    # user-friendly name/UUID into an API URL, which is often required by the SDK.
-    resolvers:
-      # 'customer' is the name of the Ansible parameter to be resolved.
-      customer:
-        # The operationId used to find the resource by name.
-        list: customers_list
-        # The operationId used to find the resource by UUID (more efficient).
-        retrieve: customers_retrieve
-        # A user-friendly error message if the resource can't be found.
-        error_message: "Customer '{value}' not found."
-```
+-   **Configuration Example (`generator_config.yaml`):**
+    This example creates a `waldur_openstack_security_group_facts` module to get information about security groups within a specific tenant.
+
+    ```yaml
+    modules:
+      openstack_security_group_facts:
+        # 'type' tells the generator to use the 'facts' plugin.
+        type: facts
+
+        # User-friendly name for the resource, used in messages and docs.
+        resource_type: "security group"
+        description: "Get facts about OpenStack security groups."
+
+        # The API operation to get a list of security groups.
+        list_operation: "openstack_security_groups_list"
+
+        # The API operation to get a single security group by its UUID.
+        retrieve_operation: "openstack_security_groups_retrieve"
+
+        # `many: true` allows the module to return a list of multiple security groups.
+        # If this were false, finding more than one group would result in an error.
+        many: true
+
+        # `context_params` define additional parameters for filtering the search.
+        context_params:
+          - name: "tenant"
+            description: "The name or UUID of the tenant to filter security groups by."
+            # The resolver tells the generator how to convert the tenant's name/UUID
+            # into the filter key needed by the 'openstack_security_groups_list' operation.
+            resolver:
+              list: "openstack_tenants_list"
+              retrieve: "openstack_tenants_retrieve"
+              # `filter_key` is the query parameter used in the `list_operation` call.
+              filter_key: "tenant_uuid"
+    ```
+
+---
+
+### 2. The `crud` Plugin
+
+-   **Purpose:** For managing resources with **simple, direct, synchronous** API calls. This is ideal for foundational resources like customers or projects that have distinct `create`, `list`, and `destroy` endpoints and do not involve a complex provisioning process.
+
+-   **Workflow:**
+    -   **`state: present`**:
+        1.  Calls the `list` operation to check if a resource with the given name already exists.
+        2.  If it does not exist, it calls the `create` operation. `resolvers` are used to convert any foreign key names (e.g., a customer name) into the required API URLs.
+        3.  If it exists, it does nothing.
+    -   **`state: absent`**:
+        1.  Calls the `list` operation to find the resource.
+        2.  If it exists, it calls the `destroy` operation to remove it.
+
+-   **Configuration Example (`generator_config.yaml`):**
+    This example creates a `waldur_project` module for managing Waldur projects, showcasing resolvers for handling dependencies.
+
+    ```yaml
+    modules:
+      # The key 'project' is used for the module filename waldur_project.
+      project:
+        # This module type is is designed for standard resources that follow typical
+        # CRUD (Create-Read-Update-Delete) patterns. You define the resource and
+        # map standard actions to your SDK's `operationId`s.
+        type: crud
+
+        # The value is used for user-facing strings (e.g., in error messages).
+        resource_type: "project"
+
+        # Optional. If omitted, it will be auto-generated as "Manage projects in Waldur."
+        description: "Manage Projects in Waldur."
+
+        # This mandatory block maps standard Ansible actions to your SDK's operationIds.
+        operations:
+          list: "projects_list" # Used to check if the resource exists.
+          create: "projects_create" # Used when state=present and resource doesn't exist.
+          destroy: "projects_destroy" # Used when state=absent and resource exists.
+
+        # This optional block defines how to resolve certain parameters from a
+        # user-friendly name/UUID into an API URL, which is often required by the SDK.
+        resolvers:
+          # 'customer' is the name of the Ansible parameter to be resolved.
+          customer:
+            # The operationId used to find the resource by name.
+            list: "customers_list"
+            # The operationId used to find the resource by UUID (more efficient).
+            retrieve: "customers_retrieve"
+            # A user-friendly error message if the resource can't be found.
+            error_message: "Customer '{value}' not found."
+    ```
+---
+
+### 3. The `order` Plugin
+
+-   **Purpose:** The most powerful and specialized plugin, designed for resources managed through Waldur's **asynchronous marketplace order workflow**. This is the correct plugin for nearly all major cloud resources like VMs, volumes, databases, etc.
+
+-   **Workflow:** This plugin encapsulates a complex, multi-step process:
+    -   **`state: present`**:
+        1.  Checks for the existence of the *final resource* (e.g., the volume) using `existence_check_op`.
+        2.  If it **does not exist**, it creates a marketplace order via `marketplace_orders_create` and, if `wait: true`, polls for completion.
+        3.  If it **does exist**, it checks if any fields in `update_check_fields` have changed and calls `update_op` to update the resource directly.
+    -   **`state: absent`**:
+        1.  Finds the existing resource.
+        2.  Calls the standard `marketplace_resources_terminate` endpoint.
+
+-   **Configuration Example (`generator_config.yaml`):**
+    This example creates a `waldur_os_volume` module by migrating the original `waldur_marketplace_os_volume` logic.
+
+    ```yaml
+    modules:
+      os_volume:
+        # Use the 'order' plugin for the marketplace workflow.
+        type: order
+
+        description: "Create, update, or delete an OpenStack Volume via the marketplace."
+        resource_type: "OpenStack volume"
+
+        # Specifies the API call to check if the final volume exists.
+        existence_check_op: "openstack_volumes_list"
+
+        # (Optional) Specifies the API call to update an existing volume.
+        update_op: "openstack_volumes_update"
+
+        # (Optional) A list of parameters that trigger an update if changed.
+        update_check_fields:
+          - "description"
+
+        # A list of parameters specific to this resource that go into the
+        # nested 'attributes' dictionary of the order request.
+        attribute_params:
+          - name: size
+            type: int
+            required: true
+            description: "The size of the volume in gigabytes (GB)."
+          - name: type
+            type: str
+            description: "The name or UUID of the volume type (e.g., 'lvm', 'ssd')."
+            # 'is_resolved: true' tells the builder that this parameter's value
+            # must be resolved into a full API URL before being sent.
+            is_resolved: true
+
+        # Defines how to convert user-friendly names (like "Standard Volume")
+        # into API URLs needed by the order request.
+        resolvers:
+          # This resolver is needed for the mandatory 'offering' parameter.
+          offering:
+            list: "marketplace_public_offerings_list"
+            retrieve: "marketplace_public_offerings_retrieve"
+            error_message: "Offering '{value}' not found."
+
+          # This resolver is for the optional 'type' attribute.
+            type: "openstack_volume_types_list"
+            retrieve: "openstack_volume_types_retrieve"
+            error_message: "Volume type '{value}' not found."
+    ```
 
 ## Architecture
 
