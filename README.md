@@ -148,11 +148,11 @@ Below is a detailed explanation of each available plugin.
         2.  If it exists, it calls the `destroy` operation to remove it.
 
 -   **Configuration Example (`generator_config.yaml`):**
-    This example creates a `waldur_project` module for managing Waldur projects, showcasing resolvers for handling dependencies.
+    This example creates a `project` module for managing Waldur projects, showcasing resolvers for handling dependencies.
 
     ```yaml
     modules:
-      # The key 'project' is used for the module filename waldur_project.
+      # The key 'project' is used for the module filename project.
       project:
         # This module type is is designed for standard resources that follow typical
         # CRUD (Create-Read-Update-Delete) patterns. You define the resource and
@@ -270,7 +270,7 @@ graph TD
     end
 
     subgraph "Output"
-        E[Generated Ansible Module <br>waldur_project.py]
+        E[Generated Ansible Module <br>project.py]
     end
 
     A --> C
@@ -478,7 +478,7 @@ The most straightforward way to test is to tell Ansible where to find your newly
       tasks:
         - name: Ensure 'My Playbook Project' exists
           # Use the FQCN of the module
-          waldur.cloud.waldur_project:
+          waldur.cloud.project:
             state: present
             name: "My Playbook Project"
             customer: "Big Corp"
