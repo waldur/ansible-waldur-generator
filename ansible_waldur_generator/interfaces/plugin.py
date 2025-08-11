@@ -1,4 +1,6 @@
 from abc import ABC, abstractmethod
+import os
+import sys
 
 from ansible_waldur_generator.api_parser import ApiSpecParser
 from ansible_waldur_generator.helpers import ValidationErrorCollector
@@ -31,3 +33,8 @@ class BasePlugin(ABC):
         api_parser: ApiSpecParser,
         collector: ValidationErrorCollector,
     ) -> BaseContextBuilder: ...
+
+    def get_runner_path(self) -> str | None:
+        plugin_dir = os.path.dirname(sys.modules[self.__class__.__module__].__file__)
+        runner_path = os.path.join(plugin_dir, "runner.py")
+        return runner_path if os.path.exists(runner_path) else None

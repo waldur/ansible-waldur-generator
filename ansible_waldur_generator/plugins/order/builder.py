@@ -64,13 +64,13 @@ class OrderContextBuilder(BaseContextBuilder):
     # Explicitly type the module_config for better static analysis and autocompletion.
     module_config: OrderModuleConfig
 
-    def build(self) -> BaseGenerationContext:
+    def build(
+        self, collection_namespace: str, collection_name: str
+    ) -> BaseGenerationContext:
         """
         Main entry point to build the full, flattened context for a single module.
         It orchestrates the creation of all necessary data for the template.
         """
-        module_name = f"waldur_{self.module_config.module_key}"
-
         # 1. Build the dictionary of all Ansible parameters for the module.
         parameters = self._build_parameters()
 
@@ -78,8 +78,18 @@ class OrderContextBuilder(BaseContextBuilder):
         sdk_imports = self._collect_imports()
 
         # 3. Build the data structures for documentation and examples.
-        doc_data = self._build_documentation_data(module_name, parameters)
-        examples_data = self._build_examples_data(module_name, parameters)
+        doc_data = self._build_documentation_data(
+            self.module_config.module_key,
+            parameters,
+            collection_namespace,
+            collection_name,
+        )
+        examples_data = self._build_examples_data(
+            self.module_config.module_key,
+            parameters,
+            collection_namespace,
+            collection_name,
+        )
 
         # 4. Construct the context dictionary for the runtime runner.
         runner_context_data = self._build_runner_context_data()
@@ -105,16 +115,21 @@ class OrderContextBuilder(BaseContextBuilder):
             width=1000,
         )
 
+        runner_import_path = (
+            f"ansible_collections.{collection_namespace}.{collection_name}"
+            f".plugins.module_utils.waldur.order_runner"
+        )
+
         # 7. Return the final context object, ready for rendering in Jinja2.
         return BaseGenerationContext(
-            module_name=module_name,
+            module_name=self.module_config.module_key,
             description=self.module_config.description,
             parameters=parameters,
             sdk_imports=sdk_imports,
             documentation_yaml=doc_yaml,
             examples_yaml=examples_yaml,
             runner_class_name="OrderRunner",
-            runner_import_path="ansible_waldur_generator.plugins.order.runner",
+            runner_import_path=runner_import_path,
             runner_context_string=runner_context_string,
             argument_spec_string=argument_spec_string,
         )
@@ -279,7 +294,11 @@ class OrderContextBuilder(BaseContextBuilder):
         return spec
 
     def _build_examples_data(
-        self, module_name: str, parameters: AnsibleModuleParams
+        self,
+        module_name: str,
+        parameters: AnsibleModuleParams,
+        collection_namespace: str,
+        collection_name: str,
     ) -> List[Dict[str, Any]]:
         """Builds the EXAMPLES block as a list of Python dictionaries."""
 
@@ -326,6 +345,8 @@ class OrderContextBuilder(BaseContextBuilder):
             "api_url": "https://waldur.example.com/api",
         }
 
+        fqcn = f"{collection_namespace}.{collection_name}.{module_name}"
+
         examples = [
             {
                 "name": f"Create a new {self.module_config.resource_type}",
@@ -333,7 +354,7 @@ class OrderContextBuilder(BaseContextBuilder):
                 "tasks": [
                     {
                         "name": f"Add {self.module_config.resource_type}",
-                        module_name: get_example_params(
+                        fqcn: get_example_params(
                             create_param_names, {"state": "present"}
                         ),
                     }
@@ -345,7 +366,7 @@ class OrderContextBuilder(BaseContextBuilder):
                 "tasks": [
                     {
                         "name": f"Update the description of a {self.module_config.resource_type}",
-                        module_name: update_example_params,
+                        fqcn: update_example_params,
                     }
                 ],
             },
@@ -355,7 +376,7 @@ class OrderContextBuilder(BaseContextBuilder):
                 "tasks": [
                     {
                         "name": f"Remove {self.module_config.resource_type}",
-                        module_name: {
+                        fqcn: {
                             # Only name and project are typically needed for deletion
                             "name": f"My-Awesome-{self.module_config.resource_type.replace(' ', '-')}",
                             "project": "Cloud Project",

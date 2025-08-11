@@ -1,49 +1,59 @@
 #!/usr/bin/env python
 
 import os
-import click
+import argparse
 from .generator import Generator
 
+# Define default paths relative to the current file's location
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
 DEFAULT_INPUT_DIR = os.path.join(PROJECT_ROOT, "inputs")
 DEFAULT_OUTPUT_DIR = os.path.join(PROJECT_ROOT, "outputs")
-DEFAULT_TEMPLATE_DIR = os.path.join(CURRENT_DIR, "templates")
 
 
-@click.command()
-@click.option(
-    "--config",
-    default=os.path.join(DEFAULT_INPUT_DIR, "generator_config.yaml"),
-    help="Path to the generator config file.",
-)
-@click.option(
-    "--api-spec",
-    default=os.path.join(DEFAULT_INPUT_DIR, "waldur_api.yaml"),
-    help="Path to the OpenAPI spec file.",
-)
-@click.option(
-    "--output-dir",
-    default=DEFAULT_OUTPUT_DIR,
-    help="Directory to save the generated module.",
-)
-@click.option(
-    "--template-dir",
-    default=DEFAULT_TEMPLATE_DIR,
-    help="Directory containing Jinja2 templates.",
-)
-def main(config, api_spec, output_dir, template_dir):
+def main():
     """
-    An Ansible Module Generator CLI.
+    Main function to parse command-line arguments and run the Ansible Module Generator.
     """
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    generator = Generator.from_files(
-        config_path=config, api_spec_path=api_spec, template_dir=template_dir
+    # 1. Initialize the ArgumentParser
+    parser = argparse.ArgumentParser(
+        prog="generate",
+        description="An Ansible Module Generator for the Waldur API.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,  # Shows default values in help
     )
 
-    generator.generate(output_dir=output_dir)
+    # 2. Define the command-line arguments
+    parser.add_argument(
+        "--config",
+        default=os.path.join(DEFAULT_INPUT_DIR, "generator_config.yaml"),
+        help="Path to the generator config file.",
+    )
+    parser.add_argument(
+        "--api-spec",
+        default=os.path.join(DEFAULT_INPUT_DIR, "waldur_api.yaml"),
+        help="Path to the OpenAPI spec file.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default=DEFAULT_OUTPUT_DIR,
+        help="Directory to save the generated Ansible collection.",
+    )
+
+    # 3. Parse the arguments from the command line
+    args = parser.parse_args()
+
+    # 4. The rest of the logic remains the same
+    if not os.path.exists(args.output_dir):
+        os.makedirs(args.output_dir)
+
+    # Instantiate the generator using the parsed arguments
+    generator = Generator.from_files(
+        config_path=args.config, api_spec_path=args.api_spec
+    )
+
+    # Run the generation process
+    generator.generate(output_dir=args.output_dir)
+    print("\nGeneration complete.")
 
 
 if __name__ == "__main__":

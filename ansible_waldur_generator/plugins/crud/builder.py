@@ -55,13 +55,13 @@ class CrudContextBuilder(BaseContextBuilder):
         self.api_parser = api_parser
         self.collector = collector
 
-    def build(self) -> BaseGenerationContext:
+    def build(
+        self, collection_namespace: str, collection_name: str
+    ) -> BaseGenerationContext:
         """
         Main entry point to build the full, flattened context for a single module.
         It orchestrates the creation of all necessary data for the template.
         """
-        module_name = f"waldur_{self.module_config.module_key}"
-
         # 1. Build the dictionary of Ansible parameters for the module.
         parameters = self._build_parameters()
 
@@ -69,8 +69,18 @@ class CrudContextBuilder(BaseContextBuilder):
         sdk_imports = self._collect_imports()
 
         # 3. Build the data structures for documentation and examples.
-        doc_data = self._build_documentation_data(module_name, parameters)
-        examples_data = self._build_examples_data(module_name, parameters)
+        doc_data = self._build_documentation_data(
+            self.module_config.module_key,
+            parameters,
+            collection_namespace,
+            collection_name,
+        )
+        examples_data = self._build_examples_data(
+            self.module_config.module_key,
+            parameters,
+            collection_namespace,
+            collection_name,
+        )
 
         # 4. Convert these data structures into formatted YAML strings.
         # This separates data generation from presentation, ensuring valid YAML.
@@ -90,16 +100,21 @@ class CrudContextBuilder(BaseContextBuilder):
             argument_spec_data, indent=4, width=120, sort_dicts=False
         )
 
+        runner_import_path = (
+            f"ansible_collections.{collection_namespace}.{collection_name}"
+            f".plugins.module_utils.waldur.crud_runner"
+        )
+
         # 5. Return context object, ready for rendering.
         return BaseGenerationContext(
             description=self.module_config.description,
-            module_name=module_name,
+            module_name=self.module_config.module_key,
             parameters=parameters,
             sdk_imports=sdk_imports,
             documentation_yaml=doc_yaml,
             examples_yaml=examples_yaml,
-            runner_import_path="ansible_waldur_generator.plugins.crud.runner",
             runner_class_name="CrudResourceRunner",
+            runner_import_path=runner_import_path,
             runner_context_string=runner_context_string,
             argument_spec_string=argument_spec_string,
         )
@@ -280,7 +295,11 @@ class CrudContextBuilder(BaseContextBuilder):
         return flat_resolvers
 
     def _build_examples_data(
-        self, module_name: str, parameters: AnsibleModuleParams
+        self,
+        module_name: str,
+        parameters: AnsibleModuleParams,
+        collection_namespace: str,
+        collection_name: str,
     ) -> List[Dict[str, Any]]:
         """Builds the EXAMPLES block as a list of Python dictionaries."""
 
@@ -319,6 +338,7 @@ class CrudContextBuilder(BaseContextBuilder):
             p["name"]
             for p in self.module_config.existence_check.config.get("params", [])
         ]
+        fqcn = f"{collection_namespace}.{collection_name}.{module_name}"
 
         return [
             {
@@ -327,9 +347,7 @@ class CrudContextBuilder(BaseContextBuilder):
                 "tasks": [
                     {
                         "name": f"Add {self.module_config.resource_type}",
-                        module_name: get_example_params(
-                            create_names, {"state": "present"}
-                        ),
+                        fqcn: get_example_params(create_names, {"state": "present"}),
                     }
                 ],
             },
@@ -339,9 +357,7 @@ class CrudContextBuilder(BaseContextBuilder):
                 "tasks": [
                     {
                         "name": f"Remove {self.module_config.resource_type}",
-                        module_name: get_example_params(
-                            delete_names, {"state": "absent"}
-                        ),
+                        fqcn: get_example_params(delete_names, {"state": "absent"}),
                     }
                 ],
             },

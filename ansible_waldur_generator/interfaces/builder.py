@@ -29,7 +29,9 @@ class BaseContextBuilder(ABC):
         self.collector = collector
 
     @abstractmethod
-    def build(self) -> BaseGenerationContext:
+    def build(
+        self, collection_namespace: str, collection_name: str
+    ) -> BaseGenerationContext:
         """
         Main entry point to build the full, flattened context for a single module.
         It orchestrates the creation of all necessary data for the template.
@@ -37,11 +39,16 @@ class BaseContextBuilder(ABC):
         ...
 
     def _build_documentation_data(
-        self, module_name: str, parameters: AnsibleModuleParams
+        self,
+        module_name: str,
+        parameters: AnsibleModuleParams,
+        collection_namespace: str,
+        collection_name: str,
     ) -> dict[str, Any]:
         """Builds the DOCUMENTATION block as a Python dictionary."""
+        fqcn = f"{collection_namespace}.{collection_name}.{module_name}"
         doc = {
-            "module": module_name,
+            "module": fqcn,
             "short_description": self.module_config.description,
             "version_added": "0.1",
             "description": [self.module_config.description],

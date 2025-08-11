@@ -22,14 +22,25 @@ class FactsContextBuilder(BaseContextBuilder):
         super().__init__(module_config, api_parser, collector)
         self.module_config: FactsModuleConfig = module_config
 
-    def build(self) -> FactsGenerationContext:
+    def build(
+        self, collection_namespace: str, collection_name: str
+    ) -> FactsGenerationContext:
         """Main entry point for the builder."""
-        module_name = f"waldur_{self.module_config.module_key}"
 
         parameters = self._build_parameters()
         sdk_imports = self._collect_imports()
-        doc_data = self._build_documentation_data(module_name, parameters)
-        examples_data = self._build_examples_data(module_name, parameters)
+        doc_data = self._build_documentation_data(
+            self.module_config.module_key,
+            parameters,
+            collection_namespace,
+            collection_name,
+        )
+        examples_data = self._build_examples_data(
+            self.module_config.module_key,
+            parameters,
+            collection_namespace,
+            collection_name,
+        )
 
         runner_context_data = self._build_runner_context_data()
         runner_context_string = to_python_code_string(
@@ -52,8 +63,13 @@ class FactsContextBuilder(BaseContextBuilder):
             width=1000,
         )
 
+        runner_import_path = (
+            f"ansible_collections.{collection_namespace}.{collection_name}"
+            f".plugins.module_utils.waldur.facts_runner"
+        )
+
         return FactsGenerationContext(
-            module_name=module_name,
+            module_name=self.module_config.module_key,
             description=self.module_config.description,
             parameters=parameters,
             sdk_imports=sdk_imports,
@@ -61,7 +77,7 @@ class FactsContextBuilder(BaseContextBuilder):
             examples_yaml=examples_yaml,
             resource_type=self.module_config.resource_type,
             runner_class_name="FactsRunner",
-            runner_import_path="ansible_waldur_generator.plugins.facts.runner",
+            runner_import_path=runner_import_path,
             runner_context_string=runner_context_string,
             argument_spec_string=argument_spec_string,
         )
@@ -159,7 +175,11 @@ class FactsContextBuilder(BaseContextBuilder):
         }
 
     def _build_examples_data(
-        self, module_name: str, parameters: AnsibleModuleParams
+        self,
+        module_name: str,
+        parameters: AnsibleModuleParams,
+        collection_namespace: str,
+        collection_name: str,
     ) -> List[Dict[str, Any]]:
         """Builds the EXAMPLES block for a facts module."""
 
@@ -181,9 +201,10 @@ class FactsContextBuilder(BaseContextBuilder):
             return params
 
         param_names = list(parameters.keys())
+        fqcn = f"{collection_namespace}.{collection_name}.{module_name}"
         task = {
             "name": f"Get a {self.module_config.resource_type.replace('_', ' ')}",
-            module_name: get_example_params(param_names),
+            fqcn: get_example_params(param_names),
         }
         return [
             {

@@ -1,15 +1,15 @@
 # Ansible Waldur Module Generator
 
-This project is a code generator designed to automate the creation of Ansible modules for the Waldur API. By defining a module's behavior and its API interactions in a simple YAML configuration file, you can automatically generate the full Python code for a robust, well-documented, and idempotent Ansible module.
+This project is a code generator designed to automate the creation of a self-contained **Ansible Collection** for the Waldur API. By defining a module's behavior and its API interactions in a simple YAML configuration file, you can automatically generate robust, well-documented, and idempotent Ansible modules, perfectly packaged for distribution and use.
 
-The primary goal is to eliminate boilerplate code, enforce consistency across modules, and dramatically speed up the development process for managing Waldur resources with Ansible.
+The primary goal is to eliminate boilerplate code, enforce consistency, and dramatically speed up the development process for managing Waldur resources with Ansible. The final output is a  Ansible Collection ready for publishing to **Ansible Galaxy**.
 
 ## Core Concept
 
 The generator works by combining three main components:
 
 1.  **OpenAPI Specification (`waldur_api.yaml`):** The single source of truth for all available API endpoints, their parameters, and their data models.
-2.  **Generator Configuration (`generator_config.yaml`):** A user-defined YAML file where you describe the Ansible modules you want to create. This is where you map high-level logic (like "create a resource") to specific API operations.
+2.  **Generator Configuration (`generator_config.yaml`):** A user-defined YAML file where you describe the Ansible Collection and the modules you want to create. This is where you map high-level logic (like "create a resource") to specific API operations.
 3.  **Plugins:** The engine of the generator. A plugin understands a specific workflow or pattern (e.g., fetching facts, simple CRUD, or complex marketplace orders) and contains the logic to build the corresponding Ansible module code.
 
 ## Getting Started
@@ -18,6 +18,7 @@ The generator works by combining three main components:
 
 -   Python 3.11+
 -   [Poetry](https://python-poetry.org/docs/#installation) (for dependency management and running scripts)
+-   Ansible Core (`ansible-core >= 2.14`) for building and using the collection.
 
 ### Installation
 
@@ -35,26 +36,51 @@ The generator works by combining three main components:
 
 ### Running the Generator
 
-To generate the Ansible modules, run the `generate` script defined in `pyproject.toml`:
+To generate the Ansible Collection, run the `generate` script defined in `pyproject.toml`:
 
 ```bash
-poetry run generate
+poetry run ansible-waldur-generator
 ```
 
 By default, this command will:
 -   Read `inputs/generator_config.yaml` and `inputs/waldur_api.yaml`.
--   Use the template from `generator/templates/`.
--   Place the generated file (`waldur_project.py`) into the `outputs/` directory.
+-   Use the configured collection name (e.g., `waldur.cloud`) to create a standard Ansible Collection structure.
+-   Place the generated collection into the `outputs/` directory.
+
+The final structure will look like this:
+```
+outputs/
+└── ansible_collections/
+    └── waldur/
+        └── cloud/
+            ├── galaxy.yml
+            ├── meta/
+            │   └── runtime.yml
+            └── plugins/
+                ├── modules/
+                │   └── project.py
+                └── module_utils/
+                    └── ...
+```
 
 You can customize the paths using command-line options:
 ```bash
 poetry run generate --config my_config.yaml --output-dir ./dist
 ```
-Run `poetry run generate --help` for a full list of options.
+Run `poetry run ansible-waldur-generator --help` for a full list of options.
 
 ## The Plugin System
 
 The generator uses a plugin-based architecture to handle different types of module logic. Each plugin is specialized for a common interaction pattern with the Waldur API. When defining a module in `generator_config.yaml`, the `type` key determines which plugin will be used.
+
+The header defines Ansible collection namespace, name and version.
+
+```yaml
+collection:
+  namespace: waldur
+  name: cloud
+  version: 1.0.0
+```
 
 Below is a detailed explanation of each available plugin.
 
@@ -369,145 +395,191 @@ This architecture makes adding support for a new module type straightforward and
 
 After these steps, running `poetry install` will make the new `facts` type instantly available to the generator without any changes to the core `generator.py` or `plugin_manager.py` files.
 
-## How to Use the Generated Modules
+## How to Use the Generated Collection
 
-Once the generator has created the module files in the `outputs/` directory, you can use them immediately with Ansible just like any other module. There are two primary ways to run them: using an ad-hoc command for quick tests, or within a standard playbook.
+Once generated, the collection can be used immediately for local testing or packaged for distribution. End-users who are not developing the generator can skip directly to the "Installing from Ansible Galaxy" section.
 
-### Prerequisites
+### Method 1: Local Development and Testing
 
-Before running a module, you must tell Ansible where to find it. The simplest method is to set the `ANSIBLE_LIBRARY` environment variable to point to your output directory.
+The most straightforward way to test is to tell Ansible where to find your newly generated collection by setting an environment variable.
 
-Execute this command from the root of your project. This setting will last for your current terminal session.
+1.  **Set the Collection Path:**
+    From the root of your project, run:
+    ```bash
+    export ANSIBLE_COLLECTIONS_PATH=./outputs
+    ```
+    This command tells Ansible to look for collections inside the `outputs` directory. This setting lasts for your current terminal session.
 
-```bash
-export ANSIBLE_LIBRARY=./outputs
-```
+2.  **Run an Ad-Hoc Command:**
+    You can now test any module using its **Fully Qualified Collection Name (FQCN)**. This is perfect for a quick check.
 
-Alternatively, you can create an `ansible.cfg` file in your project root with the following content:
-```ini
-[defaults]
-library = ./outputs
-```
+    **Command:**
+    ```bash
+    # Test the 'waldur.cloud.project' module from the 'waldur.cloud' collection
+    ansible localhost -m waldur.cloud.project \
+      -a "state=present \
+          name='My AdHoc Project' \
+          customer='Big Corp' \
+          api_url='https://api.example.com/api/' \
+          access_token='YOUR_SECRET_TOKEN'"
+    ```
 
-### Method 1: Ad-Hoc Command (for Quick Testing)
-
-The `ansible` ad-hoc command is perfect for testing a single module's functionality without writing a full playbook.
-
-**Command Structure:**
-```bash
-ansible <host-pattern> -m <module_name> -a "<arguments>"
-```
-
-**Example: Getting Facts about an OpenStack Instance**
-
-Let's assume you have generated a module named `waldur_marketplace_os_get_instance`. The following command will execute it against `localhost` to find an instance named `My Test VM` within the project `My Test Project`.
-
-```bash
-# Ensure ANSIBLE_LIBRARY is set first!
-export ANSIBLE_LIBRARY=./outputs
-
-# Run the ad-hoc command
-ansible localhost -m waldur_marketplace_os_get_instance \
-  -a "name='My Test VM' \
-      project='My Test Project' \
-      api_url='https://api.example.com/api/' \
-      access_token='YOUR_SECRET_TOKEN'"
-```
-
-**Example Output (Success):**
-```json
-localhost | SUCCESS => {
-    "changed": false,
-    "instance": {
-        "uuid": "a1b2c3d4-e5f6-...",
-        "name": "My Test VM",
-        "state": "OK",
-        ...
+    **Example Output (Success, resource created):**
+    ```json
+    localhost | CHANGED => {
+        "changed": true,
+        "resource": {
+            "created": "2024-03-21T12:00:00.000000Z",
+            "customer": "https://api.example.com/api/customers/...",
+            "customer_name": "Big Corp",
+            "description": "",
+            "name": "My AdHoc Project",
+            "url": "https://api.example.com/api/projects/...",
+            "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        }
     }
-}
-```
+    ```
 
-**Example from a Real Use Case:**
-
-Here is a practical example showing how to find an instance named `mariak8s` inside a project identified by its UUID. Note how the arguments are passed as a single string.
-
-```bash
-ANSIBLE_LIBRARY=./outputs poetry run ansible localhost \
-  -m waldur_marketplace_os_get_instance \
-  -a "name='mariak8s' \
-      project='39167edfe5cb4548b8193506c7488d42' \
-      api_url='http://127.0.0.1:8000/api/' \
-      access_token='YOUR_SECRET_TOKEN'"
-```
-
-> **Security Warning**: Passing `access_token` directly on the command line is insecure as it can be saved in your shell's history. This method is suitable for local development, but for production or shared environments, use Ansible Vault or environment variables as shown in the playbook method.
-
-### Method 2: Playbook (for Standard Use)
-
-This is the standard, recommended way to use Ansible modules for automation. It allows for more complex logic, better secret management, and version control.
-
-**Step 1: Create a Playbook (`test_playbook.yml`)**
-
-This playbook demonstrates how to call a generated `resource` module to ensure a project exists.
-
-```yaml
-- name: Test Generated Waldur Resource Module
-  hosts: localhost
-  connection: local
-  gather_facts: false
-
-  vars:
-    # It is best practice to load secrets from a vault or environment variables
-    waldur_api_url: "https://api.example.com/api/"
-    waldur_access_token: "{{ lookup('env', 'WALDUR_ACCESS_TOKEN') }}"
-
-  tasks:
-    - name: Ensure a project named 'Ansible-Created Project' exists
-      # Use the name of your generated module
-      waldur_project:
-        api_url: "{{ waldur_api_url }}"
-        access_token: "{{ waldur_access_token }}"
-        state: present
-        name: "Ansible-Created Project"
-        description: "A project managed by Ansible."
-        customer: "Customer Name or UUID"
-      register: project_info
-
-    - name: Show the created or found project details
-      ansible.builtin.debug:
-        var: project_info.resource
-```
-
-**Step 2: Set Environment and Run**
-
-Ensure `ansible.cfg` or `ANSIBLE_LIBRARY` is configured, then set the token as an environment variable and run the playbook.
-
-```bash
-# Set the secret token in the environment
-export WALDUR_ACCESS_TOKEN='YOUR_SECRET_TOKEN'
-
-# Run the playbook
-ansible-playbook test_playbook.yml
-```
-
-**Example Output:**
-```
-PLAY [Test Generated Waldur Resource Module] ****************************
-
-TASK [Ensure a project named 'Ansible-Created Project' exists] ********
-changed: [localhost]
-
-TASK [Show the created or found project details] ***********************
-ok: [localhost] => {
-    "project_info.resource": {
-        "created": "...",
-        "customer": "...",
-        "description": "A project managed by Ansible.",
-        "name": "Ansible-Created Project",
-        "uuid": "f1g2h3i4-..."
+    **Example Output (Success, resource already existed):**
+    ```json
+    localhost | SUCCESS => {
+        "changed": false,
+        "resource": {
+            "created": "2024-03-21T12:00:00.000000Z",
+            "customer": "https://api.example.com/api/customers/...",
+            "customer_name": "Big Corp",
+            "description": "",
+            "name": "My AdHoc Project",
+            "url": "https://api.example.com/api/projects/...",
+            "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        }
     }
-}
+    ```
 
-PLAY RECAP ***************************************************************
-localhost                  : ok=2    changed=1    ...
-```
+    > **Security Warning**: Passing `access_token` on the command line is insecure. For production, use Ansible Vault or environment variables as shown in the playbook method.
+
+3.  **Use in a Playbook:**
+    This is the standard and recommended way to use the collection for automation.
+
+    **`test_playbook.yml`:**
+    ```yaml
+    - name: Manage Waldur Resources with Generated Collection
+      hosts: localhost
+      connection: local
+      gather_facts: false
+      # Good practice to declare the collection you are using
+      collections:
+        - waldur.cloud
+
+      vars:
+        waldur_api_url: "https://api.example.com/api/"
+        waldur_access_token: "{{ lookup('env', 'WALDUR_ACCESS_TOKEN') }}"
+
+      tasks:
+        - name: Ensure 'My Playbook Project' exists
+          # Use the FQCN of the module
+          waldur.cloud.waldur_project:
+            state: present
+            name: "My Playbook Project"
+            customer: "Big Corp"
+            api_url: "{{ waldur_api_url }}"
+            access_token: "{{ waldur_access_token }}"
+          register: project_info
+
+        - name: Show the created or found project details
+          ansible.builtin.debug:
+            var: project_info.resource
+    ```
+
+    **Run the playbook:**
+    ```bash
+    # Set the environment variables first
+    export ANSIBLE_COLLECTIONS_PATHS=./outputs
+    export WALDUR_ACCESS_TOKEN='YOUR_SECRET_TOKEN'
+
+    # Run the playbook
+    ansible-playbook test_playbook.yml
+    ```
+
+    **Example Output (Success):**
+    ```
+    PLAY [Manage Waldur Resources with Generated Collection] *************************
+
+    TASK [Ensure 'My Playbook Project' exists] *************************************
+    changed: [localhost]
+
+    TASK [Show the created or found project details] *******************************
+    ok: [localhost] => {
+        "project_info.resource": {
+            "created": "2024-03-21T12:05:00.000000Z",
+            "customer": "https://api.example.com/api/customers/...",
+            "customer_name": "Big Corp",
+            "description": "",
+            "name": "My Playbook Project",
+            "url": "https://api.example.com/api/projects/...",
+            "uuid": "f1g2h3i4-j5k6-7890-lmno-pq1234567890"
+        }
+    }
+
+    PLAY RECAP *********************************************************************
+    localhost                  : ok=2    changed=1    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+    ```
+
+
+## Publishing and Installing
+
+### Publishing to Ansible Galaxy
+
+The generated output is ready to be published, making your modules available to everyone.
+
+1.  **Build the Collection Archive:**
+    Navigate to the root of the generated collection and run the build command. The output tarball will be placed in the parent directory.
+    ```bash
+    # Navigate to the actual collection directory
+    cd outputs/ansible_collections/waldur/cloud/
+
+    # Build the collection, placing the output tarball in the `outputs` directory
+    ansible-galaxy collection build --output-path ../../../..
+    ```
+    This will create a file like `outputs/waldur-cloud-1.0.0.tar.gz`.
+
+2.  **Get a Galaxy API Key:**
+    -   Log in to [galaxy.ansible.com](https://galaxy.ansible.com/).
+    -   Navigate to `Namespaces` and select your namespace.
+    -   Copy your API key from the "API Key" section.
+
+3.  **Publish the Collection:**
+    Use the `ansible-galaxy` command to upload your built archive.
+    ```bash
+    # Set the token as an environment variable (note the correct variable name)
+    export ANSIBLE_GALAXY_TOKEN="your_copied_api_key"
+
+    # From the `outputs` directory, publish the tarball
+    cd outputs/
+    ansible-galaxy collection publish waldur-cloud-1.0.0.tar.gz
+    ```
+
+### Installing from Ansible Galaxy (for End-Users)
+
+Once the collection is published, any Ansible user can easily install and use it.
+
+1.  **Install the Collection:**
+    ```bash
+    ansible-galaxy collection install waldur.cloud
+    ```
+
+2.  **Use it in a Playbook:**
+    After installation, the modules are available globally. Users can simply write playbooks referencing the FQCN.
+
+    ```yaml
+    - name: Create a Waldur Project
+      hosts: my_control_node
+      tasks:
+        - name: Ensure project exists
+          waldur.cloud.project:
+            state: present
+            name: "Production Project"
+            customer: "Customer Name"
+            api_url: "https://api.waldur.com/api/"
+            access_token: "{{ my_waldur_token }}"
+    ```
