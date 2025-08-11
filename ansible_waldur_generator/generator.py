@@ -32,6 +32,10 @@ EXAMPLES = \"\"\"
 {examples_yaml}
 \"\"\"
 
+RETURN = \"\"\"
+{return_yaml}
+\"\"\"
+
 ARGUMENT_SPEC = {argument_spec_string}
 
 RUNNER_CONTEXT = {runner_context_string}

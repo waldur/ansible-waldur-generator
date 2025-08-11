@@ -43,17 +43,9 @@ class CrudContextBuilder(BaseContextBuilder):
         api_parser: ApiSpecParser,
         collector: ValidationErrorCollector,
     ):
-        """
-        Initializes the builder.
-
-        Args:
-            module_config (ModuleConfig): The validated configuration for one module.
-            api_parser (ApiSpecParser): The OpenAPI specification parser, needed for resolving refs.
-            collector: The validation error collector instance.
-        """
+        super().__init__(module_config, api_parser, collector)
+        # Ensure the module_config is of the correct type.
         self.module_config = module_config
-        self.api_parser = api_parser
-        self.collector = collector
 
     def build(
         self, collection_namespace: str, collection_name: str
@@ -105,6 +97,27 @@ class CrudContextBuilder(BaseContextBuilder):
             f".plugins.module_utils.waldur.crud_runner"
         )
 
+        # We generate it from the 'create' operation's success response,
+        # as that typically returns the full resource object.
+        create_op_spec = self.module_config.present_create.sdk_op.raw_spec
+        return_content = self.return_generator.generate_for_operation(create_op_spec)
+
+        # Structure it for Ansible's RETURN docs
+        return_yaml = ""
+        return_block_dict = None
+        if return_content:
+            return_block_dict = {
+                "resource": {
+                    "description": f"The state of the {self.module_config.resource_type} after the operation.",
+                    "type": "dict",
+                    "returned": "on success",
+                    "contains": return_content,
+                }
+            }
+            return_yaml = yaml.dump(
+                return_block_dict, sort_keys=False, indent=2, width=1000
+            )
+
         # 5. Return context object, ready for rendering.
         return BaseGenerationContext(
             description=self.module_config.description,
@@ -117,6 +130,7 @@ class CrudContextBuilder(BaseContextBuilder):
             runner_import_path=runner_import_path,
             runner_context_string=runner_context_string,
             argument_spec_string=argument_spec_string,
+            return_yaml=return_yaml,
         )
 
     def _build_argument_spec_data(

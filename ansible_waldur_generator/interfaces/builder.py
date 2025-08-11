@@ -5,6 +5,7 @@ from ansible_waldur_generator.api_parser import ApiSpecParser
 from ansible_waldur_generator.helpers import AUTH_OPTIONS, ValidationErrorCollector
 from ansible_waldur_generator.interfaces.config import BaseModuleConfig
 from ansible_waldur_generator.models import AnsibleModuleParams, BaseGenerationContext
+from ansible_waldur_generator.schema_parser import ReturnBlockGenerator
 
 
 class BaseContextBuilder(ABC):
@@ -27,6 +28,10 @@ class BaseContextBuilder(ABC):
         self.module_config = module_config
         self.api_parser = api_parser
         self.collector = collector
+        # Create an instance of the ReturnBlockGenerator.
+        # It needs the full API spec to be able to resolve $ref pointers
+        # that may appear in the response schemas.
+        self.return_generator = ReturnBlockGenerator(api_parser.api_spec)
 
     @abstractmethod
     def build(

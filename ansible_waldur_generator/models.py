@@ -67,6 +67,9 @@ class BaseGenerationContext:
     # The full `EXAMPLES` block, pre-rendered as a single, valid YAML string.
     examples_yaml: str
 
+    # The full `RETURN` block, pre-rendered as a single, valid YAML string.
+    return_yaml: str
+
     runner_class_name: str
     runner_import_path: str
     runner_context_string: Any

@@ -120,6 +120,30 @@ class OrderContextBuilder(BaseContextBuilder):
             f".plugins.module_utils.waldur.order_runner"
         )
 
+        return_yaml = ""  # Default to an empty string
+        # Use the 'existence_check' operation's success response as the source.
+        # This operation returns the final resource object.
+        existence_check_op_spec = self.module_config.existence_check_op.sdk_op.raw_spec
+        # Note: The existence check is a 'list' operation, so we need to get the schema of the items in the list.
+        return_content = self.return_generator.generate_for_operation(
+            existence_check_op_spec
+        )
+
+        if return_content:
+            # Structure the final dictionary that will be converted to YAML
+            return_block_dict = {
+                "resource": {
+                    "description": f"A dictionary describing the {self.module_config.resource_type} after a successful 'present' state.",
+                    "type": "dict",
+                    "returned": "on success when state is 'present'",
+                    "contains": return_content,
+                }
+            }
+            # Serialize to a nicely formatted YAML string with proper indentation
+            return_yaml = yaml.dump(
+                return_block_dict, sort_keys=False, indent=2, width=1000
+            )
+
         # 7. Return the final context object, ready for rendering in Jinja2.
         return BaseGenerationContext(
             module_name=self.module_config.module_key,
@@ -132,6 +156,7 @@ class OrderContextBuilder(BaseContextBuilder):
             runner_import_path=runner_import_path,
             runner_context_string=runner_context_string,
             argument_spec_string=argument_spec_string,
+            return_yaml=return_yaml,
         )
 
     def _build_parameters(self) -> AnsibleModuleParams:

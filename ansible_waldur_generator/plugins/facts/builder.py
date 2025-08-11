@@ -68,6 +68,49 @@ class FactsContextBuilder(BaseContextBuilder):
             f".plugins.module_utils.waldur.facts_runner"
         )
 
+        return_yaml = ""  # Default to empty
+        # Use the 'retrieve' operation's success response as the source schema.
+        retrieve_op_spec = self.module_config.retrieve_op.sdk_op.raw_spec
+        return_content = self.return_generator.generate_for_operation(retrieve_op_spec)
+
+        if return_content:
+            # For facts modules, the primary return key is often the pluralized resource type
+            # or simply 'resources'. Let's use 'resource' for singular and 'resources' for many.
+            if self.module_config.many:
+                return_key = f"{self.module_config.resource_type.replace(' ', '_')}s"
+                description = f"A list of dictionaries describing the found {self.module_config.resource_type}s."
+                return_type = "list"
+                contains_dict = {
+                    "description": f"A dictionary describing a single {self.module_config.resource_type}.",
+                    "type": "dict",
+                    "returned": "always",
+                    "contains": return_content,
+                }
+                return_block_dict = {
+                    return_key: {
+                        "description": description,
+                        "type": return_type,
+                        "returned": "on success",
+                        "contains": contains_dict,
+                    }
+                }
+            else:
+                return_key = self.module_config.resource_type.replace(" ", "_")
+                description = f"A dictionary describing the found {self.module_config.resource_type}."
+                return_type = "dict"
+                return_block_dict = {
+                    return_key: {
+                        "description": description,
+                        "type": return_type,
+                        "returned": "on success",
+                        "contains": return_content,
+                    }
+                }
+
+            return_yaml = yaml.dump(
+                return_block_dict, sort_keys=False, indent=2, width=1000
+            )
+
         return FactsGenerationContext(
             module_name=self.module_config.module_key,
             description=self.module_config.description,
@@ -80,6 +123,7 @@ class FactsContextBuilder(BaseContextBuilder):
             runner_import_path=runner_import_path,
             runner_context_string=runner_context_string,
             argument_spec_string=argument_spec_string,
+            return_yaml=return_yaml,
         )
 
     def _build_argument_spec_data(
