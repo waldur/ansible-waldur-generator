@@ -517,7 +517,7 @@ The most straightforward way to test is to tell Ansible where to find your newly
             "description": "",
             "name": "My Playbook Project",
             "url": "https://api.example.com/api/projects/...",
-            "uuid": "f1g2h3i4-j5k6-7890-lmno-pq1234567890"
+            "uuid": "a1b2c3d4e5f67890abcdef1234567890"
         }
     }
 
