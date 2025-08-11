@@ -568,7 +568,12 @@ Once the collection is published, any Ansible user can easily install and use it
     ansible-galaxy collection install waldur.cloud
     ```
 
-2.  **Use it in a Playbook:**
+2. **Install the Waldur SDK:**
+    ```bash
+    pip install waldur_api_client
+    ```
+
+3.  **Use it in a Playbook:**
     After installation, the modules are available globally. Users can simply write playbooks referencing the FQCN.
 
     ```yaml
