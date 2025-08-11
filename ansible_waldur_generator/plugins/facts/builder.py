@@ -1,5 +1,4 @@
 import pprint
-import yaml
 from typing import Dict, List, Any
 
 from ansible_waldur_generator.interfaces.builder import BaseContextBuilder
@@ -52,54 +51,41 @@ class FactsContextBuilder(BaseContextBuilder):
             argument_spec_data, indent=4, width=120, sort_dicts=False
         )
 
-        doc_yaml = yaml.dump(
-            doc_data, default_flow_style=False, sort_keys=False, indent=2, width=1000
-        )
-        examples_yaml = yaml.dump(
-            examples_data,
-            default_flow_style=False,
-            sort_keys=False,
-            indent=2,
-            width=1000,
-        )
-
         runner_import_path = (
             f"ansible_collections.{collection_namespace}.{collection_name}"
             f".plugins.module_utils.waldur.facts_runner"
         )
 
-        return_yaml = ""  # Default to empty
         # Use the 'retrieve' operation's success response as the source schema.
         retrieve_op_spec = self.module_config.retrieve_op.sdk_op.raw_spec
         return_content = self.return_generator.generate_for_operation(retrieve_op_spec)
+        return_block = {}
 
         if return_content:
             # For facts modules, the primary return key is often the pluralized resource type
             # or simply 'resources'. Let's use 'resource' for singular and 'resources' for many.
             if self.module_config.many:
-                return_key = f"{self.module_config.resource_type.replace(' ', '_')}s"
                 description = f"A list of dictionaries describing the found {self.module_config.resource_type}s."
-                return_type = "list"
                 contains_dict = {
                     "description": f"A dictionary describing a single {self.module_config.resource_type}.",
                     "type": "dict",
                     "returned": "always",
                     "contains": return_content,
                 }
-                return_block_dict = {
-                    return_key: {
+                return_block = {
+                    "resource": {
                         "description": description,
-                        "type": return_type,
+                        "type": "list",
                         "returned": "on success",
+                        "elements": "dict",  # Specify that the list contains dictionaries
                         "contains": contains_dict,
                     }
                 }
             else:
-                return_key = self.module_config.resource_type.replace(" ", "_")
                 description = f"A dictionary describing the found {self.module_config.resource_type}."
                 return_type = "dict"
-                return_block_dict = {
-                    return_key: {
+                return_block = {
+                    "resource": {
                         "description": description,
                         "type": return_type,
                         "returned": "on success",
@@ -107,23 +93,19 @@ class FactsContextBuilder(BaseContextBuilder):
                     }
                 }
 
-            return_yaml = yaml.dump(
-                return_block_dict, sort_keys=False, indent=2, width=1000
-            )
-
         return FactsGenerationContext(
             module_name=self.module_config.module_key,
             description=self.module_config.description,
             parameters=parameters,
             sdk_imports=sdk_imports,
-            documentation_yaml=doc_yaml,
-            examples_yaml=examples_yaml,
+            documentation=doc_data,
+            examples=examples_data,
             resource_type=self.module_config.resource_type,
             runner_class_name="FactsRunner",
             runner_import_path=runner_import_path,
             runner_context_string=runner_context_string,
             argument_spec_string=argument_spec_string,
-            return_yaml=return_yaml,
+            return_block=return_block,
         )
 
     def _build_argument_spec_data(

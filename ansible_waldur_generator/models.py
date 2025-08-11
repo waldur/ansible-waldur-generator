@@ -61,14 +61,14 @@ class BaseGenerationContext:
     # Example: [{'module': 'waldur_api_client.api.projects', 'function': 'projects_create'}]
     sdk_imports: List[Dict[str, str]]
 
-    # The full `DOCUMENTATION` block, pre-rendered as a single, valid YAML string.
-    documentation_yaml: str
+    # The full `DOCUMENTATION` block
+    documentation: dict
 
-    # The full `EXAMPLES` block, pre-rendered as a single, valid YAML string.
-    examples_yaml: str
+    # The full `EXAMPLES` block
+    examples: dict | list[dict]
 
-    # The full `RETURN` block, pre-rendered as a single, valid YAML string.
-    return_yaml: str
+    # The full `RETURN` block
+    return_block: dict
 
     runner_class_name: str
     runner_import_path: str

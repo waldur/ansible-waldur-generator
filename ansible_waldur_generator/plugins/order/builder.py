@@ -3,7 +3,6 @@ Builds the final GenerationContext object for an 'order' type module.
 """
 
 import pprint
-import yaml
 from typing import Dict, List, Any
 
 # Import standard OpenAPI to Ansible type mapping and auth options
@@ -103,24 +102,11 @@ class OrderContextBuilder(BaseContextBuilder):
             argument_spec_data, indent=4, width=120, sort_dicts=False
         )
 
-        # 6. Convert documentation and examples data into formatted YAML strings.
-        doc_yaml = yaml.dump(
-            doc_data, default_flow_style=False, sort_keys=False, indent=2, width=1000
-        )
-        examples_yaml = yaml.dump(
-            examples_data,
-            default_flow_style=False,
-            sort_keys=False,
-            indent=2,
-            width=1000,
-        )
-
         runner_import_path = (
             f"ansible_collections.{collection_namespace}.{collection_name}"
             f".plugins.module_utils.waldur.order_runner"
         )
 
-        return_yaml = ""  # Default to an empty string
         # Use the 'existence_check' operation's success response as the source.
         # This operation returns the final resource object.
         existence_check_op_spec = self.module_config.existence_check_op.sdk_op.raw_spec
@@ -129,6 +115,7 @@ class OrderContextBuilder(BaseContextBuilder):
             existence_check_op_spec
         )
 
+        return_block_dict = {}
         if return_content:
             # Structure the final dictionary that will be converted to YAML
             return_block_dict = {
@@ -139,10 +126,6 @@ class OrderContextBuilder(BaseContextBuilder):
                     "contains": return_content,
                 }
             }
-            # Serialize to a nicely formatted YAML string with proper indentation
-            return_yaml = yaml.dump(
-                return_block_dict, sort_keys=False, indent=2, width=1000
-            )
 
         # 7. Return the final context object, ready for rendering in Jinja2.
         return BaseGenerationContext(
@@ -150,13 +133,13 @@ class OrderContextBuilder(BaseContextBuilder):
             description=self.module_config.description,
             parameters=parameters,
             sdk_imports=sdk_imports,
-            documentation_yaml=doc_yaml,
-            examples_yaml=examples_yaml,
+            documentation=doc_data,
+            examples=examples_data,
             runner_class_name="OrderRunner",
             runner_import_path=runner_import_path,
             runner_context_string=runner_context_string,
             argument_spec_string=argument_spec_string,
-            return_yaml=return_yaml,
+            return_block=return_block_dict,
         )
 
     def _build_parameters(self) -> AnsibleModuleParams:

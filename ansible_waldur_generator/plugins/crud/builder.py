@@ -7,7 +7,6 @@ import lists, and documentation blocks.
 """
 
 import pprint
-import yaml
 from typing import Dict, List, Any
 
 from ansible_waldur_generator.api_parser import ApiSpecParser
@@ -61,13 +60,13 @@ class CrudContextBuilder(BaseContextBuilder):
         sdk_imports = self._collect_imports()
 
         # 3. Build the data structures for documentation and examples.
-        doc_data = self._build_documentation_data(
+        documentation = self._build_documentation_data(
             self.module_config.module_key,
             parameters,
             collection_namespace,
             collection_name,
         )
-        examples_data = self._build_examples_data(
+        examples = self._build_examples_data(
             self.module_config.module_key,
             parameters,
             collection_namespace,
@@ -76,11 +75,6 @@ class CrudContextBuilder(BaseContextBuilder):
 
         # 4. Convert these data structures into formatted YAML strings.
         # This separates data generation from presentation, ensuring valid YAML.
-
-        doc_yaml = yaml.dump(doc_data, default_flow_style=False, sort_keys=False)
-        examples_yaml = yaml.dump(
-            examples_data, default_flow_style=False, sort_keys=False
-        )
 
         runner_context_data = self._build_runner_context_data()
         runner_context_string = to_python_code_string(
@@ -103,10 +97,9 @@ class CrudContextBuilder(BaseContextBuilder):
         return_content = self.return_generator.generate_for_operation(create_op_spec)
 
         # Structure it for Ansible's RETURN docs
-        return_yaml = ""
-        return_block_dict = None
+        return_block = None
         if return_content:
-            return_block_dict = {
+            return_block = {
                 "resource": {
                     "description": f"The state of the {self.module_config.resource_type} after the operation.",
                     "type": "dict",
@@ -114,9 +107,6 @@ class CrudContextBuilder(BaseContextBuilder):
                     "contains": return_content,
                 }
             }
-            return_yaml = yaml.dump(
-                return_block_dict, sort_keys=False, indent=2, width=1000
-            )
 
         # 5. Return context object, ready for rendering.
         return BaseGenerationContext(
@@ -124,13 +114,13 @@ class CrudContextBuilder(BaseContextBuilder):
             module_name=self.module_config.module_key,
             parameters=parameters,
             sdk_imports=sdk_imports,
-            documentation_yaml=doc_yaml,
-            examples_yaml=examples_yaml,
+            documentation=documentation,
+            examples=examples,
             runner_class_name="CrudResourceRunner",
             runner_import_path=runner_import_path,
             runner_context_string=runner_context_string,
             argument_spec_string=argument_spec_string,
-            return_yaml=return_yaml,
+            return_block=return_block,
         )
 
     def _build_argument_spec_data(
