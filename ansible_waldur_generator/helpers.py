@@ -35,6 +35,13 @@ def to_snake_case(name):
     return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
 
 
+def capitalize_first(s: str) -> str:
+    """Capitalizes the first letter of a string without lowercasing the rest."""
+    if not s:
+        return ""
+    return s[0].upper() + s[1:]
+
+
 class ValidationErrorCollector:
     """A simple class to collect and report validation errors."""
 

@@ -14,6 +14,7 @@ from ansible_waldur_generator.helpers import (
     AUTH_OPTIONS,
     OPENAPI_TO_ANSIBLE_TYPE_MAP,
     ValidationErrorCollector,
+    capitalize_first,
     to_python_code_string,
 )
 from ansible_waldur_generator.interfaces.builder import BaseContextBuilder
@@ -231,7 +232,9 @@ class CrudContextBuilder(BaseContextBuilder):
                     continue
 
                 is_resolved = name in conf.resolvers
-                description = prop.get("description", "")
+                description = prop.get(
+                    "description", capitalize_first(name.replace("_", " "))
+                )
 
                 # Validate that any parameter expecting a URI is either resolved or explicitly skipped.
                 if (
