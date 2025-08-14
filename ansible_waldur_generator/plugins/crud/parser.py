@@ -28,104 +28,95 @@ class CrudConfigParser(BaseConfigParser):
         self.api_parser = api_parser
         self.collector = collector
 
-    def parse(self) -> CrudModuleConfig:
-        # Use a deep copy to prevent normalization of one module from affecting another.
+    def parse(self) -> CrudModuleConfig | None:
+        # Use a deep copy to prevent modification of original config.
         config = deepcopy(self.config)
 
-        # 1. Expand the simplified config format into the advanced format.
-        self._normalize_config(config)
-
-        # 2. Build the structured ModuleConfig object from the normalized dict.
+        # Build the structured ModuleConfig object directly from the simplified format.
         module_config_obj = self._build_object(self.module_key, config)
-        # 3. Perform validations that require the full object structure.
+        if module_config_obj is None:
+            return None
+
+        # Perform validations that require the full object structure.
         self._validate(module_config_obj)
         return module_config_obj
 
-    def _normalize_config(self, config: dict[str, Any]):
+    def _build_object(
+        self, module_key: str, config: dict[str, Any]
+    ) -> CrudModuleConfig | None:
         """
-        Expands the simplified `resource_type` format into the more explicit
-        advanced format for consistent processing.
+        Constructs a ModuleConfig dataclass instance from the simplified config format.
+        This method links the configuration with the ApiOperation objects.
         """
-        if "resource_type" in config and "operations" in config:
-            res_type = config["resource_type"]
-            ops = config["operations"]
+        # Validate required fields for simplified format
+        if "resource_type" not in config or "operations" not in config:
+            self.collector.add_error(
+                f"Module '{module_key}': Simplified format requires 'resource_type' and 'operations' fields."
+            )
+            return None
 
-            if "description" not in config:
-                config["description"] = f"Manage {res_type.capitalize()}s in Waldur."
+        resource_type = config["resource_type"]
+        operations = config["operations"]
 
-            # This marks it for processing as a standard resource module.
-            config["type"] = "resource"
+        # Validate required operations
+        required_ops = ["list", "create", "destroy"]
+        for op in required_ops:
+            if op not in operations:
+                self.collector.add_error(
+                    f"Module '{module_key}': Missing required operation '{op}' in 'operations' section."
+                )
+                return None
 
-            # Create the explicit 'existence_check' section.
-            config["existence_check"] = {
-                "operationId": ops["list"],
+        # Build existence check section from list operation
+        list_op_id = operations["list"]
+        list_api_op = self.api_parser.get_operation(list_op_id)
+        if not list_api_op:
+            self.collector.add_error(
+                f"Module '{module_key}': OperationId '{list_op_id}' for 'list' operation not found in API spec."
+            )
+            return None
+
+        check_section = ModuleIdempotencySection(
+            operationId=list_op_id,
+            api_op=list_api_op,
+            config={
                 "params": [
                     {
                         "name": "name",
                         "type": "str",
                         "required": True,
-                        "description": f"The name of the {res_type} to check/create/delete.",
+                        "description": f"The name of the {resource_type} to check/create/delete.",
                         "maps_to": "name_exact",
                     }
-                ],
-            }
+                ]
+            },
+        )
 
-            # Create explicit, flattened sections for 'present' and 'absent' actions.
-            config["present_create"] = {"operationId": ops["create"]}
-            config["absent_destroy"] = {"operationId": ops["destroy"]}
-
-            # Clean up the original simplified keys to avoid confusion.
-            del config["operations"]
-            if "present" in config:
-                del config["present"]
-            if "absent" in config:
-                del config["absent"]
-
-    def _build_object(
-        self, module_key: str, config: dict[str, Any]
-    ) -> CrudModuleConfig:
-        """
-        Constructs a ModuleConfig dataclass instance from the normalized config dict.
-        This method links the configuration with the ApiOperation objects.
-        """
-
-        def _get_idempotency_section(
-            section_name: str,
-        ) -> ModuleIdempotencySection | None:
-            """Internal helper to create a ModuleIdempotencySection from a config key."""
-            section_data = config.get(section_name, {})
-            op_id = section_data.get("operationId")
-
-            if not op_id:
-                self.collector.add_error(
-                    f"Module '{module_key}': Missing 'operationId' for required section '{section_name}'."
-                )
-                return None
-
-            api_op = self.api_parser.get_operation(op_id)
-            if not api_op:
-                self.collector.add_error(
-                    f"Module '{module_key}': OperationId '{op_id}' for section '{section_name}' not found in API spec."
-                )
-                return None
-
-            # Store any other keys (like 'params') in the config attribute.
-            specific_config = {
-                k: v for k, v in section_data.items() if k != "operationId"
-            }
-
-            return ModuleIdempotencySection(
-                operationId=op_id, api_op=api_op, config=specific_config
+        # Build create section
+        create_op_id = operations["create"]
+        create_api_op = self.api_parser.get_operation(create_op_id)
+        if not create_api_op:
+            self.collector.add_error(
+                f"Module '{module_key}': OperationId '{create_op_id}' for 'create' operation not found in API spec."
             )
-
-        # Build the main sections from the now normalized config keys.
-        check_section = _get_idempotency_section("existence_check")
-        create_section = _get_idempotency_section("present_create")
-        destroy_section = _get_idempotency_section("absent_destroy")
-
-        # If any of the core sections failed to build, we can't create a valid ModuleConfig.
-        if not all([check_section, create_section, destroy_section]):
             return None
+
+        create_section = ModuleIdempotencySection(
+            operationId=create_op_id, api_op=create_api_op, config={}
+        )
+
+        # Build destroy section
+        destroy_op_id = operations["destroy"]
+        destroy_api_op = self.api_parser.get_operation(destroy_op_id)
+        if not destroy_api_op:
+            self.collector.add_error(
+                f"Module '{module_key}': OperationId '{destroy_op_id}' for 'destroy' operation not found in API spec."
+            )
+            return None
+
+        destroy_section = ModuleIdempotencySection(
+            operationId=destroy_op_id, api_op=destroy_api_op, config={}
+        )
 
         # Build resolvers, linking them to their ApiOperation objects.
         resolvers = {}
@@ -158,10 +149,15 @@ class CrudConfigParser(BaseConfigParser):
                 ),
             )
 
+        # Set default description if not provided
+        description = config.get(
+            "description", f"Manage {resource_type.capitalize()}s in Waldur."
+        )
+
         return CrudModuleConfig(
             module_key=module_key,
-            resource_type=config.get("resource_type", module_key),
-            description=config.get("description", ""),
+            resource_type=resource_type,
+            description=description,
             check_section=check_section,
             create_section=create_section,
             destroy_section=destroy_section,
@@ -173,6 +169,10 @@ class CrudConfigParser(BaseConfigParser):
         """Performs validations that require the fully constructed ModuleConfig object."""
         # Validate that each resolver's list operation supports name-based filtering.
         for name, resolver in module_config.resolvers.items():
+            # Both list_op and retrieve_op should exist since we validated them during creation
+            if resolver.list_op is None:
+                continue
+
             params = resolver.list_op.raw_spec.get("parameters", [])
 
             has_name_exact_filter = any(
@@ -181,6 +181,6 @@ class CrudConfigParser(BaseConfigParser):
 
             if not has_name_exact_filter:
                 self.collector.add_error(
-                    f"Module '{module_config.module_key}', resolver '{name}': The 'list' operation '{resolver.list_op.sdk_function_name}' must support "
+                    f"Module '{module_config.module_key}', resolver '{name}': The 'list' operation '{resolver.list_op.operation_id}' must support "
                     f"a 'name_exact' query parameter, but it was not found."
                 )
