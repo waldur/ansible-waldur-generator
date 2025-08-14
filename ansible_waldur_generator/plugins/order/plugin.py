@@ -273,14 +273,9 @@ class OrderPlugin(BasePlugin):
         return GenerationContext(
             argument_spec=self._build_argument_spec(parameters),
             module_filename=f"{module_name}.py",
-            documentation={
-                "module": module_name,
-                "short_description": module_config.description,
-                "description": [module_config.description],
-                "author": "Waldur Team",
-                "options": parameters,
-                "requirements": ["python >= 3.11", "requests"],
-            },
+            documentation=self._build_documentation(
+                module_name, module_config.description, parameters
+            ),
             examples=examples,
             return_block=return_block,
             runner_context=runner_context,

@@ -37,6 +37,22 @@ class BasePlugin(ABC):
             spec[name] = param_spec
         return spec
 
+    def _build_documentation(
+        self,
+        module_name: str,
+        description: str | None,
+        parameters: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        processed_description = description or f"Manage {module_name}"
+        return {
+            "module": module_name,
+            "short_description": processed_description,
+            "description": [processed_description],
+            "author": "Waldur Team",
+            "options": parameters,
+            "requirements": ["python >= 3.11", "requests"],
+        }
+
     def get_runner_path(self) -> str | None:
         module = sys.modules[self.__class__.__module__]
         if not module.__file__:
