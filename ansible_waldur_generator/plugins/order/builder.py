@@ -54,10 +54,8 @@ class OrderContextBuilder(BaseContextBuilder):
         # Use the 'existence_check' operation's success response as the source.
         # This operation returns the final resource object.
         return_content = None
-        if self.module_config.existence_check_op.api_op:
-            existence_check_op_spec = (
-                self.module_config.existence_check_op.api_op.raw_spec
-            )
+        if self.module_config.existence_check_op:
+            existence_check_op_spec = self.module_config.existence_check_op.raw_spec
             # Note: The existence check is a 'list' operation, so we need to get the schema of the items in the list.
             return_content = self.return_generator.generate_for_operation(
                 existence_check_op_spec
@@ -152,13 +150,11 @@ class OrderContextBuilder(BaseContextBuilder):
         return {
             "resource_type": conf.resource_type,
             # Configured operations:
-            "existence_check_url": conf.existence_check_op.api_op.path
-            if conf.existence_check_op.api_op
+            "existence_check_url": conf.existence_check_op.path
+            if conf.existence_check_op
             else "",
             "existence_check_filter_keys": {"project": "project_uuid"},
-            "update_url": conf.update_op.api_op.path
-            if conf.update_op and conf.update_op.api_op
-            else None,
+            "update_url": conf.update_op.path if conf.update_op else None,
             "update_check_fields": conf.update_check_fields,
             # Built-in (hardcoded) operations and models:
             "order_create_url": "/api/marketplace-orders/",

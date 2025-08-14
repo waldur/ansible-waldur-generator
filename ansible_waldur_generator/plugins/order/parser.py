@@ -8,8 +8,8 @@ from typing import Any
 from ansible_waldur_generator.api_parser import ApiSpecParser
 from ansible_waldur_generator.helpers import ValidationErrorCollector
 from ansible_waldur_generator.interfaces.parser import BaseConfigParser
+from ansible_waldur_generator.models import ApiOperation
 from ansible_waldur_generator.plugins.crud.config import (
-    ModuleIdempotencySection,
     ModuleResolver,
 )
 from ansible_waldur_generator.plugins.order.config import OrderModuleConfig
@@ -84,9 +84,9 @@ class OrderConfigParser(BaseConfigParser):
 
     def _build_idempotency_section(
         self, section_key: str, is_required: bool
-    ) -> ModuleIdempotencySection | None:
+    ) -> ApiOperation | None:
         """
-        Builds a ModuleIdempotencySection for a given key (e.g., 'existence_check_op').
+        Builds an ApiOperation for a given key (e.g., 'existence_check_op').
         It handles resolving the operationId and gracefully reports errors.
         """
         section_data = self.config.get(section_key)
@@ -102,12 +102,8 @@ class OrderConfigParser(BaseConfigParser):
         # The config can be a simple string (the operationId) or a dictionary.
         if isinstance(section_data, str):
             op_id = section_data
-            specific_config = {}
         elif isinstance(section_data, dict):
             op_id = section_data.get("operationId")
-            specific_config = {
-                k: v for k, v in section_data.items() if k != "operationId"
-            }
         else:
             self.collector.add_error(
                 f"{self.context_str}: Section '{section_key}' must be a string (operationId) or a dictionary."
@@ -128,9 +124,7 @@ class OrderConfigParser(BaseConfigParser):
             )
             return None
 
-        return ModuleIdempotencySection(
-            operationId=op_id, api_op=api_op, config=specific_config
-        )
+        return api_op
 
     def _build_resolvers(self) -> dict[str, ModuleResolver]:
         """Builds a dictionary of ModuleResolver objects from the 'resolvers' config."""

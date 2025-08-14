@@ -1,5 +1,4 @@
 from ansible_waldur_generator.interfaces.parser import BaseConfigParser
-from ansible_waldur_generator.plugins.crud.config import ModuleIdempotencySection
 from ansible_waldur_generator.plugins.facts.config import FactsModuleConfig
 
 
@@ -42,15 +41,9 @@ class FactsConfigParser(BaseConfigParser):
             self.collector.add_error(f"{context_str}: Missing 'resource_type' key.")
             return None
 
-        list_section = ModuleIdempotencySection(
-            operationId=list_op_id,
-            api_op=list_api_op,
-        )
-
-        retrieve_section = ModuleIdempotencySection(
-            operationId=retrieve_op_id,
-            api_op=retrieve_api_op,
-        )
+        # Use ApiOperation directly
+        list_section = list_api_op
+        retrieve_section = retrieve_api_op
 
         if not list_section or not retrieve_section:
             return None

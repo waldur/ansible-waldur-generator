@@ -6,21 +6,6 @@ from ansible_waldur_generator.models import ApiOperation
 
 
 @dataclass
-class ModuleIdempotencySection:
-    """
-    Represents a configuration section for an idempotency action.
-    """
-
-    operationId: str
-
-    # This field will be populated by the parser with the full ApiOperation object.
-    api_op: ApiOperation | None = None
-
-    # Additional configuration specific to the section.
-    config: dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass
 class ModuleResolver:
     """
     Represents the configuration for a single parameter resolver.
@@ -44,9 +29,13 @@ class CrudModuleConfig(BaseModuleConfig):
 
     resource_type: str
 
-    check_section: ModuleIdempotencySection
-    create_section: ModuleIdempotencySection
-    destroy_section: ModuleIdempotencySection
+    check_section: ApiOperation
+    create_section: ApiOperation
+    destroy_section: ApiOperation
+
+    # Additional configuration for the check section (existence check)
+    # This replaces the 'config' field that was previously used
+    check_section_config: dict[str, Any] = field(default_factory=dict)
 
     resolvers: dict[str, ModuleResolver] = field(default_factory=dict)
     skip_resolver_check: list[str] = field(default_factory=list)

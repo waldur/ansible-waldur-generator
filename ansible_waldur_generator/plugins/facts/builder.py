@@ -22,8 +22,8 @@ class FactsContextBuilder(BaseContextBuilder):
     def _build_return_block(self) -> Dict[str, Any]:
         # Use the 'retrieve' operation's success response as the source schema.
         return_block = {}
-        if self.module_config.retrieve_op.api_op:
-            retrieve_op_spec = self.module_config.retrieve_op.api_op.raw_spec
+        if self.module_config.retrieve_op:
+            retrieve_op_spec = self.module_config.retrieve_op.raw_spec
             return_content = self.return_generator.generate_for_operation(
                 retrieve_op_spec
             )
@@ -100,10 +100,8 @@ class FactsContextBuilder(BaseContextBuilder):
         return {
             "module_type": "facts",
             "resource_type": conf.resource_type,
-            "list_url": conf.list_op.api_op.path if conf.list_op.api_op else "",
-            "retrieve_url": conf.retrieve_op.api_op.path
-            if conf.retrieve_op.api_op
-            else "",
+            "list_url": conf.list_op.path if conf.list_op else "",
+            "retrieve_url": conf.retrieve_op.path if conf.retrieve_op else "",
             "identifier_param": conf.identifier_param,
             "context_resolvers": context_resolvers,
         }

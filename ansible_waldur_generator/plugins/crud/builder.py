@@ -48,7 +48,7 @@ class CrudContextBuilder(BaseContextBuilder):
         # We generate it from the 'create' operation's success response,
         # as that typically returns the full resource object.
         return_block = None
-        create_op_spec = self.module_config.create_section.api_op.raw_spec
+        create_op_spec = self.module_config.create_section.raw_spec
         return_content = self.return_generator.generate_for_operation(create_op_spec)
 
         # Structure it for Ansible's RETURN docs
@@ -78,18 +78,16 @@ class CrudContextBuilder(BaseContextBuilder):
 
         return {
             "resource_type": conf.resource_type,
-            "api_path": conf.create_section.api_op.path
-            if conf.create_section.api_op
-            else "",
+            "api_path": conf.create_section.path if conf.create_section else "",
             "model_param_names": self._get_model_param_names(),
             "resolvers": resolvers_data,
         }
 
     def _get_model_param_names(self) -> List[str]:
         """Helper to get a list of parameter names from the model schema."""
-        if not self.module_config.create_section.api_op:
+        if not self.module_config.create_section:
             return []
-        schema = self.module_config.create_section.api_op.model_schema
+        schema = self.module_config.create_section.model_schema
         if not schema or "properties" not in schema:
             return []
         return [
@@ -137,13 +135,13 @@ class CrudContextBuilder(BaseContextBuilder):
         conf = self.module_config
 
         # 1. Add explicitly defined parameters first (e.g., from existence_check).
-        for p in conf.check_section.config.get("params", []):
+        for p in conf.check_section_config.get("params", []):
             p["type"] = OPENAPI_TO_ANSIBLE_TYPE_MAP.get(p.get("type", "str"), "str")
             params[p["name"]] = p
 
         # 2. Add parameters inferred from the 'create' operation's request body schema.
-        if conf.create_section.api_op:
-            schema = conf.create_section.api_op.model_schema
+        if conf.create_section:
+            schema = conf.create_section.model_schema
             if not schema:
                 return params
 
@@ -227,7 +225,7 @@ class CrudContextBuilder(BaseContextBuilder):
             name for name, opts in parameters.items() if opts.get("required")
         ]
         delete_names = [
-            p["name"] for p in self.module_config.check_section.config.get("params", [])
+            p["name"] for p in self.module_config.check_section_config.get("params", [])
         ]
         fqcn = f"{collection_namespace}.{collection_name}.{module_name}"
 

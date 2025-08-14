@@ -4,7 +4,6 @@ from ansible_waldur_generator.api_parser import ApiSpecParser
 from ansible_waldur_generator.helpers import ValidationErrorCollector
 from ansible_waldur_generator.interfaces.parser import BaseConfigParser
 from ansible_waldur_generator.plugins.crud.config import (
-    ModuleIdempotencySection,
     ModuleResolver,
     CrudModuleConfig,
 )
@@ -76,21 +75,20 @@ class CrudConfigParser(BaseConfigParser):
             )
             return None
 
-        check_section = ModuleIdempotencySection(
-            operationId=list_op_id,
-            api_op=list_api_op,
-            config={
-                "params": [
-                    {
-                        "name": "name",
-                        "type": "str",
-                        "required": True,
-                        "description": f"The name of the {resource_type} to check/create/delete.",
-                        "maps_to": "name_exact",
-                    }
-                ]
-            },
-        )
+        # Store the additional configuration for the check section
+        check_section_config = {
+            "params": [
+                {
+                    "name": "name",
+                    "type": "str",
+                    "required": True,
+                    "description": f"The name of the {resource_type} to check/create/delete.",
+                    "maps_to": "name_exact",
+                }
+            ]
+        }
+        # Use the ApiOperation directly
+        check_section = list_api_op
 
         # Build create section
         create_op_id = operations["create"]
@@ -101,9 +99,8 @@ class CrudConfigParser(BaseConfigParser):
             )
             return None
 
-        create_section = ModuleIdempotencySection(
-            operationId=create_op_id, api_op=create_api_op, config={}
-        )
+        # Use the ApiOperation directly for create section
+        create_section = create_api_op
 
         # Build destroy section
         destroy_op_id = operations["destroy"]
@@ -114,9 +111,8 @@ class CrudConfigParser(BaseConfigParser):
             )
             return None
 
-        destroy_section = ModuleIdempotencySection(
-            operationId=destroy_op_id, api_op=destroy_api_op, config={}
-        )
+        # Use the ApiOperation directly for destroy section
+        destroy_section = destroy_api_op
 
         # Build resolvers, linking them to their ApiOperation objects.
         resolvers = {}
@@ -161,6 +157,7 @@ class CrudConfigParser(BaseConfigParser):
             check_section=check_section,
             create_section=create_section,
             destroy_section=destroy_section,
+            check_section_config=check_section_config,
             resolvers=resolvers,
             skip_resolver_check=config.get("skip_resolver_check", []),
         )
