@@ -120,16 +120,16 @@ class OrderConfigParser(BaseConfigParser):
             )
             return None
 
-        # Use the API parser to resolve the string ID into a full SdkOperation object.
-        sdk_op = self.api_parser.get_operation(op_id)
-        if not sdk_op:
+        # Use the API parser to resolve the string ID into a full ApiOperation object.
+        api_op = self.api_parser.get_operation(op_id)
+        if not api_op:
             self.collector.add_error(
                 f"{self.context_str}: OperationId '{op_id}' for section '{section_key}' not found in API spec."
             )
             return None
 
         return ModuleIdempotencySection(
-            operationId=op_id, sdk_op=sdk_op, config=specific_config
+            operationId=op_id, api_op=api_op, config=specific_config
         )
 
     def _build_resolvers(self) -> dict[str, ModuleResolver]:

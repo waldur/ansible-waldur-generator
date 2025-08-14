@@ -28,7 +28,7 @@ class OrderModuleConfig(BaseModuleConfig):
 
     # The configuration for the API call that checks if the final resource already exists.
     # This is a mandatory field in the YAML config.
-    # The parser will link this to a full SdkOperation object.
+    # The parser will link this to a full ApiOperation object.
     # Example: `existence_check_op: "openstack_volumes_list"`
     existence_check_op: ModuleIdempotencySection
 

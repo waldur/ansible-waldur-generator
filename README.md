@@ -32,7 +32,7 @@ The generator works by combining three main components:
     ```bash
     poetry install
     ```
-    This will create a virtual environment and install packages like `PyYAML`, `Jinja2`, and `Pytest`.
+    This will create a virtual environment and install packages like `PyYAML`, and `Pytest`.
 
 ### Running the Generator
 
@@ -156,7 +156,7 @@ Below is a detailed explanation of each available plugin.
       project:
         # This module type is is designed for standard resources that follow typical
         # CRUD (Create-Read-Update-Delete) patterns. You define the resource and
-        # map standard actions to your SDK's `operationId`s.
+        # map standard actions to your API's `operationId`s.
         type: crud
 
         # The value is used for user-facing strings (e.g., in error messages).
@@ -165,14 +165,14 @@ Below is a detailed explanation of each available plugin.
         # Optional. If omitted, it will be auto-generated as "Manage projects in Waldur."
         description: "Manage Projects in Waldur."
 
-        # This mandatory block maps standard Ansible actions to your SDK's operationIds.
+        # This mandatory block maps standard Ansible actions to your API's operationIds.
         operations:
           list: "projects_list" # Used to check if the resource exists.
           create: "projects_create" # Used when state=present and resource doesn't exist.
           destroy: "projects_destroy" # Used when state=absent and resource exists.
 
         # This optional block defines how to resolve certain parameters from a
-        # user-friendly name/UUID into an API URL, which is often required by the SDK.
+        # user-friendly name/UUID into an API URL, which is often required by the API.
         resolvers:
           # 'customer' is the name of the Ansible parameter to be resolved.
           customer:
@@ -266,7 +266,7 @@ graph TD
 
     subgraph "Engine"
         C{Generator Script}
-        D[Jinja2 Template <br>resource_module.py.j2]
+        D[Template <br>resource_module.py.j2]
     end
 
     subgraph "Output"
@@ -343,7 +343,7 @@ sequenceDiagram
 2.  **Plugin Interface (`plugins/base_plugin.py`)**:
     -   **`BasePlugin`**: An abstract base class that defines the "contract" every plugin must follow. It requires three methods:
         -   `get_parser()`: Must return a parser object responsible for understanding the plugin-specific sections of `generator_config.yaml`.
-        -   `get_builder()`: Must return a builder object responsible for creating the final Jinja2 context for this plugin's template.
+        -   `get_builder()`: Must return a builder object responsible for creating the final  context for this plugin's template.
 
 3.  **Concrete Plugins (e.g., `plugins/resource/`)**:
     -   Each plugin is a self-contained unit, typically a directory. It contains:
@@ -568,7 +568,7 @@ Once the collection is published, any Ansible user can easily install and use it
     ansible-galaxy collection install waldur.cloud
     ```
 
-2. **Install the Waldur SDK:**
+2. **Install the Waldur API:**
     ```bash
     pip install waldur_api_client
     ```

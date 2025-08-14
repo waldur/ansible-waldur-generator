@@ -1,12 +1,11 @@
 """
-Builds the final CrudGenerationContext object required by the Jinja2 template.
+Builds the final CrudGenerationContext object required by the template.
 
 This class is the "workhorse" that transforms a validated ModuleConfig object
 into all the Ansible-specific data structures, such as module parameters,
 import lists, and documentation blocks.
 """
 
-import pprint
 from typing import Dict, List, Any
 
 from ansible_waldur_generator.api_parser import ApiSpecParser
@@ -15,12 +14,10 @@ from ansible_waldur_generator.helpers import (
     OPENAPI_TO_ANSIBLE_TYPE_MAP,
     ValidationErrorCollector,
     capitalize_first,
-    to_python_code_string,
 )
 from ansible_waldur_generator.interfaces.builder import BaseContextBuilder
 from ansible_waldur_generator.models import (
     AnsibleModuleParams,
-    BaseGenerationContext,
 )
 from ansible_waldur_generator.plugins.crud.config import CrudModuleConfig
 
@@ -47,58 +44,14 @@ class CrudContextBuilder(BaseContextBuilder):
         # Ensure the module_config is of the correct type.
         self.module_config = module_config
 
-    def build(
-        self, collection_namespace: str, collection_name: str
-    ) -> BaseGenerationContext:
-        """
-        Main entry point to build the full, flattened context for a single module.
-        It orchestrates the creation of all necessary data for the template.
-        """
-        # 1. Build the dictionary of Ansible parameters for the module.
-        parameters = self._build_parameters()
-
-        # 2. Collect all unique SDK imports needed for the module's logic.
-        sdk_imports = self._collect_imports()
-
-        # 3. Build the data structures for documentation and examples.
-        documentation = self._build_documentation_data(
-            self.module_config.module_key,
-            parameters,
-            collection_namespace,
-            collection_name,
-        )
-        examples = self._build_examples_data(
-            self.module_config.module_key,
-            parameters,
-            collection_namespace,
-            collection_name,
-        )
-
-        # 4. Convert these data structures into formatted YAML strings.
-        # This separates data generation from presentation, ensuring valid YAML.
-
-        runner_context_data = self._build_runner_context_data()
-        runner_context_string = to_python_code_string(
-            runner_context_data, indent_level=4
-        )
-
-        argument_spec_data = self._build_argument_spec_data(parameters)
-        argument_spec_string = pprint.pformat(
-            argument_spec_data, indent=4, width=120, sort_dicts=False
-        )
-
-        runner_import_path = (
-            f"ansible_collections.{collection_namespace}.{collection_name}"
-            f".plugins.module_utils.waldur.crud_runner"
-        )
-
+    def _build_return_block(self) -> Dict[str, Any]:
         # We generate it from the 'create' operation's success response,
         # as that typically returns the full resource object.
-        create_op_spec = self.module_config.present_create.sdk_op.raw_spec
+        return_block = None
+        create_op_spec = self.module_config.create_section.api_op.raw_spec
         return_content = self.return_generator.generate_for_operation(create_op_spec)
 
         # Structure it for Ansible's RETURN docs
-        return_block = None
         if return_content:
             return_block = {
                 "resource": {
@@ -108,40 +61,9 @@ class CrudContextBuilder(BaseContextBuilder):
                     "contains": return_content,
                 }
             }
+        return return_block
 
-        # 5. Return context object, ready for rendering.
-        return BaseGenerationContext(
-            description=self.module_config.description,
-            module_name=self.module_config.module_key,
-            parameters=parameters,
-            sdk_imports=sdk_imports,
-            documentation=documentation,
-            examples=examples,
-            runner_class_name="CrudResourceRunner",
-            runner_import_path=runner_import_path,
-            runner_context_string=runner_context_string,
-            argument_spec_string=argument_spec_string,
-            return_block=return_block,
-        )
-
-    def _build_argument_spec_data(
-        self, parameters: AnsibleModuleParams
-    ) -> Dict[str, Any]:
-        """
-        Constructs the 'argument_spec' as a native Python dictionary.
-        """
-        spec = {**BASE_SPEC}
-        for name, opts in parameters.items():
-            param_spec = {
-                "type": opts["type"],
-                "required": opts.get("required", False),
-            }
-            if opts.get("choices"):
-                param_spec["choices"] = opts["choices"]
-            spec[name] = param_spec
-        return spec
-
-    def _build_runner_context_data(self) -> Dict[str, Any]:
+    def _build_runner_context(self) -> Dict[str, Any]:
         """
         Builds the runner_context as a dictionary.
         """
@@ -150,27 +72,24 @@ class CrudContextBuilder(BaseContextBuilder):
         resolvers_data = {}
         for name, resolver in conf.resolvers.items():
             resolvers_data[name] = {
-                "list_func": resolver.list_op.sdk_function,
-                "retrieve_func": resolver.retrieve_op.sdk_function,
+                "url": resolver.list_op.path if resolver.list_op else "",
                 "error_message": resolver.error_message,
             }
 
         return {
             "resource_type": conf.resource_type,
-            "existence_check_func": conf.existence_check.sdk_op.sdk_function,
-            "present_create_func": conf.present_create.sdk_op.sdk_function,
-            "present_create_model_class": conf.present_create.sdk_op.model_class,
-            "absent_destroy_func": conf.absent_destroy.sdk_op.sdk_function,
-            "absent_destroy_path_param": conf.absent_destroy.config.get(
-                "path_param_field", "uuid"
-            ),
+            "api_path": conf.create_section.api_op.path
+            if conf.create_section.api_op
+            else "",
             "model_param_names": self._get_model_param_names(),
             "resolvers": resolvers_data,
         }
 
     def _get_model_param_names(self) -> List[str]:
         """Helper to get a list of parameter names from the model schema."""
-        schema = self.module_config.present_create.sdk_op.model_schema
+        if not self.module_config.create_section.api_op:
+            return []
+        schema = self.module_config.create_section.api_op.model_schema
         if not schema or "properties" not in schema:
             return []
         return [
@@ -179,7 +98,9 @@ class CrudContextBuilder(BaseContextBuilder):
             if not prop.get("readOnly", False)
         ]
 
-    def _extract_choices_from_prop(self, prop_schema: Dict[str, Any]) -> List[str]:
+    def _extract_choices_from_prop(
+        self, prop_schema: Dict[str, Any]
+    ) -> List[str] | None:
         """
         Extracts a list of enum choices from a property schema.
         It correctly handles both direct enums and 'oneOf' constructs with $refs.
@@ -216,19 +137,20 @@ class CrudContextBuilder(BaseContextBuilder):
         conf = self.module_config
 
         # 1. Add explicitly defined parameters first (e.g., from existence_check).
-        for p in conf.existence_check.config.get("params", []):
+        for p in conf.check_section.config.get("params", []):
             p["type"] = OPENAPI_TO_ANSIBLE_TYPE_MAP.get(p.get("type", "str"), "str")
             params[p["name"]] = p
 
         # 2. Add parameters inferred from the 'create' operation's request body schema.
-        schema = conf.present_create.sdk_op.model_schema
-        if schema:
+        if conf.create_section.api_op:
+            schema = conf.create_section.api_op.model_schema
+            if not schema:
+                return params
+
             required_fields = schema.get("required", [])
             for name, prop in schema.get("properties", {}).items():
                 # Skip fields that are read-only (server-generated) or already defined.
                 if prop.get("readOnly", False):
-                    continue
-                if name in params:
                     continue
 
                 is_resolved = name in conf.resolvers
@@ -264,44 +186,7 @@ class CrudContextBuilder(BaseContextBuilder):
                 }
         return params
 
-    def _collect_imports(self) -> List[Dict[str, str]]:
-        """Collects all unique SDK module/function/class pairs needed for the module."""
-        imports = set()
-        # Gather all SdkOperation objects from the config.
-        operations = [
-            self.module_config.existence_check.sdk_op,
-            self.module_config.present_create.sdk_op,
-            self.module_config.absent_destroy.sdk_op,
-        ]
-        for resolver in self.module_config.resolvers.values():
-            operations.append(resolver.list_op)
-            operations.append(resolver.retrieve_op)
-
-        for op in operations:
-            if not op:
-                continue
-            # Add the function import
-            imports.add((op.sdk_module_name, op.sdk_function_name))
-            # Add the model class import if it exists
-            if op.model_module_name and op.model_class_name:
-                imports.add((op.model_module_name, op.model_class_name))
-
-        return [
-            {"module": mod, "function": func} for mod, func in sorted(list(imports))
-        ]
-
-    def _build_flat_resolvers(self) -> Dict[str, Dict[str, Any]]:
-        """Creates a simple, flattened resolver dictionary for the template."""
-        flat_resolvers = {}
-        for name, resolver in self.module_config.resolvers.items():
-            flat_resolvers[name] = {
-                "list_func": resolver.list_op.sdk_function_name,
-                "retrieve_func": resolver.retrieve_op.sdk_function_name,
-                "error_message": resolver.error_message,
-            }
-        return flat_resolvers
-
-    def _build_examples_data(
+    def _build_examples(
         self,
         module_name: str,
         parameters: AnsibleModuleParams,
@@ -342,8 +227,7 @@ class CrudContextBuilder(BaseContextBuilder):
             name for name, opts in parameters.items() if opts.get("required")
         ]
         delete_names = [
-            p["name"]
-            for p in self.module_config.existence_check.config.get("params", [])
+            p["name"] for p in self.module_config.check_section.config.get("params", [])
         ]
         fqcn = f"{collection_namespace}.{collection_name}.{module_name}"
 

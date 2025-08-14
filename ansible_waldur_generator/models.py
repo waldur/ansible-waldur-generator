@@ -8,38 +8,34 @@ different module types.
 """
 
 from dataclasses import dataclass, field, asdict
-from types import ModuleType
-from typing import Optional, List, Dict, Any
+from typing import Optional, Dict, Any
 
 # A type alias for clarity, representing a dictionary of Ansible parameter options.
 AnsibleModuleParams = Dict[str, Dict[str, Any]]
 
 
 @dataclass(frozen=True)
-class SdkOperation:
+class ApiOperation:
     """
-    Represents all the necessary information about a single SDK operation,
-    parsed from the OpenAPI specification. 'frozen=True' makes instances immutable.
+    Represents all the necessary information about a single API operation,
+    parsed from the OpenAPI specification.
     """
 
-    sdk_module_name: str  # e.g., 'waldur_api_client.api.projects'
-    sdk_function_name: str  # e.g., 'projects_create'
-    sdk_function: ModuleType  # The actual imported function object/module
-
-    model_class_name: Optional[str] = None  # e.g., 'ProjectRequest'
-    model_module_name: Optional[str] = (
-        None  # e.g., 'waldur_api_client.models.project_request'
+    path: str  # The API path, e.g., /api/projects/
+    method: str  # The HTTP method, e.g., GET, POST
+    operation_id: str  # The OpenAPI operationId
+    model_schema: Optional[Dict[str, Any]] = (
+        None  # The JSON schema for the request body
     )
-    model_class: Optional[type] = None  # The actual imported class object
-
-    model_schema: Optional[Dict[str, Any]] = None
-    raw_spec: Dict[str, Any] = field(default_factory=dict)
+    raw_spec: Dict[str, Any] = field(
+        default_factory=dict
+    )  # The raw OpenAPI spec for the operation
 
 
 @dataclass
-class BaseGenerationContext:
+class GenerationContext:
     """
-    Data object passed from the ContextBuilder to the Jinja2 template.
+    Data object passed from the ContextBuilder to the template.
     It contains simple, direct keys for the template to consume, minimizing logic in the template itself.
 
     Base class for all generation contexts contains fields that are
@@ -55,11 +51,7 @@ class BaseGenerationContext:
     # The complete, generated dictionary of parameters for Ansible's `argument_spec`.
     parameters: AnsibleModuleParams
 
-    argument_spec_string: str
-
-    # A list of unique SDK imports required by the module's logic.
-    # Example: [{'module': 'waldur_api_client.api.projects', 'function': 'projects_create'}]
-    sdk_imports: List[Dict[str, str]]
+    argument_spec_data: dict
 
     # The full `DOCUMENTATION` block
     documentation: dict
@@ -70,10 +62,8 @@ class BaseGenerationContext:
     # The full `RETURN` block
     return_block: dict
 
-    runner_class_name: str
-    runner_import_path: str
-    runner_context_string: Any
+    runner_context_data: Any
 
     def to_dict(self) -> Dict[str, Any]:
-        """Converts the dataclass instance to a dictionary for Jinja2."""
+        """Converts the dataclass instance to a dictionary."""
         return asdict(self)

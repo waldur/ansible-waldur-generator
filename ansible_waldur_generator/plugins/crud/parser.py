@@ -86,7 +86,7 @@ class CrudConfigParser(BaseConfigParser):
     ) -> CrudModuleConfig:
         """
         Constructs a ModuleConfig dataclass instance from the normalized config dict.
-        This method links the configuration with the SdkOperation objects.
+        This method links the configuration with the ApiOperation objects.
         """
 
         def _get_idempotency_section(
@@ -102,8 +102,8 @@ class CrudConfigParser(BaseConfigParser):
                 )
                 return None
 
-            sdk_op = self.api_parser.get_operation(op_id)
-            if not sdk_op:
+            api_op = self.api_parser.get_operation(op_id)
+            if not api_op:
                 self.collector.add_error(
                     f"Module '{module_key}': OperationId '{op_id}' for section '{section_name}' not found in API spec."
                 )
@@ -115,19 +115,19 @@ class CrudConfigParser(BaseConfigParser):
             }
 
             return ModuleIdempotencySection(
-                operationId=op_id, sdk_op=sdk_op, config=specific_config
+                operationId=op_id, api_op=api_op, config=specific_config
             )
 
         # Build the main sections from the now normalized config keys.
-        existence_check = _get_idempotency_section("existence_check")
-        present_create = _get_idempotency_section("present_create")
-        absent_destroy = _get_idempotency_section("absent_destroy")
+        check_section = _get_idempotency_section("existence_check")
+        create_section = _get_idempotency_section("present_create")
+        destroy_section = _get_idempotency_section("absent_destroy")
 
         # If any of the core sections failed to build, we can't create a valid ModuleConfig.
-        if not all([existence_check, present_create, absent_destroy]):
+        if not all([check_section, create_section, destroy_section]):
             return None
 
-        # Build resolvers, linking them to their SdkOperation objects.
+        # Build resolvers, linking them to their ApiOperation objects.
         resolvers = {}
         for name, resolver_conf in config.get("resolvers", {}).items():
             list_op_id = resolver_conf.get("list")
@@ -162,9 +162,9 @@ class CrudConfigParser(BaseConfigParser):
             module_key=module_key,
             resource_type=config.get("resource_type", module_key),
             description=config.get("description", ""),
-            existence_check=existence_check,
-            present_create=present_create,
-            absent_destroy=absent_destroy,
+            check_section=check_section,
+            create_section=create_section,
+            destroy_section=destroy_section,
             resolvers=resolvers,
             skip_resolver_check=config.get("skip_resolver_check", []),
         )

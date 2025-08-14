@@ -1,12 +1,10 @@
-import pprint
 from typing import Dict, List, Any
 
 from ansible_waldur_generator.interfaces.builder import BaseContextBuilder
 from ansible_waldur_generator.models import AnsibleModuleParams
-from ansible_waldur_generator.helpers import AUTH_OPTIONS, to_python_code_string
+from ansible_waldur_generator.helpers import AUTH_OPTIONS
 from ansible_waldur_generator.api_parser import ApiSpecParser
 from ansible_waldur_generator.plugins.facts.config import FactsModuleConfig
-from ansible_waldur_generator.plugins.facts.context import FactsGenerationContext
 
 
 class FactsContextBuilder(BaseContextBuilder):
@@ -21,45 +19,14 @@ class FactsContextBuilder(BaseContextBuilder):
         super().__init__(module_config, api_parser, collector)
         self.module_config: FactsModuleConfig = module_config
 
-    def build(
-        self, collection_namespace: str, collection_name: str
-    ) -> FactsGenerationContext:
-        """Main entry point for the builder."""
-
-        parameters = self._build_parameters()
-        sdk_imports = self._collect_imports()
-        doc_data = self._build_documentation_data(
-            self.module_config.module_key,
-            parameters,
-            collection_namespace,
-            collection_name,
-        )
-        examples_data = self._build_examples_data(
-            self.module_config.module_key,
-            parameters,
-            collection_namespace,
-            collection_name,
-        )
-
-        runner_context_data = self._build_runner_context_data()
-        runner_context_string = to_python_code_string(
-            runner_context_data, indent_level=4
-        )
-
-        argument_spec_data = self._build_argument_spec_data(parameters)
-        argument_spec_string = pprint.pformat(
-            argument_spec_data, indent=4, width=120, sort_dicts=False
-        )
-
-        runner_import_path = (
-            f"ansible_collections.{collection_namespace}.{collection_name}"
-            f".plugins.module_utils.waldur.facts_runner"
-        )
-
+    def _build_return_block(self) -> Dict[str, Any]:
         # Use the 'retrieve' operation's success response as the source schema.
-        retrieve_op_spec = self.module_config.retrieve_op.sdk_op.raw_spec
-        return_content = self.return_generator.generate_for_operation(retrieve_op_spec)
         return_block = {}
+        if self.module_config.retrieve_op.api_op:
+            retrieve_op_spec = self.module_config.retrieve_op.api_op.raw_spec
+            return_content = self.return_generator.generate_for_operation(
+                retrieve_op_spec
+            )
 
         if return_content:
             # For facts modules, the primary return key is often the pluralized resource type
@@ -92,37 +59,11 @@ class FactsContextBuilder(BaseContextBuilder):
                         "contains": return_content,
                     }
                 }
-
-        return FactsGenerationContext(
-            module_name=self.module_config.module_key,
-            description=self.module_config.description,
-            parameters=parameters,
-            sdk_imports=sdk_imports,
-            documentation=doc_data,
-            examples=examples_data,
-            resource_type=self.module_config.resource_type,
-            runner_class_name="FactsRunner",
-            runner_import_path=runner_import_path,
-            runner_context_string=runner_context_string,
-            argument_spec_string=argument_spec_string,
-            return_block=return_block,
-        )
-
-    def _build_argument_spec_data(
-        self, parameters: AnsibleModuleParams
-    ) -> Dict[str, Any]:
-        """Constructs the argument_spec dictionary."""
-        spec = {**AUTH_OPTIONS}
-        for name, opts in parameters.items():
-            param_spec = {"type": opts["type"], "required": opts.get("required", False)}
-            if opts.get("choices"):
-                param_spec["choices"] = opts["choices"]
-            spec[name] = param_spec
-        return spec
+        return return_block
 
     def _build_parameters(self) -> AnsibleModuleParams:
         """Builds parameters based on conventions for a facts module."""
-        params = {}
+        params = {**AUTH_OPTIONS}  # Include authentication options
         conf = self.module_config
 
         params[conf.identifier_param] = {
@@ -140,40 +81,7 @@ class FactsContextBuilder(BaseContextBuilder):
             }
         return params
 
-    def _collect_imports(self) -> list:
-        """Collects all unique SDK imports needed for this module type."""
-        imports = set()
-        conf = self.module_config
-
-        # Add the main list and retrieve operations for the resource.
-        imports.add(
-            (conf.list_op.sdk_op.sdk_module_name, conf.list_op.sdk_op.sdk_function_name)
-        )
-        imports.add(
-            (
-                conf.retrieve_op.sdk_op.sdk_module_name,
-                conf.retrieve_op.sdk_op.sdk_function_name,
-            )
-        )
-
-        # Add imports for all context resolvers.
-        for p_conf in conf.context_params:
-            resolver_conf = p_conf.get("resolver")
-            if resolver_conf:
-                list_op = self.api_parser.get_operation(resolver_conf["list"])
-                retrieve_op = self.api_parser.get_operation(resolver_conf["retrieve"])
-                if list_op:
-                    imports.add((list_op.sdk_module_name, list_op.sdk_function_name))
-                if retrieve_op:
-                    imports.add(
-                        (retrieve_op.sdk_module_name, retrieve_op.sdk_function_name)
-                    )
-
-        return [
-            {"module": mod, "function": func} for mod, func in sorted(list(imports))
-        ]
-
-    def _build_runner_context_data(self) -> dict:
+    def _build_runner_context(self) -> dict:
         """Builds the context dictionary needed by the FactsRunner."""
         conf = self.module_config
 
@@ -182,11 +90,9 @@ class FactsContextBuilder(BaseContextBuilder):
             res_conf = p_conf.get("resolver")
             if res_conf:
                 list_op = self.api_parser.get_operation(res_conf["list"])
-                retrieve_op = self.api_parser.get_operation(res_conf["retrieve"])
-                if list_op and retrieve_op:
+                if list_op:
                     context_resolvers[p_conf["name"]] = {
-                        "list_func": list_op.sdk_function,
-                        "retrieve_func": retrieve_op.sdk_function,
+                        "url": list_op.path,
                         "error_message": f"{p_conf['name'].capitalize()} '{{value}}' not found.",
                         "filter_key": res_conf["filter_key"],
                     }
@@ -194,13 +100,15 @@ class FactsContextBuilder(BaseContextBuilder):
         return {
             "module_type": "facts",
             "resource_type": conf.resource_type,
-            "list_func": conf.list_op.sdk_op.sdk_function,
-            "retrieve_func": conf.retrieve_op.sdk_op.sdk_function,
+            "list_url": conf.list_op.api_op.path if conf.list_op.api_op else "",
+            "retrieve_url": conf.retrieve_op.api_op.path
+            if conf.retrieve_op.api_op
+            else "",
             "identifier_param": conf.identifier_param,
             "context_resolvers": context_resolvers,
         }
 
-    def _build_examples_data(
+    def _build_examples(
         self,
         module_name: str,
         parameters: AnsibleModuleParams,

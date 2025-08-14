@@ -16,8 +16,8 @@ class FactsConfigParser(BaseConfigParser):
             self.collector.add_error(f"{context_str}: Missing 'list_operation' key.")
             return None
 
-        list_sdk_op = self.api_parser.get_operation(list_op_id)
-        if not list_sdk_op:
+        list_api_op = self.api_parser.get_operation(list_op_id)
+        if not list_api_op:
             self.collector.add_error(
                 f"The specified operationId '{list_op_id}' could not be resolved from the API spec."
             )
@@ -30,8 +30,8 @@ class FactsConfigParser(BaseConfigParser):
             )
             return None
 
-        retrieve_sdk_op = self.api_parser.get_operation(retrieve_op_id)
-        if not retrieve_sdk_op:
+        retrieve_api_op = self.api_parser.get_operation(retrieve_op_id)
+        if not retrieve_api_op:
             self.collector.add_error(
                 f"The specified operationId '{retrieve_op_id}' could not be resolved from the API spec."
             )
@@ -44,12 +44,12 @@ class FactsConfigParser(BaseConfigParser):
 
         list_section = ModuleIdempotencySection(
             operationId=list_op_id,
-            sdk_op=list_sdk_op,
+            api_op=list_api_op,
         )
 
         retrieve_section = ModuleIdempotencySection(
             operationId=retrieve_op_id,
-            sdk_op=retrieve_sdk_op,
+            api_op=retrieve_api_op,
         )
 
         if not list_section or not retrieve_section:

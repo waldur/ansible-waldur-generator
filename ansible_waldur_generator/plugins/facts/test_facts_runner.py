@@ -30,23 +30,20 @@ def mock_ansible_module():
 @pytest.fixture
 def mock_facts_runner_context():
     """A pytest fixture that provides a mocked context dictionary for the FactsRunner."""
-    # All function values are replaced with MagicMocks.
     context = {
         "module_type": "facts",
         "resource_type": "security_group",
-        "list_func": MagicMock(),
-        "retrieve_func": MagicMock(),
+        "list_url": "/api/security-groups/",
+        "retrieve_url": "/api/security-groups/",
         "identifier_param": "name",
         "context_resolvers": {
             "project": {
-                "list_func": MagicMock(),
-                "retrieve_func": MagicMock(),
+                "url": "/api/projects/",
                 "error_message": "Project '{value}' not found.",
                 "filter_key": "project_uuid",
             },
             "tenant": {
-                "list_func": MagicMock(),
-                "retrieve_func": MagicMock(),
+                "url": "/api/tenants/",
                 "error_message": "Tenant '{value}' not found.",
                 "filter_key": "tenant_uuid",
             },
@@ -64,8 +61,9 @@ class TestFactsRunner:
     """
 
     # --- Scenario 1: Fetch a single resource by name successfully ---
+    @patch("ansible_waldur_generator.plugins.facts.runner.FactsRunner._send_request")
     def test_fetch_resource_by_name(
-        self, mock_ansible_module, mock_facts_runner_context
+        self, mock_send_request, mock_ansible_module, mock_facts_runner_context
     ):
         # Arrange
         mock_ansible_module.params = {
@@ -74,32 +72,27 @@ class TestFactsRunner:
             "name": "default-sg",
         }
 
-        # Simulate the `list_func` finding exactly one resource.
-        found_resource = MagicMock()
-        mock_facts_runner_context["list_func"].sync.return_value = [found_resource]
+        # Simulate the `_send_request` finding exactly one resource.
+        found_resource = {"name": "default-sg", "uuid": "sg-uuid"}
+        mock_send_request.return_value = [found_resource]
 
         # Act
         runner = FactsRunner(mock_ansible_module, mock_facts_runner_context)
         runner.run()
 
         # Assert
-        # Verify that `list_func` was called with the correct name filter.
-        mock_facts_runner_context["list_func"].sync.assert_called_once()
-        call_args, call_kwargs = mock_facts_runner_context["list_func"].sync.call_args
-        assert call_kwargs["name_exact"] == "default-sg"
-
-        # Verify that `retrieve_func` was NOT called.
-        mock_facts_runner_context["retrieve_func"].sync.assert_not_called()
-
-        # Check that the module exits with the found resource and `changed=False`.
+        mock_send_request.assert_called_once_with(
+            "GET", "/api/security-groups/", params={"name_exact": "default-sg"}
+        )
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=False, resource=found_resource.to_dict.return_value
+            changed=False, resource=found_resource
         )
         mock_ansible_module.fail_json.assert_not_called()
 
     # --- Scenario 2: Fetch a single resource by UUID successfully ---
+    @patch("ansible_waldur_generator.plugins.facts.runner.FactsRunner._send_request")
     def test_fetch_resource_by_uuid(
-        self, mock_ansible_module, mock_facts_runner_context
+        self, mock_send_request, mock_ansible_module, mock_facts_runner_context
     ):
         # Arrange
         test_uuid = str(uuid.uuid4())
@@ -109,95 +102,69 @@ class TestFactsRunner:
             "name": test_uuid,
         }
 
-        # Simulate the `retrieve_func` finding the resource.
-        found_resource = MagicMock()
-        mock_facts_runner_context["retrieve_func"].sync.return_value = found_resource
+        # Simulate the `_send_request` finding the resource.
+        found_resource = {"name": "default-sg", "uuid": test_uuid}
+        mock_send_request.return_value = found_resource
 
         # Act
         runner = FactsRunner(mock_ansible_module, mock_facts_runner_context)
         runner.run()
 
         # Assert
-        # Verify that `retrieve_func` was called with the correct UUID.
-        mock_facts_runner_context["retrieve_func"].sync.assert_called_once()
-        call_args, call_kwargs = mock_facts_runner_context[
-            "retrieve_func"
-        ].sync.call_args
-        assert call_kwargs["uuid"] == test_uuid
-
-        # Verify that `list_func` was NOT called.
-        mock_facts_runner_context["list_func"].sync.assert_not_called()
-
-        # Check that the module exits with the found resource.
+        mock_send_request.assert_called_once_with(
+            "GET", "/api/security-groups/", path_params={"uuid": test_uuid}
+        )
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=False, resource=found_resource.to_dict.return_value
+            changed=False, resource=found_resource
         )
         mock_ansible_module.fail_json.assert_not_called()
 
     # --- Scenario 3: Fetch a resource by name with context filters ---
+    @patch("ansible_waldur_generator.plugins.facts.runner.FactsRunner._send_request")
     def test_fetch_resource_with_context_filters(
-        self, mock_ansible_module, mock_facts_runner_context
+        self, mock_send_request, mock_ansible_module, mock_facts_runner_context
     ):
         # Arrange
         mock_ansible_module.params = {
             "api_url": "http://api.com",
             "access_token": "test-token",
             "name": "web-sg",
-            "project": "Cloud Project",  # This will be resolved
-            "tenant": "Cloud Tenant",  # This will also be resolved
+            "project": "Cloud Project",
+            "tenant": "Cloud Tenant",
         }
 
-        # --- MOCK THE RESOLVERS ---
-        # Instead of mocking the internal _resolve_to_url method, we mock the
-        # SDK functions that the runner is expected to call for resolution.
-
-        # Simulate the 'project' resolver finding a project by name.
-        project_resolver_mocks = mock_facts_runner_context["context_resolvers"][
-            "project"
+        # Simulate the resolver and the final resource fetch.
+        found_resource = {"name": "web-sg", "uuid": "web-sg-uuid"}
+        mock_send_request.side_effect = [
+            [{"url": "http://api.com/projects/proj-uuid/"}],  # project resolver
+            [{"url": "http://api.com/tenants/tenant-uuid/"}],  # tenant resolver
+            [found_resource],  # final resource fetch
         ]
-        project_resolver_mocks["list_func"].sync.return_value = [
-            MagicMock(url="http://api.com/projects/proj-uuid/")
-        ]
-
-        # Simulate the 'tenant' resolver finding a tenant by name.
-        tenant_resolver_mocks = mock_facts_runner_context["context_resolvers"]["tenant"]
-        tenant_resolver_mocks["list_func"].sync.return_value = [
-            MagicMock(url="http://api.com/tenants/tenant-uuid/")
-        ]
-
-        # Simulate the main `list_func` finding the final resource.
-        found_resource = MagicMock()
-        mock_facts_runner_context["list_func"].sync.return_value = [found_resource]
 
         # Act
         runner = FactsRunner(mock_ansible_module, mock_facts_runner_context)
         runner.run()
 
         # Assert
-        # 1. Verify that the resolver functions were called correctly.
-        project_resolver_mocks["list_func"].sync.assert_called_once_with(
-            client=runner.client, name_exact="Cloud Project"
+        mock_send_request.assert_called_with(
+            "GET",
+            "/api/security-groups/",
+            params={
+                "name_exact": "web-sg",
+                "project_uuid": "proj-uuid",
+                "tenant_uuid": "tenant-uuid",
+            },
         )
-        tenant_resolver_mocks["list_func"].sync.assert_called_once_with(
-            client=runner.client, name_exact="Cloud Tenant"
-        )
-
-        # 2. Verify `list_func` was called with all the resolved filters.
-        mock_facts_runner_context["list_func"].sync.assert_called_once()
-        call_args, call_kwargs = mock_facts_runner_context["list_func"].sync.call_args
-
-        assert call_kwargs.get("name_exact") == "web-sg"
-        assert call_kwargs.get("project_uuid") == "proj-uuid"
-        assert call_kwargs.get("tenant_uuid") == "tenant-uuid"
-
-        # 3. Check the final result.
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=False, resource=found_resource.to_dict.return_value
+            changed=False, resource=found_resource
         )
         mock_ansible_module.fail_json.assert_not_called()
 
     # --- Scenario 4: Resource not found ---
-    def test_resource_not_found(self, mock_ansible_module, mock_facts_runner_context):
+    @patch("ansible_waldur_generator.plugins.facts.runner.FactsRunner._send_request")
+    def test_resource_not_found(
+        self, mock_send_request, mock_ansible_module, mock_facts_runner_context
+    ):
         # Arrange
         mock_ansible_module.params = {
             "api_url": "http://api.com",
@@ -205,24 +172,23 @@ class TestFactsRunner:
             "name": "non-existent-sg",
         }
 
-        # Simulate `list_func` returning an empty list.
-        mock_facts_runner_context["list_func"].sync.return_value = []
+        # Simulate `_send_request` returning an empty list.
+        mock_send_request.return_value = []
 
         # Act
         runner = FactsRunner(mock_ansible_module, mock_facts_runner_context)
         runner.run()
 
         # Assert
-        # The module should fail with a "not found" message.
         mock_ansible_module.fail_json.assert_called_once()
         call_args, call_kwargs = mock_ansible_module.fail_json.call_args
         assert "not found" in call_kwargs["msg"]
-
         mock_ansible_module.exit_json.assert_not_called()
 
     # --- Scenario 5: Multiple resources found, should warn and return the first ---
+    @patch("ansible_waldur_generator.plugins.facts.runner.FactsRunner._send_request")
     def test_multiple_resources_found(
-        self, mock_ansible_module, mock_facts_runner_context
+        self, mock_send_request, mock_ansible_module, mock_facts_runner_context
     ):
         # Arrange
         mock_ansible_module.params = {
@@ -231,24 +197,18 @@ class TestFactsRunner:
             "name": "ambiguous-name",
         }
 
-        # Simulate `list_func` returning multiple resources.
-        resource1 = MagicMock()
-        resource2 = MagicMock()
-        mock_facts_runner_context["list_func"].sync.return_value = [
-            resource1,
-            resource2,
-        ]
+        # Simulate `_send_request` returning multiple resources.
+        resource1 = {"name": "ambiguous-name", "uuid": "uuid1"}
+        resource2 = {"name": "ambiguous-name", "uuid": "uuid2"}
+        mock_send_request.return_value = [resource1, resource2]
 
         # Act
         runner = FactsRunner(mock_ansible_module, mock_facts_runner_context)
         runner.run()
 
         # Assert
-        # A warning should be issued.
         mock_ansible_module.warn.assert_called_once()
-
-        # The module should exit successfully with the *first* resource.
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=False, resource=resource1.to_dict.return_value
+            changed=False, resource=resource1
         )
         mock_ansible_module.fail_json.assert_not_called()
