@@ -7,7 +7,7 @@ It uses a class hierarchy for GenerationContext to provide strong typing for
 different module types.
 """
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from typing import Optional, Dict, Any
 
 # A type alias for clarity, representing a dictionary of Ansible parameter options.
@@ -42,16 +42,7 @@ class GenerationContext:
     common to every type of generated module, such as documentation and imports.
     """
 
-    # The final name of the module file, e.g., 'waldur_project'.
-    module_name: str
-
-    # The short description for the module's documentation header.
-    description: str
-
-    # The complete, generated dictionary of parameters for Ansible's `argument_spec`.
-    parameters: AnsibleModuleParams
-
-    argument_spec_data: dict
+    argument_spec: dict
 
     # The full `DOCUMENTATION` block
     documentation: dict
@@ -62,8 +53,4 @@ class GenerationContext:
     # The full `RETURN` block
     return_block: dict
 
-    runner_context_data: Any
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Converts the dataclass instance to a dictionary."""
-        return asdict(self)
+    runner_context: Any

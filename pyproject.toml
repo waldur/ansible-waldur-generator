@@ -21,6 +21,7 @@ python = ">=3.11,<4.0"
 pyyaml = "^6.0"
 ansible = "^11.8.0"
 ruff = "^0.12.8"
+pydantic = "^2.5.3"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.2.0"

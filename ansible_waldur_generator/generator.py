@@ -3,19 +3,15 @@ import pprint
 import shutil
 import subprocess
 import sys
-from typing import Any
 import yaml
 
 from ansible_waldur_generator.helpers import (
-    AUTH_OPTIONS,
     ValidationErrorCollector,
     capitalize_first,
 )
-from ansible_waldur_generator.interfaces.config import BaseModuleConfig
-from ansible_waldur_generator.interfaces.plugin import BasePlugin
-from ansible_waldur_generator.models import AnsibleModuleParams
 from ansible_waldur_generator.plugin_manager import PluginManager
 from .api_parser import ApiSpecParser
+from .schema_parser import ReturnBlockGenerator
 
 
 GENERIC_MODULE_TEMPLATE = """#!/usr/bin/python
@@ -253,6 +249,7 @@ class Generator:
 
         collector = ValidationErrorCollector()
         api_parser = ApiSpecParser(self.api_spec_data, collector)
+        return_generator = ReturnBlockGenerator(self.api_spec_data)
         collector.report()  # Fail fast if the API spec itself is invalid.
 
         collection_root = self._get_collection_root(output_dir)
@@ -274,25 +271,65 @@ class Generator:
 
             try:
                 # The core workflow: Parse config -> Build context -> Render template.
-                parser = plugin.get_parser(
-                    module_key, raw_config, api_parser, collector
-                )
-                module_config = parser.parse()
-                if collector.has_errors or not module_config:
-                    continue
-
-                rendered_template = self.render_template(
-                    plugin,
+                generation_context = plugin.generate(
                     module_key,
-                    module_config,
+                    raw_config,
                     api_parser,
-                    collector,
+                    self.collection_namespace,
+                    self.collection_name,
+                    return_generator,
                 )
+
+                runner_import_path = (
+                    f"ansible_collections.{self.collection_namespace}.{self.collection_name}"
+                    f".plugins.module_utils.waldur.{plugin.get_type_name()}_runner"
+                )
+                runner_class_name = f"{capitalize_first(plugin.get_type_name())}Runner"
 
                 # Step 4: Write the final module file into the collection's 'modules' directory.
-                output_path = os.path.join(modules_dir, f"{module_key}.py")
+                output_path = os.path.join(
+                    modules_dir, generation_context.module_filename
+                )
                 with open(output_path, "w") as f:
-                    f.write(rendered_template)
+                    f.write(
+                        GENERIC_MODULE_TEMPLATE.format(
+                            runner_import_path=runner_import_path,
+                            runner_class_name=runner_class_name,
+                            documentation=yaml.dump(
+                                generation_context.documentation,
+                                default_flow_style=False,
+                                sort_keys=False,
+                                indent=2,
+                                width=1000,
+                            ),
+                            examples=yaml.dump(
+                                generation_context.examples,
+                                default_flow_style=False,
+                                sort_keys=False,
+                                indent=2,
+                                width=1000,
+                            ),
+                            return_block=yaml.dump(
+                                generation_context.return_block,
+                                default_flow_style=False,
+                                sort_keys=False,
+                                indent=2,
+                                width=1000,
+                            ),
+                            argument_spec=pprint.pformat(
+                                generation_context.argument_spec,
+                                indent=4,
+                                width=120,
+                                sort_dicts=False,
+                            ),
+                            runner_context=pprint.pformat(
+                                generation_context.runner_context,
+                                indent=4,
+                                width=120,
+                                sort_dicts=False,
+                            ),
+                        )
+                    )
                 generated_file_paths.append(output_path)
                 print(f"Successfully generated module: {output_path}")
 
@@ -323,116 +360,3 @@ class Generator:
 
         # Step 6: Report any final errors that were collected during the process.
         collector.report()
-
-    def render_template(
-        self,
-        plugin: BasePlugin,
-        module_key: str,
-        module_config: BaseModuleConfig,
-        api_parser: ApiSpecParser,
-        collector: ValidationErrorCollector,
-    ) -> str:
-        builder = plugin.get_builder(module_config, api_parser, collector)
-        parameters = builder._build_parameters()
-        argument_spec = self._build_argument_spec(parameters)
-        documentation = self._build_documentation(
-            module_config,
-            module_key,
-            parameters,
-            self.collection_namespace,
-            self.collection_name,
-        )
-        examples = builder._build_examples(
-            module_config.module_key,
-            parameters,
-            self.collection_namespace,
-            self.collection_name,
-        )
-        return_block = builder._build_return_block()
-
-        runner_import_path = (
-            f"ansible_collections.{self.collection_namespace}.{self.collection_name}"
-            f".plugins.module_utils.waldur.{plugin.get_type_name()}_runner"
-        )
-
-        runner_class_name = f"{capitalize_first(plugin.get_type_name())}Runner"
-
-        runner_context = builder._build_runner_context()
-
-        return GENERIC_MODULE_TEMPLATE.format(
-            runner_import_path=runner_import_path,
-            runner_class_name=runner_class_name,
-            documentation=yaml.dump(
-                documentation,
-                default_flow_style=False,
-                sort_keys=False,
-                indent=2,
-                width=1000,
-            ),
-            examples=yaml.dump(
-                examples,
-                default_flow_style=False,
-                sort_keys=False,
-                indent=2,
-                width=1000,
-            ),
-            return_block=yaml.dump(
-                return_block,
-                default_flow_style=False,
-                sort_keys=False,
-                indent=2,
-                width=1000,
-            ),
-            argument_spec=pprint.pformat(
-                argument_spec,
-                indent=4,
-                width=120,
-                sort_dicts=False,
-            ),
-            runner_context=pprint.pformat(
-                runner_context,
-                indent=4,
-                width=120,
-                sort_dicts=False,
-            ),
-        )
-
-    def _build_documentation(
-        self,
-        module_config: BaseModuleConfig,
-        module_name: str,
-        parameters: AnsibleModuleParams,
-        collection_namespace: str,
-        collection_name: str,
-    ) -> dict[str, Any]:
-        """Builds the DOCUMENTATION block as a Python dictionary."""
-        fqcn = f"{collection_namespace}.{collection_name}.{module_name}"
-        doc = {
-            "module": fqcn,
-            "short_description": module_config.description,
-            "version_added": "0.1",
-            "description": [module_config.description],
-            "requirements": ["python = 3.11"],
-            "options": {},
-        }
-        doc["options"].update({**AUTH_OPTIONS})
-        for name, opts in parameters.items():
-            doc_data = {
-                k: v
-                for k, v in opts.items()
-                if k in ["description", "required", "type", "choices"] and v is not None
-            }
-            if "required" not in doc_data:
-                doc_data["required"] = False
-            doc["options"][name] = doc_data
-        return doc
-
-    def _build_argument_spec(self, parameters: AnsibleModuleParams) -> dict:
-        """Constructs the full 'argument_spec' dictionary for AnsibleModule."""
-        spec = {}
-        for name, opts in parameters.items():
-            param_spec = {"type": opts["type"], "required": opts.get("required", False)}
-            if "choices" in opts:
-                param_spec["choices"] = opts["choices"]
-            spec[name] = param_spec
-        return spec

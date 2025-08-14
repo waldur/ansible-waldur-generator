@@ -1,41 +1,27 @@
-from dataclasses import dataclass, field
-from typing import Any
+from pydantic import BaseModel, Field
+from typing import Dict, List, Any
 
-from ansible_waldur_generator.interfaces.config import BaseModuleConfig
 from ansible_waldur_generator.models import ApiOperation
 
 
-@dataclass
-class ModuleResolver:
-    """
-    Represents the configuration for a single parameter resolver.
-    """
+class ModuleResolver(BaseModel):
+    list_operation: ApiOperation
+    retrieve_operation: ApiOperation
+    error_message: str | None = None
 
-    list_op_id: str
-    retrieve_op_id: str
-    error_message: str
-
-    # These fields will be populated by the parser.
-    list_op: ApiOperation | None = None
-    retrieve_op: ApiOperation | None = None
+    class Config:
+        arbitrary_types_allowed = True
 
 
-@dataclass
-class CrudModuleConfig(BaseModuleConfig):
-    """
-    Represents the complete, normalized configuration for a single Ansible module
-    to be generated.
-    """
-
+class CrudModuleConfig(BaseModel):
     resource_type: str
-
+    description: str | None = None
     check_section: ApiOperation
     create_section: ApiOperation
     destroy_section: ApiOperation
+    check_section_config: Dict[str, Any] = Field(default_factory=dict)
+    resolvers: Dict[str, ModuleResolver] = Field(default_factory=dict)
+    skip_resolver_check: List[str] = Field(default_factory=list)
 
-    # Additional configuration for the check section (existence check)
-    # This replaces the 'config' field that was previously used
-    check_section_config: dict[str, Any] = field(default_factory=dict)
-
-    resolvers: dict[str, ModuleResolver] = field(default_factory=dict)
-    skip_resolver_check: list[str] = field(default_factory=list)
+    class Config:
+        arbitrary_types_allowed = True
