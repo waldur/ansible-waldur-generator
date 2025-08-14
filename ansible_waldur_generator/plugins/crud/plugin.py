@@ -239,16 +239,6 @@ class CrudPlugin(BasePlugin):
             },
         ]
 
-    def _build_argument_spec(self, parameters: AnsibleModuleParams) -> dict:
-        """Constructs the full 'argument_spec' dictionary for AnsibleModule."""
-        spec = {}
-        for name, opts in parameters.items():
-            param_spec = {"type": opts["type"], "required": opts.get("required", False)}
-            if "choices" in opts and opts["choices"] is not None:
-                param_spec["choices"] = opts["choices"]
-            spec[name] = param_spec
-        return spec
-
     def generate(
         self,
         module_key: str,
@@ -285,19 +275,17 @@ class CrudPlugin(BasePlugin):
         )
         runner_context = self._build_runner_context(module_config)
 
-        # Build DOCUMENTATION, EXAMPLES, RETURN blocks
-        documentation = {
-            "module": module_name,
-            "short_description": module_config.description,
-            "description": [module_config.description],
-            "author": "Waldur Team",
-            "options": parameters,
-            "requirements": ["python >= 3.11", "requests"],
-        }
-
         return GenerationContext(
             argument_spec=self._build_argument_spec(parameters),
-            documentation=documentation,
+            module_filename=f"{module_name}.py",
+            documentation={
+                "module": module_name,
+                "short_description": module_config.description,
+                "description": [module_config.description],
+                "author": "Waldur Team",
+                "options": parameters,
+                "requirements": ["python >= 3.11", "requests"],
+            },
             examples=examples,
             return_block=return_block or {},
             runner_context=runner_context,

@@ -44,6 +44,8 @@ class GenerationContext:
 
     argument_spec: dict
 
+    module_filename: str
+
     # The full `DOCUMENTATION` block
     documentation: dict
 

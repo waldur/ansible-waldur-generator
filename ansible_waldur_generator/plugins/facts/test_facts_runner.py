@@ -82,7 +82,7 @@ class TestFactsRunner:
 
         # Assert
         mock_send_request.assert_called_once_with(
-            "GET", "/api/security-groups/", params={"name_exact": "default-sg"}
+            "GET", "/api/security-groups/", query_params={"name_exact": "default-sg"}
         )
         mock_ansible_module.exit_json.assert_called_once_with(
             changed=False, resource=found_resource
@@ -149,7 +149,7 @@ class TestFactsRunner:
         mock_send_request.assert_called_with(
             "GET",
             "/api/security-groups/",
-            params={
+            query_params={
                 "name_exact": "web-sg",
                 "project_uuid": "proj-uuid",
                 "tenant_uuid": "tenant-uuid",

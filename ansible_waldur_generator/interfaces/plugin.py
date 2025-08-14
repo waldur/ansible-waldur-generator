@@ -27,6 +27,16 @@ class BasePlugin(ABC):
         return_generator: ReturnBlockGenerator,
     ) -> GenerationContext: ...
 
+    def _build_argument_spec(self, parameters: Dict[str, Any]) -> dict:
+        """Constructs the full 'argument_spec' dictionary for AnsibleModule."""
+        spec = {}
+        for name, opts in parameters.items():
+            param_spec = {"type": opts["type"], "required": opts.get("required", False)}
+            if "choices" in opts and opts["choices"] is not None:
+                param_spec["choices"] = opts["choices"]
+            spec[name] = param_spec
+        return spec
+
     def get_runner_path(self) -> str | None:
         module = sys.modules[self.__class__.__module__]
         if not module.__file__:
