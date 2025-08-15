@@ -44,7 +44,7 @@ poetry run ansible-waldur-generator
 
 By default, this command will:
 -   Read `inputs/generator_config.yaml` and `inputs/waldur_api.yaml`.
--   Use the configured collection name (e.g., `waldur.cloud`) to create a standard Ansible Collection structure.
+-   Use the configured collection name (e.g., `waldur.openstack`) to create a standard Ansible Collections structure.
 -   Place the generated collection into the `outputs/` directory.
 
 The final structure will look like this:
@@ -422,8 +422,8 @@ The most straightforward way to test is to tell Ansible where to find your newly
 
     **Command:**
     ```bash
-    # Test the 'waldur.cloud.project' module from the 'waldur.cloud' collection
-    ansible localhost -m waldur.cloud.project \
+    # Test the 'waldur.structure.project' module from the 'waldur.structure' collection
+    ansible localhost -m waldur.structure.project \
       -a "state=present \
           name='My AdHoc Project' \
           customer='Big Corp' \
@@ -476,7 +476,7 @@ The most straightforward way to test is to tell Ansible where to find your newly
       gather_facts: false
       # Good practice to declare the collection you are using
       collections:
-        - waldur.cloud
+        - waldur.structure
 
       vars:
         waldur_api_url: "https://api.example.com/api/"
@@ -485,7 +485,7 @@ The most straightforward way to test is to tell Ansible where to find your newly
       tasks:
         - name: Ensure 'My Playbook Project' exists
           # Use the FQCN of the module
-          waldur.cloud.project:
+          project:
             state: present
             name: "My Playbook Project"
             customer: "Big Corp"
@@ -543,12 +543,12 @@ The generated output is ready to be published, making your modules available to 
     Navigate to the root of the generated collection and run the build command. The output tarball will be placed in the parent directory.
     ```bash
     # Navigate to the actual collection directory
-    cd outputs/ansible_collections/waldur/cloud/
+    cd outputs/ansible_collections/waldur/structure/
 
     # Build the collection, placing the output tarball in the `outputs` directory
     ansible-galaxy collection build --output-path ../../../..
     ```
-    This will create a file like `outputs/waldur-cloud-1.0.0.tar.gz`.
+    This will create a file like `outputs/waldur-structure-1.0.0.tar.gz`.
 
 2.  **Get a Galaxy API Key:**
     -   Log in to [galaxy.ansible.com](https://galaxy.ansible.com/).
@@ -563,7 +563,7 @@ The generated output is ready to be published, making your modules available to 
 
     # From the `outputs` directory, publish the tarball
     cd outputs/
-    ansible-galaxy collection publish waldur-cloud-1.0.0.tar.gz
+    ansible-galaxy collection publish waldur-structure-1.0.0.tar.gz
     ```
 
 ### Installing from Ansible Galaxy (for End-Users)
@@ -572,7 +572,7 @@ Once the collection is published, any Ansible user can easily install and use it
 
 1.  **Install the Collection:**
     ```bash
-    ansible-galaxy collection install waldur.cloud
+    ansible-galaxy collection install waldur.structure
     ```
 
 2.  **Use it in a Playbook:**
@@ -583,7 +583,7 @@ Once the collection is published, any Ansible user can easily install and use it
       hosts: my_control_node
       tasks:
         - name: Ensure project exists
-          waldur.cloud.project:
+          waldur.structure.project:
             state: present
             name: "Production Project"
             customer: "Customer Name"
