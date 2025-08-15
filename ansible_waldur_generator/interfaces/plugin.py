@@ -50,7 +50,7 @@ class BasePlugin(ABC):
             "description": [processed_description],
             "author": "Waldur Team",
             "options": parameters,
-            "requirements": ["python >= 3.11", "requests"],
+            "requirements": ["python >= 3.11"],
         }
 
     def get_runner_path(self) -> str | None:
