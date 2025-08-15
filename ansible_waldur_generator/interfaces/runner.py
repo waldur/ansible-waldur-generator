@@ -132,4 +132,8 @@ class BaseRunner:
         response = self._send_request("GET", path, query_params={"name": value})
         if not response:
             self.module.fail_json(msg=error_message)
+        if response and len(response) > 1:
+            self.module.warn(
+                f"Multiple resources found for '{self.module.params['name']}'. The first one will be used."
+            )
         return response[0]["url"]
