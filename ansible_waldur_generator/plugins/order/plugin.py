@@ -155,6 +155,7 @@ class OrderPlugin(BasePlugin):
 
             for p_name in param_names:
                 info = parameters.get(p_name, {})
+                value: Any = None
                 if "project" in p_name:
                     value = "Cloud Project"
                 elif "offering" in p_name:
@@ -164,7 +165,7 @@ class OrderPlugin(BasePlugin):
                         f"My-Awesome-{module_config.resource_type.replace(' ', '-')}"
                     )
                 elif "size" in p_name:
-                    value = "10"
+                    value = 10
                 elif info.get("choices"):
                     value = info["choices"][0]
                 else:
