@@ -60,3 +60,30 @@ class BasePlugin(ABC):
         plugin_dir = os.path.dirname(module.__file__)
         runner_path = os.path.join(plugin_dir, "runner.py")
         return runner_path if os.path.exists(runner_path) else None
+
+    def _extract_choices_from_prop(
+        self, prop_schema: Dict[str, Any], api_parser: ApiSpecParser
+    ) -> list[str] | None:
+        """
+        Extracts a list of enum choices from a property schema.
+        It correctly handles both direct enums and 'oneOf' constructs with $refs.
+        """
+        choices = []
+        if "enum" in prop_schema:
+            choices.extend(prop_schema["enum"])
+
+        elif "oneOf" in prop_schema:
+            for sub_ref in prop_schema["oneOf"]:
+                if "$ref" in sub_ref:
+                    try:
+                        # Correctly resolve the reference against the full API spec.
+                        target_schema = api_parser.get_schema_by_ref(sub_ref["$ref"])
+                        if "enum" in target_schema:
+                            choices.extend(target_schema["enum"])
+                    except (ValueError, KeyError) as e:
+                        print(
+                            f"Could not resolve $ref '{sub_ref['$ref']}' for enum: {e}"
+                        )
+
+        # Filter out any null/None values and return the list, or None if empty.
+        return [c for c in choices if c is not None] or None

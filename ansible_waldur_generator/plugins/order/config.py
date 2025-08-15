@@ -15,6 +15,7 @@ class AttributeParam(BaseModel):
 
 
 class OrderModuleConfig(BaseModel):
+    offering_type: str | None = None
     resource_type: str
     description: str = ""
     existence_check_op: ApiOperation

@@ -8,7 +8,10 @@ from ansible_waldur_generator.helpers import (
     OPENAPI_TO_ANSIBLE_TYPE_MAP,
 )
 from ansible_waldur_generator.interfaces.plugin import BasePlugin
-from ansible_waldur_generator.plugins.order.config import OrderModuleConfig
+from ansible_waldur_generator.plugins.order.config import (
+    AttributeParam,
+    OrderModuleConfig,
+)
 
 BASE_SPEC = {
     **AUTH_OPTIONS,
@@ -234,6 +237,54 @@ class OrderPlugin(BasePlugin):
 
         return examples
 
+    def _infer_attribute_params(
+        self, module_config: OrderModuleConfig, api_parser: ApiSpecParser
+    ) -> list[AttributeParam]:
+        """Infers attribute parameters from the OpenAPI schema based on offering_type."""
+        if not module_config.offering_type:
+            return []
+
+        schema_name = (
+            f"{module_config.offering_type.replace('.', '')}CreateOrderAttributes"
+        )
+        schema_ref = f"#/components/schemas/{schema_name}"
+
+        try:
+            schema = api_parser.get_schema_by_ref(schema_ref)
+        except ValueError as e:
+            print(
+                f"Warning for offering_type '{module_config.offering_type}': "
+                f"Could not resolve schema ref '{schema_ref}'. No attributes will be inferred. Details: {e}"
+            )
+            return []
+        if not schema or "properties" not in schema:
+            return []
+
+        inferred_params = []
+        required_fields = schema.get("required", [])
+
+        for name, prop in schema.get("properties", {}).items():
+            if prop.get("readOnly", False):
+                continue
+
+            choices = self._extract_choices_from_prop(prop, api_parser)
+
+            # For `is_resolved`, we check if a resolver is defined for this parameter name.
+            # This allows auto-detection if the user adds a resolver for an inferred param.
+            is_resolved = name in module_config.resolvers
+
+            param = AttributeParam(
+                name=name,
+                type=prop.get("type", "string"),
+                required=name in required_fields,
+                description=prop.get("description", "").strip(),
+                is_resolved=is_resolved,
+                choices=choices if choices else [],
+            )
+            inferred_params.append(param)
+
+        return inferred_params
+
     def generate(
         self,
         module_key: str,
@@ -258,6 +309,13 @@ class OrderPlugin(BasePlugin):
             )
 
         module_config = OrderModuleConfig(**raw_config)
+
+        # Infer params from offering_type and merge them into the module_config
+        inferred_params = self._infer_attribute_params(module_config, api_parser)
+        final_params_dict = {p.name: p for p in inferred_params}
+        for manual_param in module_config.attribute_params:
+            final_params_dict[manual_param.name] = manual_param
+        module_config.attribute_params = list(final_params_dict.values())
 
         parameters = self._build_parameters(module_config)
         return_block = self._build_return_block(module_config, return_generator)

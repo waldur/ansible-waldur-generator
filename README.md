@@ -73,7 +73,7 @@ outputs/
             └── ...
 ```
 
-You can customize the paths using command-line options:
+You can customize the path using command-line options:
 ```bash
 poetry run generate --config my_config.yaml --output-dir ./dist
 ```
@@ -202,6 +202,9 @@ Below is a detailed explanation of each available plugin.
 
 -   **Purpose:** The most powerful and specialized plugin, designed for resources managed through Waldur's **asynchronous marketplace order workflow**. This is the correct plugin for nearly all major cloud resources like VMs, volumes, databases, etc.
 
+**Attribute Inference**: To simplify configuration, you can specify an offering_type. The generator will then look for a corresponding schema in the OpenAPI specification (e.g., Marketplace.Volume becomes MarketplaceVolumeCreateOrderAttributes) and automatically generate all the necessary attribute_params. Any manually defined attribute_params will override the inferred ones, allowing for customization.
+
+
 -   **Workflow:** This plugin encapsulates a complex, multi-step process:
     -   **`state: present`**:
         1.  Checks for the existence of the *final resource* (e.g., the volume) using `existence_check_op`.
@@ -219,6 +222,10 @@ Below is a detailed explanation of each available plugin.
       os_volume:
         # Use the 'order' plugin for the marketplace workflow.
         type: order
+
+        # (Optional) The offering type used to automatically infer attribute parameters
+        # from the OpenAPI schema. This greatly reduces boilerplate configuration.
+        offering_type: "Marketplace.Volume"
 
         description: "Create, update, or delete an OpenStack Volume via the marketplace."
         resource_type: "OpenStack volume"
@@ -501,7 +508,7 @@ The most straightforward way to test is to tell Ansible where to find your newly
     **Run the playbook:**
     ```bash
     # Set the environment variables first
-    export ANSIBLE_COLLECTIONS_PATHS=./outputs
+    export ANSIBLE_COLLECTIONS_PATH=./outputs
     export WALDUR_ACCESS_TOKEN='YOUR_SECRET_TOKEN'
 
     # Run the playbook
