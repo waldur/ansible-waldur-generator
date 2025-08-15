@@ -262,13 +262,12 @@ class CrudPlugin(BasePlugin):
             )
 
         module_config = CrudModuleConfig(**raw_config)
-        module_name = module_config.resource_type
 
         parameters = self._build_parameters(module_config, api_parser)
         return_block = self._build_return_block(module_config, return_generator)
         examples = self._build_examples(
             module_config,
-            module_name,
+            module_key,
             parameters,
             collection_namespace,
             collection_name,
@@ -277,9 +276,9 @@ class CrudPlugin(BasePlugin):
 
         return GenerationContext(
             argument_spec=self._build_argument_spec(parameters),
-            module_filename=f"{module_name}.py",
+            module_filename=f"{module_key}.py",
             documentation=self._build_documentation(
-                module_name, module_config.description, parameters
+                module_key, module_config.description, parameters
             ),
             examples=examples,
             return_block=return_block or {},
