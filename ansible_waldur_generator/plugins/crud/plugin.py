@@ -239,6 +239,19 @@ class CrudPlugin(BasePlugin):
             },
         ]
 
+    def _validate_config(self, config: Dict[str, Any]):
+        # Check required operations exist
+        operations = config.get("operations", {})
+        required = ["list", "create", "destroy"]
+        missing = [op for op in required if op not in operations]
+        if missing:
+            raise ValueError(f"Missing operations: {missing}")
+
+        # Check resolvers have required fields
+        for name, resolver in config.get("resolvers", {}).items():
+            if "list" not in resolver or "retrieve" not in resolver:
+                raise ValueError(f"Resolver '{name}' missing list/retrieve operations")
+
     def generate(
         self,
         module_key: str,
@@ -248,6 +261,7 @@ class CrudPlugin(BasePlugin):
         collection_name: str,
         return_generator: ReturnBlockGenerator,
     ) -> GenerationContext:
+        self._validate_config(raw_config)
         operations = raw_config["operations"]
         raw_config["check_section"] = api_parser.get_operation(operations["list"])
         raw_config["create_section"] = api_parser.get_operation(operations["create"])
