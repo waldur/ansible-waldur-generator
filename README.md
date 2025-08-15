@@ -256,17 +256,14 @@ The generator's architecture is designed to decouple the Ansible logic from the 
 
 ```mermaid
 graph TD
-    subgraph "API Contract"
+    subgraph "Inputs"
         B[waldur_api.yaml]
-    end
-
-    subgraph "Resource defenition"
         A[generator_config.yaml]
     end
 
     subgraph "Engine"
         C{Generator Script}
-        D[Template <br>resource_module.py.j2]
+        D[Generic Module <br>Template String]
     end
 
     subgraph "Output"
@@ -275,123 +272,120 @@ graph TD
 
     A --> C
     B --> C
-    C -- Builds complete context from both sources --> D
+    C -- Builds GenerationContext via Plugins --> D
     D -- Renders final code --> E
 ```
 
 ### Plugin-Based Architecture
 
+The system's flexibility comes from its plugin architecture. The `Generator` itself does not know the details of a `crud` module versus an `order` module. It only knows how to interact with the `BasePlugin` interface.
 
-1. **Plugin Discovery**: The PluginManager uses Python's entry point system to automatically discover and register plugins at startup
+1.  **Plugin Discovery**: The `PluginManager` uses Python's entry point system to automatically discover and register plugins at startup.
+2.  **Delegation**: The `Generator` reads a module's `type` from the config and asks the `PluginManager` for the corresponding plugin.
+3.  **Encapsulation**: Each plugin fully encapsulates the logic for its type. It knows how to parse its specific YAML configuration, interact with the `ApiSpecParser` to get operation details, and build the final `GenerationContext` needed to render the module.
+4.  **Plugin Contract**: All plugins implement the `BasePlugin` interface, which requires a central `generate()` method. This ensures a consistent interaction pattern between the `Generator` and all plugins.
+5.  **Runtime Logic (Runners)**: Each plugin is paired with a `runner.py` file. This runner contains the actual Python logic that will be executed by the Ansible module at runtime. The `Generator` copies this runner into the collection's `plugins/module_utils/` directory, making the collection self-contained. The generated module is a thin wrapper that calls its corresponding runner.
 
-2. **Separation of Concerns**:
-   - Generator orchestrates the high-level workflow
-   - PluginManager handles plugin discovery and registry
-   - Each plugin encapsulates type-specific logic (parsing, building, templating)
-
-3. **Plugin Contract**: All plugins implement the BasePlugin interface with three required methods, ensuring consistency
-
-4. **Shared Resources**: The ApiSpecParser is used once and shared across all module generations
-
-5. **Type-Agnostic Core**: The Generator doesn't need to know about specific module types - it delegates everything to the appropriate plugin
-
-The diagram shows how the system processes each module definition through the plugin architecture, with clear handoffs between components and the plugin-specific processing that happens for each module type.
-
+The diagram below shows how the system processes each module definition.
 
 ```mermaid
 sequenceDiagram
     participant Generator
     participant PluginManager
     participant Plugin
-    participant Parser
-    participant Builder
+    participant ApiSpecParser
+    participant ReturnBlockGenerator
 
-    Note over Generator, Builder: Initialization
-    Generator->>PluginManager: Initialize & discover plugins
-    PluginManager->>Plugin: Register plugins by type
+    Note over Generator, PluginManager: Initialization
+    Generator->>PluginManager: Initialize & discover plugins via entry points
+    PluginManager-->>Plugin: Registers plugins by type
 
-    Note over Generator, Builder: Generation Loop
-    loop For each module in config
-        Generator->>PluginManager: Get plugin for type
-        PluginManager-->>Generator: Return plugin
+    Note over Generator, PluginManager: Generation Loop
+    loop For each module in generator_config.yaml
+        Generator->>PluginManager: Get plugin for module type
+        PluginManager-->>Generator: Return correct plugin instance
 
-        Generator->>Plugin: get_parser()
-        Plugin-->>Generator: Return parser
-        Generator->>Parser: Parse config
-        Parser-->>Generator: Parsed config
+        Generator->>Plugin: generate(config, api_parser, ...)
+        Note right of Plugin: Plugin uses ApiSpecParser and ReturnBlockGenerator internally to build context.
+        Plugin-->>Generator: return GenerationContext
 
-        Generator->>Plugin: get_builder()
-        Plugin-->>Generator: Return builder
-        Generator->>Builder: Build context
-        Builder-->>Generator: Generation context
-
-        Generator->>Generator: Render & write module
+        Generator->>Generator: Render module from generic template using context
+        Generator->>Filesystem: Write generated module.py file
     end
 ```
 
 ### Component Responsibilities
 
 1.  **Core System (`generator.py`, `plugin_manager.py`)**:
-    -   **`Generator`**: The main orchestrator. It knows nothing about specific module types like `resource` or `action`. Its only job is to manage the high-level workflow:
+    -   **`Generator`**: The main orchestrator. It is type-agnostic. Its job is to:
         1.  Initialize the `PluginManager`.
-        2.  Parse the API spec once (using the shared `ApiSpecParser`).
-        3.  Loop through the module definitions in `generator_config.yaml`.
-        4.  For each definition, ask the `PluginManager` for the correct plugin based on the `type` key.
-        5.  Delegate all subsequent parsing, building, and template selection to the returned plugin.
-    -   **`PluginManager`**: The discovery service. On startup, it queries Python's packaging metadata for any installed packages that have registered themselves under the `ansible_waldur_generator.plugins` entry point. It loads these plugins and keeps a registry of which `type` string maps to which plugin object.
+        2.  Parse the API spec *once* using the shared `ApiSpecParser`.
+        3.  Loop through module definitions.
+        4.  For each definition, get the correct plugin from the `PluginManager`.
+        5.  Call the plugin's `generate()` method, passing in the necessary tools like the config and API parser.
+        6.  Take the returned `GenerationContext` and render the final module file.
+        7.  Copy the plugin's associated `runner.py` file into `module_utils`.
+    -   **`PluginManager`**: The discovery service. It finds and loads all available plugins registered under the `ansible_waldur_generator` entry point in `pyproject.toml`.
 
-2.  **Plugin Interface (`plugins/base_plugin.py`)**:
-    -   **`BasePlugin`**: An abstract base class that defines the "contract" every plugin must follow. It requires three methods:
-        -   `get_parser()`: Must return a parser object responsible for understanding the plugin-specific sections of `generator_config.yaml`.
-        -   `get_builder()`: Must return a builder object responsible for creating the final  context for this plugin's template.
+2.  **Plugin Interface (`interfaces/plugin.py`)**:
+    -   **`BasePlugin`**: An abstract base class that defines the "contract" for all plugins. It requires two main methods:
+        -   `get_type_name()`: Returns the string that links the plugin to the `type` key in the YAML config (e.g., `'crud'`).
+        -   `generate()`: The main entry point for the plugin. It receives the module configuration and API parsers and is responsible for returning a complete `GenerationContext` object.
 
-3.  **Concrete Plugins (e.g., `plugins/resource/`)**:
-    -   Each plugin is a self-contained unit, typically a directory. It contains:
-        -   **`parser.py`**: A subclass of `BaseConfigParser` that knows how to parse and validate the YAML configuration for its specific type (e.g., handling the `operations` and `resolvers` sections for a `resource` module).
-        -   **`builder.py`**: A subclass of `BaseContextBuilder` that knows how to construct the final `GenerationContext` for its type.
-        -   **`plugin.py`**: A small file that defines the main plugin class (e.g., `ResourcePlugin`) and associates it with `type` name. This class is what gets registered via the entry point.
+3.  **Concrete Plugins (e.g., `plugins/crud/`)**:
+    -   Each plugin is a self-contained directory containing:
+        -   **`config.py`**: A Pydantic model for validating the plugin-specific sections of `generator_config.yaml`.
+        -   **`runner.py`**: The runtime logic for the generated Ansible module. This code is executed on the target host.
+        -   **`plugin.py`**: The implementation of `BasePlugin` (e.g., `CrudPlugin`). This class orchestrates the plugin-specific logic for generating the module's documentation, parameters, and runner context.
+
 
 ### How to Add a New Plugin
 
-This architecture makes adding support for a new module type straightforward and clean:
+This architecture makes adding support for a new module type straightforward:
 
 1.  **Create Plugin Directory**:
-    Create a new directory: `generator/plugins/facts/`.
+    Create a new directory for your plugin, e.g., `ansible_waldur_generator/plugins/my_type/`.
 
-2.  **Implement Parser**:
-    Create `generator/plugins/facts/parser.py` with a `FactsConfigParser` class. It will know how to parse the `facts`-specific YAML structure (e.g., `operation`, `return_key`, `identifier`).
+2.  **Define Configuration Model**:
+    Create `plugins/my_type/config.py` with a Pydantic model inheriting from `BaseModel` to define and validate the YAML structure for your new type.
 
-3.  **Implement Builder**:
-    Create `generator/plugins/facts/builder.py` with a `FactsContextBuilder` class. It will build the specific `FactsGenerationContext` needed by the `facts` template.
+3.  **Implement the Runner**:
+    Create `plugins/my_type/runner.py`. Define a class (e.g., `MyTypeRunner`) that inherits from `BaseRunner` and implements the runtime logic for your module.
 
-4.  **Create Template**:
-    Create a new template file: `generator/templates/facts_module.py.j2`.
+4.  **Implement the Plugin Class**:
+    Create `plugins/my_type/plugin.py`:
+    ```python
+    from ansible_waldur_generator.interfaces.plugin import BasePlugin
+    from ansible_waldur_generator.models import GenerationContext
+    # Import your config model and other necessary components
+
+    class MyTypePlugin(BasePlugin):
+        def get_type_name(self) -> str:
+            # This must match the 'type' key in the YAML config
+            return 'my_type'
+
+        def generate(self, module_key, raw_config, api_parser, ...) -> GenerationContext:
+            # 1. Parse and validate raw_config using your Pydantic model.
+            # 2. Use api_parser to get details about API operations.
+            # 3. Build the argument_spec, documentation, examples, etc.
+            # 4. Build the runner_context dictionary to pass runtime info to your runner.
+            # 5. Return a fully populated GenerationContext object.
+            return GenerationContext(...)
+    ```
 
 5.  **Register the Plugin**:
-    Create `generator/plugins/facts/plugin.py`:
-    ```python
-    from ..base_plugin import BasePlugin
-    from .parser import FactsConfigParser
-    from .builder import FactsContextBuilder
-
-    class FactsPlugin(BasePlugin):
-        def get_type_name(self):
-            return 'facts'
-
-        def get_parser(self, ...):
-            return FactsConfigParser(...)
-
-        def get_builder(self, ...):
-            return FactsContextBuilder(...)
-    ```
-
-6.  **Update Entry Points**:
-    Add the new plugin to `pyproject.toml`:
+    Add the new plugin to the entry points section in `pyproject.toml`:
     ```toml
-    [tool.poetry.plugins."ansible_waldur_generator.plugins"]
+    [tool.poetry.plugins."ansible_waldur_generator"]
     # ... existing plugins
-    facts = "generator.plugins.facts.plugin:FactsPlugin"
+    crud = "ansible_waldur_generator.plugins.crud.plugin:CrudPlugin"
+    order = "ansible_waldur_generator.plugins.order.plugin:OrderPlugin"
+    facts = "ansible_waldur_generator.plugins.facts.plugin:FactsPlugin"
+    my_type = "ansible_waldur_generator.plugins.my_type.plugin:MyTypePlugin" # Add this line
     ```
+
+6.  **Update Poetry Environment**:
+    Run `poetry install`. This makes the new entry point available to the `PluginManager`. Your new `my_type` is now ready to be used in `generator_config.yaml`.
 
 After these steps, running `poetry install` will make the new `facts` type instantly available to the generator without any changes to the core `generator.py` or `plugin_manager.py` files.
 
