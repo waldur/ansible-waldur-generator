@@ -266,6 +266,17 @@ class CrudPlugin(BasePlugin):
         raw_config["check_section"] = api_parser.get_operation(operations["list"])
         raw_config["create_section"] = api_parser.get_operation(operations["create"])
         raw_config["destroy_section"] = api_parser.get_operation(operations["destroy"])
+        raw_config["check_section_config"] = {
+            "params": [
+                {
+                    "name": "name",
+                    "type": "str",
+                    "required": True,
+                    "description": f"The name of the {module_key} to check/create/delete.",
+                    "maps_to": "name_exact",
+                }
+            ]
+        }
 
         for name, resolver_conf in raw_config.get("resolvers", {}).items():
             resolver_conf["list_operation"] = api_parser.get_operation(

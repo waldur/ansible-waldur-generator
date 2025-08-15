@@ -64,7 +64,7 @@ class Generator:
     """
     Orchestrates the Ansible module generation process. It reads configuration,
     parses an OpenAPI specification, and uses a plugin-based system to generate
-    a self-contained Ansible Collection.
+    one or more self-contained Ansible Collections.
     """
 
     def __init__(self, config_data, api_spec_data):
@@ -242,121 +242,179 @@ class Generator:
 
     def generate(self, output_dir: str):
         """
-        Runs the full generation process, creating a self-contained Ansible Collection.
+        Runs the full generation process, creating self-contained Ansible Collections
+        for each definition found in the configuration file.
         """
-        # Step 1: Set up the basic collection directory structure and metadata files.
-        self._setup_collection_skeleton(output_dir)
-
+        # --- Step 1: Initialization (Done Once) ---
+        # These components are expensive to initialize and are shared across the
+        # generation of all collections. They are created once at the beginning.
         collector = ValidationErrorCollector()
         api_parser = ApiSpecParser(self.api_spec_data, collector)
         return_generator = ReturnBlockGenerator(self.api_spec_data)
-        collector.report()  # Fail fast if the API spec itself is invalid.
 
-        collection_root = self._get_collection_root(output_dir)
-        modules_dir = os.path.join(collection_root, "plugins", "modules")
-        generated_file_paths = []
+        # Perform initial validation of the API spec. If it's invalid,
+        # there's no point in proceeding.
+        collector.report()
 
-        # Step 2: Loop through each module definition in the generator_config.yaml.
-        for module_key, raw_config in self.config_data.get("modules", {}).items():
-            module_type = raw_config.get("type")
-            plugin = self.plugin_manager.get_plugin(module_type)
-            if not plugin:
-                collector.add_error(
-                    f"Module '{module_key}': No plugin found for type '{module_type}'."
-                )
-                continue
+        # --- Step 2: Main Generation Loop for Each Collection ---
+        # The core of the multi-collection logic. We iterate through the top-level
+        # 'collections' list from the generator_config.yaml.
+        collections_config = self.config_data.get("collections")
+        if not collections_config:
+            collector.add_error(
+                "The configuration file must contain a top-level 'collections' list."
+            )
+            collector.report()
 
-            # Step 3: Copy the necessary runner files for this module type into the collection.
-            self._copy_runner_dependencies(plugin, output_dir)
+        for collection_config in collections_config:
+            # --- 2a. Set the Context for the Current Collection ---
+            # Update the generator's instance variables to reflect the collection
+            # we are currently building. All helper methods like _get_collection_root
+            # and _setup_collection_skeleton rely on these instance variables.
+            self.collection_namespace = collection_config.get("namespace", "community")
+            self.collection_name = collection_config.get("name", "generic")
+            self.collection_version = collection_config.get("version", "1.0.0")
 
-            try:
-                # The core workflow: Parse config -> Build context -> Render template.
-                generation_context = plugin.generate(
-                    module_key,
-                    raw_config,
-                    api_parser,
-                    self.collection_namespace,
-                    self.collection_name,
-                    return_generator,
-                )
+            print(
+                f"\n--- Generating Collection: {self.collection_namespace}.{self.collection_name} v{self.collection_version} ---"
+            )
 
-                runner_import_path = (
-                    f"ansible_collections.{self.collection_namespace}.{self.collection_name}"
-                    f".plugins.module_utils.waldur.{plugin.get_type_name()}_runner"
-                )
-                runner_class_name = f"{capitalize_first(plugin.get_type_name())}Runner"
+            # CRITICAL: Reset the set of copied runners for each new collection.
+            # Each collection is self-contained and must have its own copy of the
+            # necessary module_utils files. Without this reset, a runner copied
+            # for the first collection would not be copied for subsequent ones.
+            self.copied_runners = set()
 
-                # Step 4: Write the final module file into the collection's 'modules' directory.
-                output_path = os.path.join(
-                    modules_dir, generation_context.module_filename
-                )
-                with open(output_path, "w") as f:
-                    f.write(
-                        GENERIC_MODULE_TEMPLATE.format(
-                            runner_import_path=runner_import_path,
-                            runner_class_name=runner_class_name,
-                            documentation=yaml.dump(
-                                generation_context.documentation,
-                                default_flow_style=False,
-                                sort_keys=False,
-                                indent=2,
-                                width=1000,
-                            ),
-                            examples=yaml.dump(
-                                generation_context.examples,
-                                default_flow_style=False,
-                                sort_keys=False,
-                                indent=2,
-                                width=1000,
-                            ),
-                            return_block=yaml.dump(
-                                generation_context.return_block,
-                                default_flow_style=False,
-                                sort_keys=False,
-                                indent=2,
-                                width=1000,
-                            ),
-                            argument_spec=pprint.pformat(
-                                generation_context.argument_spec,
-                                indent=4,
-                                width=120,
-                                sort_dicts=False,
-                            ),
-                            runner_context=pprint.pformat(
-                                generation_context.runner_context,
-                                indent=4,
-                                width=120,
-                                sort_dicts=False,
-                            ),
-                        )
+            # --- 2b. Create the Directory Structure for This Collection ---
+            self._setup_collection_skeleton(output_dir)
+
+            collection_root = self._get_collection_root(output_dir)
+            modules_dir = os.path.join(collection_root, "plugins", "modules")
+            generated_file_paths = []
+
+            # --- 2c. Inner Loop to Generate Modules for This Collection ---
+            for module_key, raw_config in collection_config.get("modules", {}).items():
+                module_type = raw_config.get("type")
+                plugin = self.plugin_manager.get_plugin(module_type)
+
+                if not plugin:
+                    # Add error to the collector but continue, so we can see all
+                    # errors from all collections at the end.
+                    collector.add_error(
+                        f"In collection '{self.collection_name}', module '{module_key}': "
+                        f"No plugin found for type '{module_type}'."
                     )
-                generated_file_paths.append(output_path)
-                print(f"Successfully generated module: {output_path}")
+                    continue
 
-            except Exception as e:
-                collector.add_error(
-                    f"Unexpected error in plugin '{module_type}' on module '{module_key}': {e}"
-                )
-                import traceback
+                # Copy the plugin-specific runner and the base runner into the
+                # current collection's module_utils directory.
+                self._copy_runner_dependencies(plugin, output_dir)
 
-                traceback.print_exc()
+                try:
+                    # Delegate the core logic of parsing the config and building the
+                    # context to the discovered plugin. We pass the current collection's
+                    # namespace and name so it can generate correct FQCNs in docs/examples.
+                    generation_context = plugin.generate(
+                        module_key,
+                        raw_config,
+                        api_parser,
+                        self.collection_namespace,  # Current collection's namespace
+                        self.collection_name,  # Current collection's name
+                        return_generator,
+                    )
 
-        # Step 5: Format all generated Python files for cleanliness and PEP-8 compliance.
-        if generated_file_paths:
-            try:
-                utils_path = os.path.join(collection_root, "plugins", "module_utils")
-                # Format both the newly created modules and the copied utils.
-                subprocess.run(
-                    ["ruff", "format", modules_dir, utils_path],
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                )
-            except (subprocess.CalledProcessError, FileNotFoundError) as e:
-                print(
-                    f"Warning: Could not format generated files with 'ruff'. Is it installed? Error: {e}",
-                    file=sys.stderr,
-                )
+                    # Determine the runner's import path and class name based on convention.
+                    runner_import_path = (
+                        f"ansible_collections.{self.collection_namespace}.{self.collection_name}"
+                        f".plugins.module_utils.waldur.{plugin.get_type_name()}_runner"
+                    )
+                    runner_class_name = (
+                        f"{capitalize_first(plugin.get_type_name())}Runner"
+                    )
 
-        # Step 6: Report any final errors that were collected during the process.
+                    # --- 2d. Render and Write the Module File ---
+                    # The output path is calculated based on the `modules_dir` of the
+                    # current collection, ensuring the file is placed correctly.
+                    output_path = os.path.join(
+                        modules_dir, generation_context.module_filename
+                    )
+                    with open(output_path, "w") as f:
+                        f.write(
+                            GENERIC_MODULE_TEMPLATE.format(
+                                runner_import_path=runner_import_path,
+                                runner_class_name=runner_class_name,
+                                documentation=yaml.dump(
+                                    generation_context.documentation,
+                                    default_flow_style=False,
+                                    sort_keys=False,
+                                    indent=2,
+                                    width=1000,
+                                ),
+                                examples=yaml.dump(
+                                    generation_context.examples,
+                                    default_flow_style=False,
+                                    sort_keys=False,
+                                    indent=2,
+                                    width=1000,
+                                ),
+                                return_block=yaml.dump(
+                                    generation_context.return_block,
+                                    default_flow_style=False,
+                                    sort_keys=False,
+                                    indent=2,
+                                    width=1000,
+                                ),
+                                argument_spec=pprint.pformat(
+                                    generation_context.argument_spec,
+                                    indent=4,
+                                    width=120,
+                                    sort_dicts=False,
+                                ),
+                                runner_context=pprint.pformat(
+                                    generation_context.runner_context,
+                                    indent=4,
+                                    width=120,
+                                    sort_dicts=False,
+                                ),
+                            )
+                        )
+                    generated_file_paths.append(output_path)
+                    print(f"  Successfully generated module: {output_path}")
+
+                except Exception as e:
+                    # Catch unexpected errors during a specific module's generation.
+                    # Provide a detailed error message including the collection and module context.
+                    import traceback
+
+                    collector.add_error(
+                        f"Unexpected error in collection '{self.collection_name}', module '{module_key}' (plugin '{module_type}'): {e}"
+                    )
+                    traceback.print_exc()
+
+            # --- 2e. Format Generated Files for the Current Collection ---
+            # After all modules for a collection are generated, format them for
+            # PEP-8 compliance and consistent style.
+            if generated_file_paths:
+                try:
+                    utils_path = os.path.join(
+                        collection_root, "plugins", "module_utils"
+                    )
+                    # Format both the newly created modules and the copied utils.
+                    subprocess.run(
+                        ["ruff", "format", modules_dir, utils_path],
+                        capture_output=True,
+                        text=True,
+                        check=True,
+                    )
+                except (subprocess.CalledProcessError, FileNotFoundError) as e:
+                    print(
+                        f"Warning: Could not format files for collection '{self.collection_name}' with 'ruff'. "
+                        f"Is it installed? Error: {e}",
+                        file=sys.stderr,
+                    )
+
+        # --- Step 3: Final Report ---
+        # After attempting to generate all collections, report any errors that
+        # were accumulated throughout the process.
+        print("\nGeneration process finished.")
         collector.report()

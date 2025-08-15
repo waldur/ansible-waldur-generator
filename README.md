@@ -52,15 +52,25 @@ The final structure will look like this:
 outputs/
 └── ansible_collections/
     └── waldur/
-        └── cloud/
+        ├── structure/          # Collection 1
+        │   ├── galaxy.yml
+        │   ├── plugins/
+        │   │   ├── modules/
+        │   │   │   ├── customer.py
+        │   │   │   └── project.py
+        │   │   └── module_utils/
+        │   └── ...
+        ├── openstack/          # Collection 2
+        │   ├── galaxy.yml
+        │   ├── plugins/
+        │   │   ├── modules/
+        │   │   │   ├── volume.py
+        │   │   │   └── security_group.py
+        │   │   └── module_utils/
+        │   └── ...
+        └── slurm/              # Collection 3
             ├── galaxy.yml
-            ├── meta/
-            │   └── runtime.yml
-            └── plugins/
-                ├── modules/
-                │   └── project.py
-                └── module_utils/
-                    └── ...
+            └── ...
 ```
 
 You can customize the paths using command-line options:
@@ -76,10 +86,13 @@ The generator uses a plugin-based architecture to handle different types of modu
 The header defines Ansible collection namespace, name and version.
 
 ```yaml
-collection:
-  namespace: waldur
-  name: cloud
-  version: 1.0.0
+collections:
+  - namespace: waldur
+    name: structure
+    version: 1.0.0
+    modules:
+      modename:
+        type: crud
 ```
 
 Below is a detailed explanation of each available plugin.
