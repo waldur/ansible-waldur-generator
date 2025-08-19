@@ -8,6 +8,7 @@ from ansible_waldur_generator.plugins.crud.config import ModuleResolver
 class AttributeParam(BaseModel):
     name: str
     type: str = "string"
+    format: str | None = None
     required: bool = False
     description: str | None = None
     is_resolved: bool = False
@@ -23,6 +24,7 @@ class OrderModuleConfig(BaseModel):
     update_check_fields: List[str] = Field(default_factory=list)
     attribute_params: List[AttributeParam] = Field(default_factory=list)
     resolvers: Dict[str, ModuleResolver] = Field(default_factory=dict)
+    has_limits: bool = False
 
     class Config:
         arbitrary_types_allowed = True

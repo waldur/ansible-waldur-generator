@@ -6,6 +6,7 @@ from ansible_waldur_generator.models import GenerationContext, AnsibleModulePara
 from ansible_waldur_generator.helpers import (
     AUTH_OPTIONS,
     OPENAPI_TO_ANSIBLE_TYPE_MAP,
+    capitalize_first,
 )
 from ansible_waldur_generator.interfaces.plugin import BasePlugin
 from ansible_waldur_generator.plugins.order.config import (
@@ -94,11 +95,12 @@ class OrderPlugin(BasePlugin):
             "required": False,
             "description": "URL of the marketplace plan.",
         }
-        params["limits"] = {
-            "type": "object",
-            "required": False,
-            "description": "Marketplace resource limits for limit-based billing.",
-        }
+        if module_config.has_limits:
+            params["limits"] = {
+                "type": "object",
+                "required": False,
+                "description": "Marketplace resource limits for limit-based billing.",
+            }
         params["description"] = {
             "type": "str",
             "required": False,
@@ -110,7 +112,15 @@ class OrderPlugin(BasePlugin):
             param_type = OPENAPI_TO_ANSIBLE_TYPE_MAP.get(p_conf.type, "str")
             description = p_conf.description or ""
             if p_conf.is_resolved:
-                description = f"The name or UUID of the {param_name}. {description}"
+                description = (
+                    description
+                    or f"The name or UUID of the {p_conf.name.replace('_', ' ')}."
+                )
+            else:
+                if not description and p_conf.format == "uri":
+                    description = (
+                        f"{capitalize_first(p_conf.name.replace('_', ' '))} URL."
+                    )
 
             params[param_name] = {
                 "type": param_type,
@@ -283,6 +293,7 @@ class OrderPlugin(BasePlugin):
             param = AttributeParam(
                 name=name,
                 type=prop.get("type", "string"),
+                format=prop.get("format"),
                 required=name in required_fields,
                 description=prop.get("description", "").strip(),
                 is_resolved=is_resolved,
