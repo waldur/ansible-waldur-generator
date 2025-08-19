@@ -1,3 +1,4 @@
+import re
 from typing import Dict, Any, List
 
 from ansible_waldur_generator.api_parser import ApiSpecParser
@@ -10,7 +11,7 @@ from ansible_waldur_generator.helpers import (
 )
 from ansible_waldur_generator.interfaces.plugin import BasePlugin
 from ansible_waldur_generator.plugins.order.config import (
-    AttributeParam,
+    ParameterConfig,
     OrderModuleConfig,
 )
 
@@ -70,8 +71,79 @@ class OrderPlugin(BasePlugin):
             }
         return return_block_dict
 
+    def _build_spec_for_param(
+        self,
+        p_conf: ParameterConfig,
+        api_parser: ApiSpecParser,
+        module_config: OrderModuleConfig,
+    ) -> dict:
+        """
+        Recursively builds the argument_spec dict for a single parameter,
+        resolving any references ($ref) it encounters.
+        """
+        p_conf_to_process = p_conf
+
+        # --- 1. Resolve Reference ---
+        # If the current parameter is a reference, replace it with a fully parsed
+        # ParameterConfig object created from the resolved schema.
+        if p_conf.ref:
+            ref_path = p_conf.ref
+            resolved_schema_dict = api_parser.get_schema_by_ref(ref_path)
+
+            # Convert the resolved raw dictionary into a ParameterConfig object.
+            # We preserve the original 'name' and 'required' status from the point of reference.
+            p_conf_to_process = self._create_param_config_from_schema(
+                name=p_conf.name,
+                prop=resolved_schema_dict,
+                required_list=[p_conf.name] if p_conf.required else [],
+                api_parser=api_parser,
+                module_config=module_config,
+            )
+
+        param_spec = {}
+
+        # 2. Determine Ansible Type
+        # This line will now work correctly.
+        param_type = OPENAPI_TO_ANSIBLE_TYPE_MAP.get(p_conf_to_process.type, "str")
+        param_spec["type"] = param_type
+
+        # 3. Set basic attributes
+        param_spec["required"] = p_conf_to_process.required
+        if p_conf_to_process.choices:
+            param_spec["choices"] = p_conf_to_process.choices
+
+        param_spec["description"] = self._get_prop_description(
+            p_conf_to_process.name, p_conf_to_process.model_dump(), module_config
+        )
+
+        # 4. Handle Complex Types Recursively
+        if param_type == "dict" and p_conf_to_process.properties:
+            suboptions = {}
+            for sub_p_conf in p_conf_to_process.properties:
+                # Recursive call, passing all necessary context along
+                suboptions[sub_p_conf.name] = self._build_spec_for_param(
+                    sub_p_conf, api_parser, module_config
+                )
+            if suboptions:
+                param_spec["suboptions"] = suboptions
+
+        elif param_type == "list" and p_conf_to_process.items:
+            # Recursively build the spec for the items in the list
+            item_spec = self._build_spec_for_param(
+                p_conf_to_process.items, api_parser, module_config
+            )
+
+            item_type = item_spec.get("type", "str")
+            param_spec["elements"] = item_type
+
+            # If the list contains complex objects, copy their suboptions
+            if item_type == "dict" and "suboptions" in item_spec:
+                param_spec["suboptions"] = item_spec["suboptions"]
+
+        return param_spec
+
     def _build_parameters(
-        self, module_config: OrderModuleConfig
+        self, module_config: OrderModuleConfig, api_parser: ApiSpecParser
     ) -> AnsibleModuleParams:
         params: AnsibleModuleParams = {**BASE_SPEC}
 
@@ -108,27 +180,9 @@ class OrderPlugin(BasePlugin):
         }
 
         for p_conf in module_config.attribute_params:
-            param_name = p_conf.name
-            param_type = OPENAPI_TO_ANSIBLE_TYPE_MAP.get(p_conf.type, "str")
-            description = p_conf.description or ""
-            if p_conf.is_resolved:
-                description = (
-                    description
-                    or f"The name or UUID of the {p_conf.name.replace('_', ' ')}."
-                )
-            else:
-                if not description and p_conf.format == "uri":
-                    description = (
-                        f"{capitalize_first(p_conf.name.replace('_', ' '))} URL."
-                    )
-
-            params[param_name] = {
-                "type": param_type,
-                "required": p_conf.required,
-                "description": description.strip(),
-            }
-            if p_conf.choices:
-                params[param_name]["choices"] = p_conf.choices
+            params[p_conf.name] = self._build_spec_for_param(
+                p_conf, api_parser, module_config
+            )
 
         return params
 
@@ -254,9 +308,94 @@ class OrderPlugin(BasePlugin):
 
         return examples
 
-    def _infer_attribute_params(
+    def _create_param_config_from_schema(
+        self,
+        name: str,
+        prop: Dict[str, Any],
+        required_list: List[str],
+        api_parser: ApiSpecParser,
+        module_config: OrderModuleConfig,
+    ) -> ParameterConfig:
+        """
+        Recursively creates a ParameterConfig object from a name and a schema property.
+        """
+        # Determine the type. If there's a $ref, it's an object to be resolved later.
+        prop_type = prop.get("type")
+        if not prop_type and "$ref" in prop:
+            prop_type = "object"
+        elif not prop_type:
+            prop_type = "string"  # A safe default
+
+        # Handle nested properties
+        sub_properties = []
+        if "properties" in prop:
+            nested_required = prop.get("required", [])
+            for sub_name, sub_prop in prop.get("properties", {}).items():
+                if sub_prop.get("readOnly"):
+                    continue
+                # Recursive call for nested properties
+                sub_properties.append(
+                    self._create_param_config_from_schema(
+                        sub_name, sub_prop, nested_required, api_parser, module_config
+                    )
+                )
+
+        # Handle nested items in an array
+        items_config = None
+        if "items" in prop and isinstance(prop.get("items"), dict):
+            # The name for an 'items' block is internal; it's not user-facing.
+            # We use a placeholder name.
+            items_config = self._create_param_config_from_schema(
+                name="_items_definition",
+                prop=prop["items"],
+                required_list=[],  # 'required' is not meaningful inside an array item
+                api_parser=api_parser,
+                module_config=module_config,
+            )
+
+        choices = self._extract_choices_from_prop(prop, api_parser)
+        is_resolved = name in module_config.resolvers
+
+        return ParameterConfig(
+            name=name,
+            type=prop_type,
+            format=prop.get("format"),
+            required=(name in required_list),
+            description=self._get_prop_description(name, prop, module_config),
+            is_resolved=is_resolved,
+            choices=choices if choices else [],
+            ref=prop.get("$ref"),  # The ref is at the top level of the property
+            properties=sub_properties,
+            items=items_config,
+        )
+
+    def _get_prop_description(
+        self, name: str, prop: Dict[str, Any], module_config
+    ) -> str:
+        description = prop.get("description", "")
+        display_name = name.replace("_", " ")
+        # Convert common abbreviations to uppercase
+        display_name = re.sub(
+            r"\b(ssh|ip|id|url|cpu|ram|vpn|uuid|dns)\b",
+            lambda m: m.group(1).upper(),
+            display_name,
+            flags=re.IGNORECASE,
+        )
+
+        if not description:
+            if name in module_config.resolvers:
+                description = f"The name or UUID of the {display_name}."
+            elif prop.get("format") == "uri":
+                description = f"{capitalize_first(display_name)} URL"
+            elif prop.get("type") == "array":
+                description = f"A list of {display_name} items."
+            else:
+                description = capitalize_first(display_name)
+        return description
+
+    def _infer_offering_params(
         self, module_config: OrderModuleConfig, api_parser: ApiSpecParser
-    ) -> list[AttributeParam]:
+    ) -> list[ParameterConfig]:
         """Infers attribute parameters from the OpenAPI schema based on offering_type."""
         if not module_config.offering_type:
             return []
@@ -268,36 +407,27 @@ class OrderPlugin(BasePlugin):
 
         try:
             schema = api_parser.get_schema_by_ref(schema_ref)
-        except ValueError as e:
-            print(
-                f"Warning for offering_type '{module_config.offering_type}': "
-                f"Could not resolve schema ref '{schema_ref}'. No attributes will be inferred. Details: {e}"
-            )
+        except ValueError:
+            # Handle error as before
             return []
+
         if not schema or "properties" not in schema:
             return []
 
         inferred_params = []
         required_fields = schema.get("required", [])
 
+        # The loop is now much simpler and delegates the complex creation logic
         for name, prop in schema.get("properties", {}).items():
             if prop.get("readOnly", False):
                 continue
 
-            choices = self._extract_choices_from_prop(prop, api_parser)
-
-            # For `is_resolved`, we check if a resolver is defined for this parameter name.
-            # This allows auto-detection if the user adds a resolver for an inferred param.
-            is_resolved = name in module_config.resolvers
-
-            param = AttributeParam(
+            param = self._create_param_config_from_schema(
                 name=name,
-                type=prop.get("type", "string"),
-                format=prop.get("format"),
-                required=name in required_fields,
-                description=prop.get("description", "").strip(),
-                is_resolved=is_resolved,
-                choices=choices if choices else [],
+                prop=prop,
+                required_list=required_fields,
+                api_parser=api_parser,
+                module_config=module_config,
             )
             inferred_params.append(param)
 
@@ -338,13 +468,13 @@ class OrderPlugin(BasePlugin):
         module_config = OrderModuleConfig(**raw_config)
 
         # Infer params from offering_type and merge them into the module_config
-        inferred_params = self._infer_attribute_params(module_config, api_parser)
+        inferred_params = self._infer_offering_params(module_config, api_parser)
         final_params_dict = {p.name: p for p in inferred_params}
         for manual_param in module_config.attribute_params:
             final_params_dict[manual_param.name] = manual_param
         module_config.attribute_params = list(final_params_dict.values())
 
-        parameters = self._build_parameters(module_config)
+        parameters = self._build_parameters(module_config, api_parser)
         return_block = self._build_return_block(module_config, return_generator)
         examples = self._build_examples(
             module_config,

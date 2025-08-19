@@ -5,7 +5,7 @@ from ansible_waldur_generator.models import ApiOperation
 from ansible_waldur_generator.plugins.crud.config import ModuleResolver
 
 
-class AttributeParam(BaseModel):
+class ParameterConfig(BaseModel):
     name: str
     type: str = "string"
     format: str | None = None
@@ -13,6 +13,15 @@ class AttributeParam(BaseModel):
     description: str | None = None
     is_resolved: bool = False
     choices: List[str] = Field(default_factory=list)
+
+    # For type: 'object'
+    properties: List["ParameterConfig"] = Field(default_factory=list)
+
+    # For type: 'array'
+    items: "ParameterConfig | None" = None
+
+    # For references
+    ref: str | None = None
 
 
 class OrderModuleConfig(BaseModel):
@@ -22,7 +31,7 @@ class OrderModuleConfig(BaseModel):
     existence_check_op: ApiOperation
     update_op: ApiOperation | None = None
     update_check_fields: List[str] = Field(default_factory=list)
-    attribute_params: List[AttributeParam] = Field(default_factory=list)
+    attribute_params: List[ParameterConfig] = Field(default_factory=list)
     resolvers: Dict[str, ModuleResolver] = Field(default_factory=dict)
     has_limits: bool = False
 

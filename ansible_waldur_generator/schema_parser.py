@@ -1,3 +1,4 @@
+import re
 from typing import Dict, Any, Optional
 
 from ansible_waldur_generator.helpers import (
@@ -224,8 +225,25 @@ class ReturnBlockGenerator:
                 resolved_prop_schema.get("type", "string"), "str"
             )
             description = resolved_prop_schema.get(
-                "description", name.replace("_", " ")
-            ).strip()
+                "description",
+            )
+
+            display_name = name.replace("_", " ")
+            # Convert common abbreviations to uppercase
+            display_name = re.sub(
+                r"\b(ssh|ip|id|url|cpu|ram|vpn|uuid|dns)\b",
+                lambda m: m.group(1).upper(),
+                display_name,
+                flags=re.IGNORECASE,
+            )
+
+            if not description:
+                if resolved_prop_schema.get("format") == "uri":
+                    description = f"{capitalize_first(display_name)} URL"
+                elif resolved_prop_schema.get("type") == "array":
+                    description = f"A list of {display_name} items."
+                else:
+                    description = capitalize_first(display_name)
 
             field_data = {
                 "description": capitalize_first(description),
