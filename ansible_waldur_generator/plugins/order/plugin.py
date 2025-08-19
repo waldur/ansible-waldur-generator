@@ -303,12 +303,12 @@ class OrderPlugin(BasePlugin):
     ) -> GenerationContext:
         raw_config.setdefault("resolvers", {})
         raw_config["resolvers"]["offering"] = {
-            "list": "/api/marketplace-public-offerings/",
-            "retrieve": "/api/marketplace-public-offerings/{uuid}/",
+            "list": "marketplace_public_offerings_list",
+            "retrieve": "marketplace_public_offerings_retrieve",
         }
         raw_config["resolvers"]["project"] = {
-            "list": "/api/projects/",
-            "retrieve": "/api/projects/{uuid}/",
+            "list": "projects_list",
+            "retrieve": "projects_retrieve",
         }
         raw_config["existence_check_op"] = api_parser.get_operation(
             raw_config["existence_check_op"]
