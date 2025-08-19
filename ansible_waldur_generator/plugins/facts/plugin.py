@@ -32,7 +32,7 @@ class FactsPlugin(BasePlugin):
                     "description": f"A dictionary describing a single {module_config.resource_type}.",
                     "type": "dict",
                     "returned": "always",
-                    "contains": return_content,
+                    "suboptions": return_content,
                 }
                 return_block = {
                     "resource": {
@@ -40,7 +40,7 @@ class FactsPlugin(BasePlugin):
                         "type": "list",
                         "returned": "on success",
                         "elements": "dict",
-                        "contains": contains_dict,
+                        "suboptions": contains_dict,
                     }
                 }
             else:
@@ -53,7 +53,7 @@ class FactsPlugin(BasePlugin):
                         "description": description,
                         "type": return_type,
                         "returned": "on success",
-                        "contains": return_content,
+                        "suboptions": return_content,
                     }
                 }
         return return_block
