@@ -34,9 +34,6 @@ def mock_runner_context():
         "existence_check_filter_keys": {"project": "project_uuid"},
         "update_url": "/api/resources/",
         "update_check_fields": ["description"],
-        "order_create_url": "/api/marketplace-orders/",
-        "order_poll_url": "/api/marketplace-orders/",
-        "terminate_url": "/api/marketplace-resources/",
         "attribute_param_names": ["size", "type", "description"],
         "resolvers": {
             "project": {

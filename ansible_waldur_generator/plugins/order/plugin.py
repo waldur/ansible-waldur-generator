@@ -89,6 +89,16 @@ class OrderPlugin(BasePlugin):
             "required": True,
             "description": "The name or UUID of the marketplace offering.",
         }
+        params["plan"] = {
+            "type": "str",
+            "required": False,
+            "description": "URL of the marketplace plan.",
+        }
+        params["limits"] = {
+            "type": "object",
+            "required": False,
+            "description": "Marketplace resource limits for limit-based billing.",
+        }
         params["description"] = {
             "type": "str",
             "required": False,
@@ -133,9 +143,6 @@ class OrderPlugin(BasePlugin):
             if module_config.update_op
             else None,
             "update_check_fields": module_config.update_check_fields,
-            "order_create_url": "/api/marketplace-orders/",
-            "order_poll_url": "/api/marketplace-orders/",
-            "terminate_url": "/api/marketplace-resources/",
             "attribute_param_names": list(set(attribute_param_names)),
             "resolvers": resolvers_data,
         }
@@ -294,6 +301,15 @@ class OrderPlugin(BasePlugin):
         collection_name: str,
         return_generator: ReturnBlockGenerator,
     ) -> GenerationContext:
+        raw_config.setdefault("resolvers", {})
+        raw_config["resolvers"]["offering"] = {
+            "list": "/api/marketplace-public-offerings/",
+            "retrieve": "/api/marketplace-public-offerings/{uuid}/",
+        }
+        raw_config["resolvers"]["project"] = {
+            "list": "/api/projects/",
+            "retrieve": "/api/projects/{uuid}/",
+        }
         raw_config["existence_check_op"] = api_parser.get_operation(
             raw_config["existence_check_op"]
         )

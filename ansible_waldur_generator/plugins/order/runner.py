@@ -83,17 +83,17 @@ class OrderRunner(BaseRunner):
                 else:
                     attributes[key] = self.module.params[key]
 
-        payload = {
-            "project": resolved_urls["project"],
-            "offering": resolved_urls["offering"],
-            "attributes": attributes,
-            "accepting_terms_of_service": True,
-        }
-
         order = self._send_request(
             "POST",
-            self.context["order_create_url"],
-            data=payload,
+            "/api/marketplace-orders/",
+            data={
+                "project": resolved_urls["project"],
+                "offering": resolved_urls["offering"],
+                "plan": self.module.params.get("plan"),
+                "limits": self.module.params.get("limits", {}),
+                "attributes": attributes,
+                "accepting_terms_of_service": True,
+            },
         )
 
         if self.module.params.get("wait", True) and order:
@@ -131,7 +131,7 @@ class OrderRunner(BaseRunner):
         """
         if self.resource:
             uuid_to_terminate = self.resource["marketplace_resource_uuid"]
-            path = f"{self.context['terminate_url']}{uuid_to_terminate}/terminate/"
+            path = f"/api/marketplace-resources/{uuid_to_terminate}/terminate/"
             self._send_request("POST", path, data={})
             self.has_changed = True
             self.resource = None
@@ -147,8 +147,7 @@ class OrderRunner(BaseRunner):
         while waited < timeout:
             order = self._send_request(
                 "GET",
-                self.context["order_poll_url"],
-                path_params={"uuid": order_uuid},
+                f"/api/marketplace-orders/{order_uuid}/",
             )
 
             if order and order["state"] == "done":
