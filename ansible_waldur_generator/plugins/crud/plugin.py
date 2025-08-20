@@ -219,77 +219,27 @@ class CrudPlugin(BasePlugin):
         collection_name: str,
         schema_parser: ReturnBlockGenerator,
     ) -> List[Dict[str, Any]]:
-        """Builds the EXAMPLES block for the module's documentation."""
+        """Builds realistic examples by calling the shared helper from BasePlugin."""
 
-        create_params = {
-            "state": "present",
-            "access_token": "b83557fd8e2066e98f27dee8f3b3433cdc4183ce",
-            "api_url": "https://waldur.example.com/api",
-        }
-
-        # Use generator to create a realistic payload from the 'create' operation's schema.
-        # Step 1: Generate the base example payload from the create operation's schema.
-        create_schema = module_config.create_operation.model_schema
-        inferred_payload = {}
-        if create_schema:
-            inferred_payload = schema_parser.generate_example_from_schema(
-                create_schema, module_config.resource_type
-            )
-        create_params.update(inferred_payload)
-
-        # Step 2: Post-process the generated payload to add instructive placeholders
-        # for all parameters that require resolution.
-
-        # This handles path parameters like the parent 'tenant'.
-        create_path_maps = module_config.path_param_maps.get("create", {})
-        for _, ansible_param in create_path_maps.items():
-            create_params[ansible_param] = f"{ansible_param.capitalize()} Name or UUID"
-
-        # This handles any resolved parameters in the request body.
-        for resolver_name in module_config.resolvers.keys():
-            if resolver_name in create_params:
-                create_params[resolver_name] = (
-                    f"{resolver_name.capitalize()} Name or UUID"
-                )
-
-        # The delete example is simpler and only needs the identifier.
-        delete_params = {
-            "state": "absent",
-            "name": f"My-Awesome-{module_config.resource_type.replace(' ', '-')}",
-            "access_token": "b83557fd8e2066e98f27dee8f3b3433cdc4183ce",
-            "api_url": "https://waldur.example.com/api",
-        }
-        # Add parent context if needed for finding the resource
-        for _, ansible_param in create_path_maps.items():
-            delete_params[ansible_param] = (
-                f"Parent {ansible_param.capitalize()} Name or UUID"
+        # For CRUD modules, the base parameters for examples are determined by the
+        # path parameters needed for creation.
+        base_params = {}
+        path_param_maps = module_config.path_param_maps.get("create", {})
+        for _, ansible_param in path_param_maps.items():
+            base_params[ansible_param] = (
+                f"{ansible_param.replace('_', ' ').capitalize()} name or UUID"
             )
 
-        # Fully Qualified Collection Name (FQCN) for the module.
-        fqcn = f"{collection_namespace}.{collection_name}.{module_name}"
-
-        return [
-            {
-                "name": f"Create a new {module_config.resource_type}.",
-                "hosts": "localhost",
-                "tasks": [
-                    {
-                        "name": f"Add {module_config.resource_type}",
-                        fqcn: create_params,
-                    }
-                ],
-            },
-            {
-                "name": f"Remove an existing {module_config.resource_type}.",
-                "hosts": "localhost",
-                "tasks": [
-                    {
-                        "name": f"Remove {module_config.resource_type}",
-                        fqcn: delete_params,
-                    }
-                ],
-            },
-        ]
+        return super()._build_examples_from_schema(
+            module_config=module_config,
+            module_name=module_name,
+            collection_namespace=collection_namespace,
+            collection_name=collection_name,
+            schema_parser=schema_parser,
+            create_schema=module_config.create_operation.model_schema or {},
+            base_params=base_params,
+            delete_identifier_param="name",
+        )
 
     def _validate_config(self, config: Dict[str, Any]):
         """Performs basic validation on the raw module configuration."""

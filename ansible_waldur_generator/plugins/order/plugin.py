@@ -211,100 +211,112 @@ class OrderPlugin(BasePlugin):
             "resolvers": resolvers_data,
         }
 
+    def _build_schema_for_attributes(
+        self, module_config: OrderModuleConfig
+    ) -> Dict[str, Any]:
+        """
+        Constructs a JSON-schema-like dictionary from the list of attribute
+        parameters. This "virtual" schema can then be used by the example generator.
+        """
+        properties = {}
+        # The 'name' and 'description' are top-level Ansible params but map to
+        # the 'attributes' dict in the order payload.
+        properties["name"] = {"type": "string"}
+        properties["description"] = {"type": "string"}
+
+        # Recursively build schema for configured attribute params
+        def param_to_prop(p_conf: ParameterConfig):
+            # Priority 1: If the parameter is a direct reference to another schema
+            # component, pass the reference along. The schema parser knows how to
+            # resolve this.
+            if p_conf.ref:
+                return {"$ref": p_conf.ref}
+
+            prop: dict[str, Any] = {"type": p_conf.type}
+            if p_conf.type == "array":
+                # For arrays, we must correctly define the 'items' schema.
+                if p_conf.is_resolved:
+                    # Case A: A simple list of names/UUIDs (e.g., security_groups for an instance).
+                    # The user provides a list of strings.
+                    prop["items"] = {"type": "string"}
+                elif p_conf.items:
+                    # Case B: An array of complex objects (e.g., rules for a security group).
+                    # We recurse to build the schema for the nested item object.
+                    prop["items"] = param_to_prop(p_conf.items)
+                # If neither, it's an un-typed array, which is rare.
+                # The default sample generator will produce `[]`.
+
+            elif p_conf.properties:
+                # For nested objects that are not arrays.
+                prop["properties"] = {
+                    sub.name: param_to_prop(sub) for sub in p_conf.properties
+                }
+            return prop
+
+        for p_conf in module_config.attribute_params:
+            properties[p_conf.name] = param_to_prop(p_conf)
+
+        return {"type": "object", "properties": properties}
+
     def _build_examples(
         self,
         module_config: OrderModuleConfig,
         module_name: str,
-        parameters: AnsibleModuleParams,
         collection_namespace: str,
         collection_name: str,
+        schema_parser: ReturnBlockGenerator,
     ) -> List[Dict[str, Any]]:
-        def get_example_params(param_names, extra_params=None):
-            params = {
-                "access_token": "b83557fd8e2066e98f27dee8f3b3433cdc4183ce",
-                "api_url": "https://waldur.example.com/api",
-            }
-            if extra_params:
-                params.update(extra_params)
+        """Builds realistic examples using the shared helper from BasePlugin."""
+        # Step 1: Construct the virtual schema for the 'attributes' payload.
+        attributes_schema = self._build_schema_for_attributes(module_config)
 
-            for p_name in param_names:
-                info = parameters.get(p_name, {})
-                value: Any = None
-                if "project" in p_name:
-                    value = "Cloud Project"
-                elif "offering" in p_name:
-                    value = "Standard Volume Offering"
-                elif "name" in p_name:
-                    value = (
-                        f"My-Awesome-{module_config.resource_type.replace(' ', '-')}"
-                    )
-                elif "size" in p_name:
-                    value = 10
-                elif info.get("choices"):
-                    value = info["choices"][0]
-                else:
-                    value = "some_value"
-                params[p_name] = value
-            return params
-
-        create_param_names = [
-            name for name, opts in parameters.items() if opts.get("required")
-        ]
-
-        update_example_params = {
-            "name": f"My-Awesome-{module_config.resource_type.replace(' ', '-')}",
-            "project": "Cloud Project",
-            "state": "present",
-            "description": "A new updated description for the resource.",
-            "access_token": "b83557fd8e2066e98f27dee8f3b3433cdc4183ce",
-            "api_url": "https://waldur.example.com/api",
+        # Base parameters specific to 'order' modules required for the examples.
+        base_params = {
+            "project": "Project Name or UUID",
+            "offering": "Offering Name or UUID",
         }
 
-        fqcn = f"{collection_namespace}.{collection_name}.{module_name}"
+        # Step 2: Call the shared example builder from the base class.
+        examples = super()._build_examples_from_schema(
+            module_config=module_config,
+            module_name=module_name,
+            collection_namespace=collection_namespace,
+            collection_name=collection_name,
+            schema_parser=schema_parser,
+            create_schema=attributes_schema,
+            base_params=base_params,
+            delete_identifier_param="name",  # The resource is identified by 'name' for deletion
+        )
 
-        examples = [
-            {
-                "name": f"Create a new {module_config.resource_type}",
-                "hosts": "localhost",
-                "tasks": [
-                    {
-                        "name": f"Add {module_config.resource_type}",
-                        fqcn: get_example_params(
-                            create_param_names, {"state": "present"}
-                        ),
-                    }
-                ],
-            },
-            {
-                "name": f"Update an existing {module_config.resource_type}",
-                "hosts": "localhost",
-                "tasks": [
-                    {
-                        "name": f"Update the description of a {module_config.resource_type}",
-                        fqcn: update_example_params,
-                    }
-                ],
-            },
-            {
-                "name": f"Remove an existing {module_config.resource_type}",
-                "hosts": "localhost",
-                "tasks": [
-                    {
-                        "name": f"Remove {module_config.resource_type}",
-                        fqcn: {
-                            "name": f"My-Awesome-{module_config.resource_type.replace(' ', '-')}",
-                            "project": "Cloud Project",
-                            "state": "absent",
-                            "access_token": "b83557fd8e2066e98f27dee8f3b3433cdc4183ce",
-                            "api_url": "https://waldur.example.com/api",
-                        },
-                    }
-                ],
-            },
-        ]
+        # Step 3: (Optional) Add any plugin-specific examples, like 'update'.
+        if module_config.update_op and module_config.update_check_fields:
+            update_example_params = {
+                "state": "present",
+                "name": schema_parser._generate_sample_value(
+                    "name", {}, module_config.resource_type
+                ),
+                "project": "Project Name or UUID",
+                "access_token": "b83557fd8e2066e98f27dee8f3b3433cdc4183ce",
+                "api_url": "https://waldur.example.com",
+            }
+            # Add the first updatable field to the example.
+            field_to_update = module_config.update_check_fields[0]
+            update_example_params[field_to_update] = f"An updated {field_to_update}"
 
-        if not module_config.update_op:
-            examples.pop(1)
+            fqcn = f"{collection_namespace}.{collection_name}.{module_name}"
+            examples.insert(
+                1,
+                {
+                    "name": f"Update an existing {module_config.resource_type}",
+                    "hosts": "localhost",
+                    "tasks": [
+                        {
+                            "name": f"Update the {field_to_update} of a {module_config.resource_type}",
+                            fqcn: update_example_params,
+                        }
+                    ],
+                },
+            )
 
         return examples
 
@@ -479,9 +491,9 @@ class OrderPlugin(BasePlugin):
         examples = self._build_examples(
             module_config,
             module_key,
-            parameters,
             collection_namespace,
             collection_name,
+            return_generator,
         )
         runner_context = self._build_runner_context(module_config)
 

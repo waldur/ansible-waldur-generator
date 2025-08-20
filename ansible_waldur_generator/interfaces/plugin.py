@@ -53,6 +53,86 @@ class BasePlugin(ABC):
             "requirements": ["python >= 3.11"],
         }
 
+    def _build_examples_from_schema(
+        self,
+        module_config: Any,
+        module_name: str,
+        collection_namespace: str,
+        collection_name: str,
+        schema_parser: ReturnBlockGenerator,
+        create_schema: Dict[str, Any],
+        # Base parameters required for all examples
+        base_params: Dict[str, Any],
+        # Identifier for the resource in 'delete' examples
+        delete_identifier_param: str = "name",
+    ) -> list[dict]:
+        """
+        Builds realistic EXAMPLES using a hybrid of schema-inferred data
+        and context-aware placeholders for resolved parameters. This is a
+        shared helper for all plugins.
+        """
+        fqcn = f"{collection_namespace}.{collection_name}.{module_name}"
+
+        # --- Create Example ---
+        create_params = {
+            "state": "present",
+            "access_token": "b83557fd8e2066e98f27dee8f3b3433cdc4183ce",
+            "api_url": "https://waldur.example.com",
+            **base_params,
+        }
+
+        # Step 1: Generate the base payload from the provided schema.
+        inferred_payload = schema_parser.generate_example_from_schema(
+            create_schema, module_config.resource_type
+        )
+        create_params.update(inferred_payload)
+
+        # Step 2: Post-process to add instructive placeholders for resolved parameters.
+        # This handles nested path parameters (e.g., 'tenant' for crud).
+        path_param_maps = getattr(module_config, "path_param_maps", {})
+        for _, ansible_param in path_param_maps.get("create", {}).items():
+            create_params[ansible_param] = (
+                f"{ansible_param.replace('_', ' ').capitalize()} name or UUID"
+            )
+
+        # This handles any resolved parameters in the request body (common to all plugins).
+        for resolver_name in getattr(module_config, "resolvers", {}).keys():
+            if resolver_name in create_params:
+                create_params[resolver_name] = (
+                    f"{resolver_name.replace('_', ' ').capitalize()} name or UUID"
+                )
+
+        # --- Delete Example ---
+        delete_params = {
+            "state": "absent",
+            delete_identifier_param: schema_parser._generate_sample_value(
+                delete_identifier_param, {}, module_config.resource_type
+            ),
+            "access_token": "b83557fd8e2066e98f27dee8f3b3433cdc4183ce",
+            "api_url": "https://waldur.example.com",
+            **base_params,
+        }
+
+        return [
+            {
+                "name": f"Create a new {module_config.resource_type}",
+                "hosts": "localhost",
+                "tasks": [
+                    {"name": f"Add {module_config.resource_type}", fqcn: create_params}
+                ],
+            },
+            {
+                "name": f"Remove an existing {module_config.resource_type}",
+                "hosts": "localhost",
+                "tasks": [
+                    {
+                        "name": f"Remove {module_config.resource_type}",
+                        fqcn: delete_params,
+                    }
+                ],
+            },
+        ]
+
     def get_runner_path(self) -> str | None:
         module = sys.modules[self.__class__.__module__]
         if not module.__file__:

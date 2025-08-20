@@ -102,6 +102,15 @@ class ReturnBlockGenerator:
 
         prop_type = prop_schema.get("type")
 
+        if prop_type == "array":
+            if "security_groups" in prop_name:
+                return ["web-server-sg"]
+            if "floating_ips" in prop_name:
+                return ["8.8.8.8"]
+            if "ports" in prop_name:
+                return ["private-vlan-port"]
+            return []  # Default for unknown arrays
+
         # Rule 4: Name-based heuristics (most specific rules first).
         # This section contains the domain-specific intelligence for generating
         # contextually relevant and realistic data.
@@ -234,13 +243,18 @@ class ReturnBlockGenerator:
                 )
             # For arrays of objects, generate one example item and wrap it in a list.
             elif prop_type == "array" and "items" in resolved_prop_schema:
+                # First, fully resolve the schema of the items within the array.
                 item_schema = self._resolve_schema(resolved_prop_schema["items"])
+                # Check if the items are themselves complex objects.
                 if item_schema.get("type") == "object":
+                    # If they are objects, we must recurse to generate a populated object.
+                    # We wrap the result in a list to represent the array.
                     example_data[name] = [
                         self.generate_example_from_schema(item_schema, resource_type)
                     ]
                 else:
-                    # For simple arrays (e.g., list of strings), generate one sample value.
+                    # If the items are simple types (string, int, etc.), we generate
+                    # a list containing one sample value.
                     example_data[name] = [
                         self._generate_sample_value(name, item_schema, resource_type)
                     ]
