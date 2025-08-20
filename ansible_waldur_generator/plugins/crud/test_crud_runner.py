@@ -20,11 +20,16 @@ def mock_ansible_module():
 
 @pytest.fixture
 def mock_crud_runner_context():
-    """A pytest fixture that provides a mocked context dictionary for the CrudResourceRunner."""
     context = {
         "resource_type": "project",
-        "api_path": "/api/projects/",
+        "list_path": "/api/projects/",
+        "create_path": "/api/projects/",
+        "destroy_path": "/api/projects/{uuid}/",
+        "update_path": "/api/projects/{uuid}/",
         "model_param_names": ["name", "description", "customer", "type"],
+        "update_fields": ["description"],
+        "update_actions": {},
+        "path_param_maps": {},
         "resolvers": {
             "customer": {
                 "url": "/api/customers/",
