@@ -231,7 +231,7 @@ class ReturnBlockGenerator:
             display_name = name.replace("_", " ")
             # Convert common abbreviations to uppercase
             display_name = re.sub(
-                r"\b(ssh|ip|id|url|cpu|ram|vpn|uuid|dns)\b",
+                r"\b(ssh|ip|id|url|cpu|ram|vpn|uuid|dns|cidr)\b",
                 lambda m: m.group(1).upper(),
                 display_name,
                 flags=re.IGNORECASE,
