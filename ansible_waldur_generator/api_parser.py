@@ -38,19 +38,24 @@ class ApiSpecParser:
                     continue
 
                 model_schema = None
-                schema_ref = (
+                request_body_schema = (
                     operation.get("requestBody", {})
                     .get("content", {})
                     .get("application/json", {})
                     .get("schema", {})
-                    .get("$ref")
                 )
-                if schema_ref:
-                    try:
-                        model_schema = self.get_schema_by_ref(schema_ref)
-                    except ValueError as e:
-                        self.collector.add_error(f"For operation '{operation_id}': {e}")
-                        return None
+                if request_body_schema:
+                    schema_ref = request_body_schema.get("$ref")
+                    if schema_ref:
+                        try:
+                            model_schema = self.get_schema_by_ref(schema_ref)
+                        except ValueError as e:
+                            self.collector.add_error(
+                                f"For operation '{operation_id}': {e}"
+                            )
+                            return None
+                    else:
+                        model_schema = request_body_schema
 
                 return ApiOperation(
                     path=path,
