@@ -215,43 +215,56 @@ class CrudPlugin(BasePlugin):
         self,
         module_config: CrudModuleConfig,
         module_name: str,
-        parameters: AnsibleModuleParams,
         collection_namespace: str,
         collection_name: str,
+        schema_parser: ReturnBlockGenerator,
     ) -> List[Dict[str, Any]]:
         """Builds the EXAMPLES block for the module's documentation."""
 
-        def get_example_params(param_names, extra_params=None):
-            """Internal helper to generate a dictionary of example parameters for a task."""
-            params = {
-                "access_token": "b83557fd8e2066e98f27dee8f3b3433cdc4183ce",
-                "api_url": "https://waldur.example.com:8000/api",
-            }
-            if extra_params:
-                params.update(extra_params)
-            for p_name in param_names:
-                info = parameters.get(p_name, {})
-                # Generate sensible example values based on parameter properties.
-                if info.get("is_resolved"):
-                    value = f"{p_name.capitalize()} Name or UUID"
-                elif "name" in p_name:
-                    value = f"My Awesome {module_config.resource_type.capitalize()}"
-                elif "description" in p_name:
-                    value = "Created with Ansible"
-                elif info.get("choices"):
-                    value = info["choices"][0]
-                else:
-                    value = "some_value"
-                params[p_name] = value
-            return params
+        create_params = {
+            "state": "present",
+            "access_token": "b83557fd8e2066e98f27dee8f3b3433cdc4183ce",
+            "api_url": "https://waldur.example.com/api",
+        }
 
-        # Identify required parameters for create and delete examples.
-        create_names = [
-            name for name, opts in parameters.items() if opts.get("required")
-        ]
-        delete_names = [
-            p["name"] for p in module_config.check_operation_config.get("params", [])
-        ]
+        # Use generator to create a realistic payload from the 'create' operation's schema.
+        # Step 1: Generate the base example payload from the create operation's schema.
+        create_schema = module_config.create_operation.model_schema
+        inferred_payload = {}
+        if create_schema:
+            inferred_payload = schema_parser.generate_example_from_schema(
+                create_schema, module_config.resource_type
+            )
+        create_params.update(inferred_payload)
+
+        # Step 2: Post-process the generated payload to add instructive placeholders
+        # for all parameters that require resolution.
+
+        # This handles path parameters like the parent 'tenant'.
+        create_path_maps = module_config.path_param_maps.get("create", {})
+        for _, ansible_param in create_path_maps.items():
+            create_params[ansible_param] = f"{ansible_param.capitalize()} Name or UUID"
+
+        # This handles any resolved parameters in the request body.
+        for resolver_name in module_config.resolvers.keys():
+            if resolver_name in create_params:
+                create_params[resolver_name] = (
+                    f"{resolver_name.capitalize()} Name or UUID"
+                )
+
+        # The delete example is simpler and only needs the identifier.
+        delete_params = {
+            "state": "absent",
+            "name": f"My-Awesome-{module_config.resource_type.replace(' ', '-')}",
+            "access_token": "b83557fd8e2066e98f27dee8f3b3433cdc4183ce",
+            "api_url": "https://waldur.example.com/api",
+        }
+        # Add parent context if needed for finding the resource
+        for _, ansible_param in create_path_maps.items():
+            delete_params[ansible_param] = (
+                f"Parent {ansible_param.capitalize()} Name or UUID"
+            )
+
         # Fully Qualified Collection Name (FQCN) for the module.
         fqcn = f"{collection_namespace}.{collection_name}.{module_name}"
 
@@ -262,7 +275,7 @@ class CrudPlugin(BasePlugin):
                 "tasks": [
                     {
                         "name": f"Add {module_config.resource_type}",
-                        fqcn: get_example_params(create_names, {"state": "present"}),
+                        fqcn: create_params,
                     }
                 ],
             },
@@ -272,7 +285,7 @@ class CrudPlugin(BasePlugin):
                 "tasks": [
                     {
                         "name": f"Remove {module_config.resource_type}",
-                        fqcn: get_example_params(delete_names, {"state": "absent"}),
+                        fqcn: delete_params,
                     }
                 ],
             },
@@ -360,7 +373,11 @@ class CrudPlugin(BasePlugin):
         parameters = self._build_parameters(module_config, api_parser)
         return_block = self._build_return_block(module_config, return_generator)
         examples = self._build_examples(
-            module_config, module_key, parameters, collection_namespace, collection_name
+            module_config,
+            module_key,
+            collection_namespace,
+            collection_name,
+            return_generator,
         )
         runner_context = self._build_runner_context(module_config)
 
