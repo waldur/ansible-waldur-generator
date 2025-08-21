@@ -141,7 +141,7 @@ class FactsPlugin(BasePlugin):
 
         # Step 4: Add standard authentication parameters.
         example_params["access_token"] = "b83557fd8e2066e98f27dee8f3b3433cdc4183ce"
-        example_params["api_url"] = "https://waldur.example.com/api"
+        example_params["api_url"] = "https://waldur.example.com"
 
         # Step 5: Construct the final example, showing best practices like `register` and `debug`.
         fqcn = f"{collection_namespace}.{collection_name}.{module_name}"

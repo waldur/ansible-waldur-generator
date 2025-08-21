@@ -291,7 +291,7 @@ class BasePlugin(ABC):
         create_params = {
             "state": "present",
             "access_token": "b83557fd8e2066e98f27dee8f3b3433cdc4183ce",
-            "api_url": "https://waldur.example.com/api",
+            "api_url": "https://waldur.example.com",
             **base_params,
         }
 
@@ -317,7 +317,7 @@ class BasePlugin(ABC):
                 delete_identifier_param, {}, module_config.resource_type
             ),
             "access_token": "b83557fd8e2066e98f27dee8f3b3433cdc4183ce",
-            "api_url": "https://waldur.example.com/api",
+            "api_url": "https://waldur.example.com",
             **base_params,
         }
 
