@@ -238,13 +238,16 @@ class BasePlugin(ABC):
         Returns:
             A dictionary representing the complete `DOCUMENTATION` section.
         """
-        processed_description = (
-            description or f"Manage {module_name.replace('_', ' ')} resources."
-        )
+
+        if not description:
+            if module_name.endswith("_facts"):
+                description = f"Get facts about a specific {module_name.replace('_facts', '').replace('_', ' ')}"
+            else:
+                description = f"Manage {module_name.replace('_', ' ')} resources."
         return {
             "module": module_name,
-            "short_description": processed_description,
-            "description": [processed_description],
+            "short_description": description,
+            "description": [description],
             "author": "Waldur Team",
             "options": parameters,
             "requirements": ["python >= 3.11"],

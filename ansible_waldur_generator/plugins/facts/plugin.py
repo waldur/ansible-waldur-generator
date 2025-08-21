@@ -23,36 +23,14 @@ class FactsPlugin(BasePlugin):
             return_content = return_generator.generate_for_operation(retrieve_op_spec)
 
         if return_content:
-            if module_config.many:
-                description = f"A list of dictionaries describing the found {module_config.resource_type}s."
-                contains_dict = {
-                    "description": f"A dictionary describing a single {module_config.resource_type}.",
+            return_block = {
+                "resource": {
+                    "description": f"A dictionary describing the found {module_config.resource_type.replace('_', ' ')}.",
                     "type": "dict",
-                    "returned": "always",
+                    "returned": "on success",
                     "suboptions": return_content,
                 }
-                return_block = {
-                    "resource": {
-                        "description": description,
-                        "type": "list",
-                        "returned": "on success",
-                        "elements": "dict",
-                        "suboptions": contains_dict,
-                    }
-                }
-            else:
-                description = (
-                    f"A dictionary describing the found {module_config.resource_type}."
-                )
-                return_type = "dict"
-                return_block = {
-                    "resource": {
-                        "description": description,
-                        "type": return_type,
-                        "returned": "on success",
-                        "suboptions": return_content,
-                    }
-                }
+            }
         return return_block
 
     def _build_parameters(
@@ -133,11 +111,11 @@ class FactsPlugin(BasePlugin):
         # Step 3: Post-process to replace generated values with more instructive placeholders
         # for the main identifier and any resolved parameters.
         example_params[module_config.identifier_param] = (
-            f"{module_config.resource_type.replace('_', ' ').capitalize()} Name or UUID"
+            f"{module_config.resource_type.replace('_', ' ').capitalize()} name or UUID"
         )
         for p_conf in module_config.context_params:
             if p_conf.resolver:
-                example_params[p_conf.name] = f"{p_conf.name.capitalize()} Name or UUID"
+                example_params[p_conf.name] = f"{p_conf.name.capitalize()} name or UUID"
 
         # Step 4: Add standard authentication parameters.
         example_params["access_token"] = "b83557fd8e2066e98f27dee8f3b3433cdc4183ce"
