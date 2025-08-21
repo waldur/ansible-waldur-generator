@@ -3,7 +3,6 @@ from typing import Dict, Any, List
 from ansible_waldur_generator.api_parser import ApiSpecParser
 from ansible_waldur_generator.schema_parser import ReturnBlockGenerator
 from ansible_waldur_generator.models import (
-    GenerationContext,
     AnsibleModuleParams,
 )
 from ansible_waldur_generator.helpers import (
@@ -72,7 +71,9 @@ class CrudPlugin(BasePlugin):
             }
         return return_block
 
-    def _build_runner_context(self, module_config: CrudModuleConfig) -> Dict[str, Any]:
+    def _build_runner_context(
+        self, module_config: CrudModuleConfig, api_parser
+    ) -> Dict[str, Any]:
         """
 
         Assembles the 'runner_context' dictionary. This context is serialized into
@@ -257,20 +258,12 @@ class CrudPlugin(BasePlugin):
                     f"Resolver '{name}' is missing list/retrieve operations"
                 )
 
-    def generate(
+    def _parse_configuration(
         self,
         module_key: str,
         raw_config: Dict[str, Any],
         api_parser: ApiSpecParser,
-        collection_namespace: str,
-        collection_name: str,
-        return_generator: ReturnBlockGenerator,
-    ) -> GenerationContext:
-        """
-        The main entry point for the plugin. It orchestrates the entire process of
-        parsing the config, building the necessary components, and returning the
-        final context for code generation.
-        """
+    ):
         self._validate_config(raw_config)
 
         # 1. Parse all operationIds from the config into full ApiOperation objects.
@@ -317,28 +310,4 @@ class CrudPlugin(BasePlugin):
             )
 
         # 2. Create a strongly-typed configuration object using Pydantic.
-        module_config = CrudModuleConfig(**raw_config)
-
-        # 3. Build all the components required for the final module.
-        parameters = self._build_parameters(module_config, api_parser)
-        return_block = self._build_return_block(module_config, return_generator)
-        examples = self._build_examples(
-            module_config,
-            module_key,
-            collection_namespace,
-            collection_name,
-            return_generator,
-        )
-        runner_context = self._build_runner_context(module_config)
-
-        # 4. Return the complete context for the template engine.
-        return GenerationContext(
-            argument_spec=self._build_argument_spec(parameters),
-            module_filename=f"{module_key}.py",
-            documentation=self._build_documentation(
-                module_key, module_config.description, parameters
-            ),
-            examples=examples,
-            return_block=return_block or {},
-            runner_context=runner_context,
-        )
+        return CrudModuleConfig(**raw_config)

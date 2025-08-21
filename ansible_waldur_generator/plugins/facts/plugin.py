@@ -2,10 +2,7 @@ from typing import Dict, Any, List
 
 from ansible_waldur_generator.api_parser import ApiSpecParser
 from ansible_waldur_generator.schema_parser import ReturnBlockGenerator
-from ansible_waldur_generator.models import (
-    GenerationContext,
-    AnsibleModuleParams,
-)
+from ansible_waldur_generator.models import AnsibleModuleParams
 from ansible_waldur_generator.helpers import AUTH_OPTIONS
 from ansible_waldur_generator.interfaces.plugin import BasePlugin
 from ansible_waldur_generator.plugins.facts.config import FactsModuleConfig
@@ -59,7 +56,7 @@ class FactsPlugin(BasePlugin):
         return return_block
 
     def _build_parameters(
-        self, module_config: FactsModuleConfig
+        self, module_config: FactsModuleConfig, api_parser
     ) -> AnsibleModuleParams:
         params = {**AUTH_OPTIONS}
         conf = module_config
@@ -111,78 +108,76 @@ class FactsPlugin(BasePlugin):
         self,
         module_config: FactsModuleConfig,
         module_name: str,
-        parameters: AnsibleModuleParams,
         collection_namespace: str,
         collection_name: str,
+        schema_parser: ReturnBlockGenerator,
     ) -> List[Dict[str, Any]]:
-        def get_example_params(param_names):
-            params = {
-                "access_token": "b83557fd8e2066e98f27dee8f3b3433cdc4183ce",
-                "api_url": "https://waldur.example.com:8000/api",
-            }
-            for p_name in param_names:
-                if "project" in p_name:
-                    value = "Project Name or UUID"
-                elif "name" in p_name:
-                    value = f"{module_config.resource_type.capitalize()} Name or UUID"
-                else:
-                    value = "some_value"
-                params[p_name] = value
-            return params
+        """
+        Builds realistic examples for a facts module using a schema-aware approach.
+        """
+        # Step 1: Create a "virtual schema" of the module's input parameters.
+        virtual_schema_props = {}
+        # Add the main identifier parameter (e.g., 'name').
+        virtual_schema_props[module_config.identifier_param] = {"type": "string"}
+        # Add all context filter parameters (e.g., 'tenant').
+        for p_conf in module_config.context_params:
+            virtual_schema_props[p_conf.name] = {"type": "string"}
 
-        param_names = list(parameters.keys())
+        virtual_schema = {"type": "object", "properties": virtual_schema_props}
+
+        # Step 2: Generate realistic example values from this virtual schema.
+        example_params = schema_parser.generate_example_from_schema(
+            virtual_schema, module_config.resource_type
+        )
+
+        # Step 3: Post-process to replace generated values with more instructive placeholders
+        # for the main identifier and any resolved parameters.
+        example_params[module_config.identifier_param] = (
+            f"{module_config.resource_type.replace('_', ' ').capitalize()} Name or UUID"
+        )
+        for p_conf in module_config.context_params:
+            if p_conf.resolver:
+                example_params[p_conf.name] = f"{p_conf.name.capitalize()} Name or UUID"
+
+        # Step 4: Add standard authentication parameters.
+        example_params["access_token"] = "b83557fd8e2066e98f27dee8f3b3433cdc4183ce"
+        example_params["api_url"] = "https://waldur.example.com/api"
+
+        # Step 5: Construct the final example, showing best practices like `register` and `debug`.
         fqcn = f"{collection_namespace}.{collection_name}.{module_name}"
-        task = {
-            "name": f"Get a {module_config.resource_type.replace('_', ' ')}",
-            fqcn: get_example_params(param_names),
+        resource_key = module_config.resource_type.replace(" ", "_")
+
+        task_get_facts = {
+            "name": f"Get facts about a specific {module_config.resource_type.replace('_', ' ')}",
+            fqcn: example_params,
+            "register": f"{resource_key}_info",
         }
+
+        task_debug = {
+            "name": "Print the retrieved resource facts",
+            "ansible.builtin.debug": {
+                "var": f"{resource_key}_info.{resource_key}s",
+            },
+        }
+
         return [
             {
-                "name": f"Get a {module_config.resource_type.replace('_', ' ')} facts",
+                "name": f"Retrieve and print facts about {module_config.resource_type.replace('_', ' ')}",
                 "hosts": "localhost",
-                "tasks": [task],
+                "tasks": [task_get_facts, task_debug],
             }
         ]
 
-    def generate(
+    def _parse_configuration(
         self,
         module_key: str,
         raw_config: Dict[str, Any],
         api_parser: ApiSpecParser,
-        collection_namespace: str,
-        collection_name: str,
-        return_generator: ReturnBlockGenerator,
-    ) -> GenerationContext:
-        """
-        Processes a validated configuration to produce the module's documentation and runner context.
-        """
-
+    ):
         raw_config["list_operation"] = api_parser.get_operation(
             raw_config["list_operation"]
         )
         raw_config["retrieve_operation"] = api_parser.get_operation(
             raw_config["retrieve_operation"]
         )
-        module_config = FactsModuleConfig(**raw_config)
-
-        parameters = self._build_parameters(module_config)
-        return_block = self._build_return_block(module_config, return_generator)
-        examples = self._build_examples(
-            module_config,
-            module_key,
-            parameters,
-            collection_namespace,
-            collection_name,
-        )
-        runner_context = self._build_runner_context(module_config, api_parser)
-
-        return GenerationContext(
-            argument_spec=self._build_argument_spec(parameters),
-            module_filename=f"{module_key}.py",
-            documentation=self._build_documentation(
-                module_key, module_config.description, parameters
-            ),
-            examples=examples,
-            return_block=return_block,
-            runner_context=runner_context,
-        )
+        return FactsModuleConfig(**raw_config)

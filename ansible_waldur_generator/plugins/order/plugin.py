@@ -3,7 +3,7 @@ from typing import Dict, Any, List
 
 from ansible_waldur_generator.api_parser import ApiSpecParser
 from ansible_waldur_generator.schema_parser import ReturnBlockGenerator
-from ansible_waldur_generator.models import GenerationContext, AnsibleModuleParams
+from ansible_waldur_generator.models import AnsibleModuleParams
 from ansible_waldur_generator.helpers import (
     AUTH_OPTIONS,
     OPENAPI_TO_ANSIBLE_TYPE_MAP,
@@ -186,7 +186,9 @@ class OrderPlugin(BasePlugin):
 
         return params
 
-    def _build_runner_context(self, module_config: OrderModuleConfig) -> Dict[str, Any]:
+    def _build_runner_context(
+        self, module_config: OrderModuleConfig, api_parser
+    ) -> Dict[str, Any]:
         resolvers_data = {}
         for name, resolver in module_config.resolvers.items():
             resolvers_data[name] = {
@@ -445,15 +447,7 @@ class OrderPlugin(BasePlugin):
 
         return inferred_params
 
-    def generate(
-        self,
-        module_key: str,
-        raw_config: Dict[str, Any],
-        api_parser: ApiSpecParser,
-        collection_namespace: str,
-        collection_name: str,
-        return_generator: ReturnBlockGenerator,
-    ) -> GenerationContext:
+    def _parse_configuration(self, module_key, raw_config, api_parser):
         raw_config.setdefault("resolvers", {})
         raw_config["resolvers"]["offering"] = {
             "list": "marketplace_public_offerings_list",
@@ -485,25 +479,4 @@ class OrderPlugin(BasePlugin):
         for manual_param in module_config.attribute_params:
             final_params_dict[manual_param.name] = manual_param
         module_config.attribute_params = list(final_params_dict.values())
-
-        parameters = self._build_parameters(module_config, api_parser)
-        return_block = self._build_return_block(module_config, return_generator)
-        examples = self._build_examples(
-            module_config,
-            module_key,
-            collection_namespace,
-            collection_name,
-            return_generator,
-        )
-        runner_context = self._build_runner_context(module_config)
-
-        return GenerationContext(
-            argument_spec=self._build_argument_spec(parameters),
-            module_filename=f"{module_key}.py",
-            documentation=self._build_documentation(
-                module_key, module_config.description, parameters
-            ),
-            examples=examples,
-            return_block=return_block,
-            runner_context=runner_context,
-        )
+        return module_config
