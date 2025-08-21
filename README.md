@@ -104,10 +104,10 @@ Below is a detailed explanation of each available plugin.
 -   **Purpose:** For creating **read-only** Ansible modules that fetch information about existing resources. These modules never change the state of the system and are analogous to Ansible's `_facts` modules (e.g., `setup_facts`).
 
 -   **Workflow:**
-    1.  The module's primary goal is to find and return resource data.
+    1.  The module's primary goal is to find and return resource data based on an identifier (by default, `name`).
     2.  If the `many: true` option is set, the module returns a list of all resources matching the filter criteria.
-    3.  If `many: false` (the default), the module expects to find a single resource. It will fail if multiple resources are found, prompting the user to provide a more specific identifier (like a UUID).
-    4.  It can be configured with `context_params` (like `tenant` or `project`) to filter the search.
+    3.  If `many: false` (the default), the module expects to find a single resource. It will fail if zero or multiple resources are found, prompting the user to provide a more specific identifier.
+    4.  It can be configured with `context_params` (like `tenant` or `project`) to filter the search within a parent resource.
 
 -   **Configuration Example (`generator_config.yaml`):**
     This example creates a `waldur_openstack_security_group_facts` module to get information about security groups within a specific tenant.
@@ -149,13 +149,15 @@ Below is a detailed explanation of each available plugin.
 
 ### 2. The `crud` Plugin
 
--   **Purpose:** For managing resources with **simple, direct, synchronous** API calls. This is ideal for foundational resources like customers or projects that have distinct `create`, `list`, and `destroy` endpoints and do not involve a complex provisioning process.
+-   **Purpose:** For managing the full lifecycle of resources with **simple, direct, synchronous** API calls. This is ideal for resources that have distinct `create`, `list`, `update`, and `destroy` endpoints. The plugin supports both top-level resources (like projects) and nested resources (like security groups under a tenant).
 
 -   **Workflow:**
     -   **`state: present`**:
         1.  Calls the `list` operation to check if a resource with the given name already exists.
-        2.  If it does not exist, it calls the `create` operation. `resolvers` are used to convert any foreign key names (e.g., a customer name) into the required API URLs.
-        3.  If it exists, it does nothing.
+        2.  If it **does not exist**, it calls the `create` operation. `resolvers` and `path_param_maps` are used to convert parent resource names into the required API URLs or path UUIDs.
+        3.  If it **does exist**, it checks for changes:
+            -   It compares values for parameters listed in `update_config.fields` and sends a `PATCH` request via the `update` operation if any have changed.
+            -   It checks if any parameters for special `update_config.actions` are provided and calls their respective `POST` operations.
     -   **`state: absent`**:
         1.  Calls the `list` operation to find the resource.
         2.  If it exists, it calls the `destroy` operation to remove it.
@@ -196,6 +198,50 @@ Below is a detailed explanation of each available plugin.
             # A user-friendly error message if the resource can't be found.
             error_message: "Customer '{value}' not found."
     ```
+
+    This example creates a `security_group` module that is a **nested resource** under a tenant, and supports both simple updates (description) and a special action (set_rules).
+
+    ```yaml
+    modules:
+      security_group:
+        type: crud
+        resource_type: "security group"
+        description: "Manage OpenStack Security Groups."
+
+        # This block maps standard Ansible actions to your API's operationIds.
+        operations:
+          list: "openstack_security_groups_list"
+          create: "openstack_tenants_create_security_group" # A nested create endpoint
+          destroy: "openstack_security_groups_destroy"
+          update: "openstack_security_groups_update"     # For PATCH updates
+
+        # This block is crucial for creating resources on nested endpoints.
+        # It maps the URL path placeholder '{uuid}' to the 'tenant' Ansible parameter.
+        path_param_maps:
+          create:
+            uuid: "tenant"
+
+        # This block defines how to handle updates for existing resources.
+        update_config:
+          # A list of fields that trigger a PATCH update if changed.
+          fields:
+            - "description"
+          # A map of special actions that call dedicated POST endpoints.
+          actions:
+            set_rules:
+              # The operation to call when the 'rules' parameter is provided.
+              operation: "openstack_security_groups_set_rules"
+              # The Ansible parameter that provides data for this action.
+              param: "rules"
+
+        # This block defines how to resolve parent/foreign key parameters.
+        resolvers:
+          # The 'tenant' parameter is used in `path_param_maps` and must be resolved.
+          tenant:
+            list: "openstack_tenants_list"
+            retrieve: "openstack_tenants_retrieve"
+            error_message: "Tenant '{value}' not found."
+
 ---
 
 ### 3. The `order` Plugin
@@ -225,7 +271,7 @@ Below is a detailed explanation of each available plugin.
 
         # (Optional) The offering type used to automatically infer attribute parameters
         # from the OpenAPI schema. This greatly reduces boilerplate configuration.
-        offering_type: "Marketplace.Volume"
+        offering_type: "OpenStack.Volume"
 
         description: "Create, update, or delete an OpenStack Volume via the marketplace."
         resource_type: "OpenStack volume"
