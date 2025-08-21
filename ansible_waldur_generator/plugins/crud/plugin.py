@@ -99,6 +99,12 @@ class CrudPlugin(BasePlugin):
                     "param": action.param,
                 }
 
+        update_fields = []
+        if module_config.update_config:
+            update_fields = sorted(
+                list(dict.fromkeys(module_config.update_config.fields))
+            )
+
         # The final context dictionary passed to the runner.
         return {
             "resource_type": conf.resource_type,
@@ -114,7 +120,7 @@ class CrudPlugin(BasePlugin):
             # Mapping for nested endpoint path parameters.
             "path_param_maps": conf.path_param_maps,
             # List of fields to check for simple PATCH updates.
-            "update_fields": conf.update_config.fields if conf.update_config else [],
+            "update_fields": update_fields,
             # Dictionary of complex update actions (e.g., set_rules).
             "update_actions": update_actions_context,
             "resolvers": resolvers_data,
@@ -128,11 +134,12 @@ class CrudPlugin(BasePlugin):
         if not schema or "properties" not in schema:
             return []
         # Exclude any fields marked as 'readOnly' as they are server-generated.
-        return [
+        param_names = [
             name
             for name, prop in schema["properties"].items()
             if not prop.get("readOnly", False)
         ]
+        return sorted(param_names)
 
     def _build_parameters(
         self, module_config: CrudModuleConfig, api_parser: ApiSpecParser

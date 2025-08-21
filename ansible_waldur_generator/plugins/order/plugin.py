@@ -201,6 +201,13 @@ class OrderPlugin(BasePlugin):
         attribute_param_names = [p.name for p in module_config.attribute_params]
         attribute_param_names.append("description")
 
+        stable_attribute_param_names = sorted(
+            list(dict.fromkeys(attribute_param_names))
+        )
+        stable_update_check_fields = sorted(
+            list(dict.fromkeys(module_config.update_check_fields))
+        )
+
         return {
             "resource_type": module_config.resource_type,
             "existence_check_url": module_config.existence_check_op.path
@@ -210,8 +217,8 @@ class OrderPlugin(BasePlugin):
             "update_url": module_config.update_op.path
             if module_config.update_op
             else None,
-            "update_check_fields": module_config.update_check_fields,
-            "attribute_param_names": list(set(attribute_param_names)),
+            "update_check_fields": stable_update_check_fields,
+            "attribute_param_names": stable_attribute_param_names,
             "resolvers": resolvers_data,
         }
 
