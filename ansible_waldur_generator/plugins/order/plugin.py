@@ -11,6 +11,7 @@ from ansible_waldur_generator.helpers import (
 )
 from ansible_waldur_generator.interfaces.plugin import BasePlugin
 from ansible_waldur_generator.plugins.order.config import (
+    OrderModuleResolver,
     ParameterConfig,
     OrderModuleConfig,
 )
@@ -194,6 +195,7 @@ class OrderPlugin(BasePlugin):
             resolvers_data[name] = {
                 "url": resolver.list_operation.path if resolver.list_operation else "",
                 "error_message": resolver.error_message,
+                "filter_by": [f.model_dump() for f in resolver.filter_by],
             }
 
         attribute_param_names = [p.name for p in module_config.attribute_params]
@@ -447,6 +449,35 @@ class OrderPlugin(BasePlugin):
 
         return inferred_params
 
+    def _validate_resolvers(
+        self,
+        resolvers: dict[str, OrderModuleResolver],
+        api_parser: ApiSpecParser,
+        module_key: str,
+    ):
+        """
+        Validates the resolver configurations, including the new `filter_by` dependencies.
+        """
+        for resolver_name, resolver_config in resolvers.items():
+            if not resolver_config.filter_by:
+                continue
+
+            # Get the set of valid query parameters for the list operation.
+            list_op_id = resolver_config.list_operation.operation_id
+            valid_query_params = api_parser.get_query_parameters_for_operation(
+                list_op_id
+            )
+
+            for filter_config in resolver_config.filter_by:
+                target_key = filter_config.target_key
+                if target_key not in valid_query_params:
+                    # Throw a specific, helpful error if the target_key is invalid.
+                    raise ValueError(
+                        f"Validation Error in module '{module_key}', resolver '{resolver_name}': "
+                        f"The specified target_key '{target_key}' is not a valid filter parameter for the list operation '{list_op_id}'. "
+                        f"Available filters are: {sorted(list(valid_query_params))}"
+                    )
+
     def _parse_configuration(self, module_key, raw_config, api_parser):
         raw_config.setdefault("resolvers", {})
         raw_config["resolvers"]["offering"] = {
@@ -463,6 +494,7 @@ class OrderPlugin(BasePlugin):
         if "update_op" in raw_config:
             raw_config["update_op"] = api_parser.get_operation(raw_config["update_op"])
 
+        parsed_resolvers = {}
         for name, resolver_conf in raw_config.get("resolvers", {}).items():
             resolver_conf["list_operation"] = api_parser.get_operation(
                 resolver_conf["list"]
@@ -470,6 +502,11 @@ class OrderPlugin(BasePlugin):
             resolver_conf["retrieve_operation"] = api_parser.get_operation(
                 resolver_conf["retrieve"]
             )
+            parsed_resolvers[name] = OrderModuleResolver(**resolver_conf)
+
+        self._validate_resolvers(parsed_resolvers, api_parser, module_key)
+
+        raw_config["resolvers"] = parsed_resolvers
 
         module_config = OrderModuleConfig(**raw_config)
 

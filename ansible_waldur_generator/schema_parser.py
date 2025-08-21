@@ -289,31 +289,10 @@ class ReturnBlockGenerator:
                 resolved_prop_schema.get("type", "string"), "str"
             )
 
-            # --- MERGED LOGIC: Start of intelligent description generation ---
-            description = resolved_prop_schema.get("description")
-
-            # Create a more readable display name from the property name.
-            display_name = name.replace("_", " ")
-            # Convert common abbreviations to uppercase for better readability (e.g., ip -> IP).
-            display_name = re.sub(
-                r"\b(ssh|ip|id|url|cpu|ram|vpn|uuid|dns|cidr)\b",
-                lambda m: m.group(1).upper(),
-                display_name,
-                flags=re.IGNORECASE,
-            )
-
-            # If no description is provided in the schema, generate a sensible default.
-            if not description:
-                if resolved_prop_schema.get("format") == "uri":
-                    description = f"{capitalize_first(display_name)} URL"
-                elif resolved_prop_schema.get("type") == "array":
-                    description = f"A list of {display_name} items."
-                else:
-                    description = capitalize_first(display_name)
-            # --- MERGED LOGIC: End of intelligent description generation ---
+            description = self.generate_description(resolved_prop_schema, name)
 
             field_data = {
-                "description": capitalize_first(description),
+                "description": description,
                 "type": ansible_type,
                 "returned": "always",
                 # Use our smart sample generator for consistency in documentation.
@@ -337,6 +316,32 @@ class ReturnBlockGenerator:
 
             result[name] = field_data
         return result
+
+    def generate_description(
+        self, resolved_prop_schema: Dict[str, Any], name: str
+    ) -> str:
+        description = resolved_prop_schema.get("description")
+
+        # Create a more readable display name from the property name.
+        display_name = name.replace("_", " ")
+        # Convert common abbreviations to uppercase for better readability (e.g., ip -> IP).
+        display_name = re.sub(
+            r"\b(ssh|ip|id|url|cpu|ram|vpn|uuid|dns|cidr)\b",
+            lambda m: m.group(1).upper(),
+            display_name,
+            flags=re.IGNORECASE,
+        )
+
+        # If no description is provided in the schema, generate a sensible default.
+        if not description:
+            if resolved_prop_schema.get("format") == "uri":
+                description = f"{capitalize_first(display_name)} URL"
+            elif resolved_prop_schema.get("type") == "array":
+                description = f"A list of {display_name} items."
+            else:
+                description = capitalize_first(display_name)
+
+        return description
 
     def generate_for_operation(
         self, operation_spec: Dict[str, Any], resource_type: str | None = None

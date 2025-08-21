@@ -261,15 +261,14 @@ Below is a detailed explanation of each available plugin.
         2.  Calls the standard `marketplace_resources_terminate` endpoint.
 
 -   **Configuration Example (`generator_config.yaml`):**
-    This example creates a `waldur_os_volume` module by migrating the original `waldur_marketplace_os_volume` logic.
 
     ```yaml
     modules:
-      os_volume:
+      volume:
         # Use the 'order' plugin for the marketplace workflow.
         type: order
 
-        # (Optional) The offering type used to automatically infer attribute parameters
+        # The offering type used to automatically infer attribute parameters
         # from the OpenAPI schema. This greatly reduces boilerplate configuration.
         offering_type: "OpenStack.Volume"
 
@@ -279,35 +278,39 @@ Below is a detailed explanation of each available plugin.
         # Specifies the API call to check if the final volume exists.
         existence_check_op: "openstack_volumes_list"
 
-        # (Optional) Specifies the API call to update an existing volume.
+        # Specifies the API call to update an existing volume.
         update_op: "openstack_volumes_update"
 
-        # (Optional) A list of parameters that trigger an update if changed.
+        # A list of parameters that trigger an update if changed.
         update_check_fields:
           - "description"
 
-        # A list of parameters specific to this resource that go into the
-        # nested 'attributes' dictionary of the order request.
-        attribute_params:
-          - name: size
-            type: int
-            required: true
-            description: "The size of the volume in gigabytes (GB)."
-          - name: type
-            type: str
-            description: "The name or UUID of the volume type (e.g., 'lvm', 'ssd')."
-            # 'is_resolved: true' tells the builder that this parameter's value
-            # must be resolved into a full API URL before being sent.
-            is_resolved: true
-
-        # Defines how to convert user-friendly names (like "Standard Volume")
-        # into API URLs needed by the order request.
+        # Defines how to convert user-friendly names into API URLs.
+        # The 'order' plugin supports advanced resolvers that can filter based on
+        # the results of other resolved parameters.
         resolvers:
-          # This resolver is needed for the mandatory 'offering' parameter.
-          offering:
-            list: "marketplace_public_offerings_list"
-            retrieve: "marketplace_public_offerings_retrieve"
-            error_message: "Offering '{value}' not found."
+          flavor:
+            list: "openstack_flavors_list"
+            retrieve: "openstack_flavors_retrieve"
+            error_message: "Flavor '{value}' not found."
+            # This block tells the generator how to filter the flavor list.
+            filter_by:
+              - # Use the resolved 'offering' parameter as the source.
+                source_param: "offering"
+                # Extract the 'scope_uuid' value from the offering's API response.
+                source_key: "scope_uuid"
+                # Use that value for the 'settings_uuid' query parameter when listing flavors.
+                target_key: "tenant_uuid"
+
+          # The same pattern can be applied to images, networks, etc.
+          image:
+            list: "openstack_images_list"
+            retrieve: "openstack_images_retrieve"
+            error_message: "Image '{value}' not found."
+            filter_by:
+              - source_param: "offering"
+                source_key: "scope_uuid"
+                target_key: "tenant_uuid"
 
           # This resolver is for the optional 'type' attribute.
           type:

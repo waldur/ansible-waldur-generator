@@ -88,3 +88,42 @@ class ApiSpecParser:
                     f"Invalid $ref, part '{part}' not found in spec: {ref}"
                 )
         return schema
+
+    def get_query_parameters_for_operation(self, operation_id: str) -> set[str]:
+        """
+        Retrieves a set of all defined query parameter names for a given operation.
+
+        Args:
+            operation_id: The unique identifier for the operation.
+
+        Returns:
+            A set of strings, where each string is a valid query parameter name.
+            Returns an empty set if the operation is not found or has no parameters.
+        """
+        operation_spec = None
+        # This is a bit inefficient, but reuses existing logic to find the operation spec.
+        # A more optimized version could cache these lookups.
+        for path, methods in self.api_spec.get("paths", {}).items():
+            for method, operation in methods.items():
+                if operation.get("operationId") == operation_id:
+                    operation_spec = operation
+                    break
+            if operation_spec:
+                break
+
+        if not operation_spec:
+            return set()
+
+        query_params = set()
+        for param in operation_spec.get("parameters", []):
+            # Parameters can be defined directly or via a $ref.
+            if "$ref" in param:
+                try:
+                    param = self.get_schema_by_ref(param["$ref"])
+                except ValueError:
+                    continue  # Skip unresolvable refs
+
+            if param.get("in") == "query":
+                query_params.add(param.get("name"))
+
+        return query_params
