@@ -91,8 +91,8 @@ collections:
     name: structure
     version: 1.0.0
     modules:
-      modename:
-        type: crud
+      - name: modename
+        plugin: crud
 ```
 
 Below is a detailed explanation of each available plugin.
@@ -114,9 +114,8 @@ Below is a detailed explanation of each available plugin.
 
     ```yaml
     modules:
-      openstack_security_group_facts:
-        # 'type' tells the generator to use the 'facts' plugin.
-        type: facts
+      - name: security_group_facts
+        plugin: facts
 
         # User-friendly name for the resource, used in messages and docs.
         resource_type: "security group"
@@ -168,11 +167,8 @@ Below is a detailed explanation of each available plugin.
     ```yaml
     modules:
       # The key 'project' is used for the module filename project.
-      project:
-        # This module type is is designed for standard resources that follow typical
-        # CRUD (Create-Read-Update-Delete) patterns. You define the resource and
-        # map standard actions to your API's `operationId`s.
-        type: crud
+      - name: project
+        plugin: crud
 
         # The value is used for user-facing strings (e.g., in error messages).
         resource_type: "project"
@@ -203,8 +199,8 @@ Below is a detailed explanation of each available plugin.
 
     ```yaml
     modules:
-      security_group:
-        type: crud
+      - name: security_group
+        plugin: crud
         resource_type: "security group"
         description: "Manage OpenStack Security Groups."
 
@@ -264,9 +260,8 @@ Below is a detailed explanation of each available plugin.
 
     ```yaml
     modules:
-      volume:
-        # Use the 'order' plugin for the marketplace workflow.
-        type: order
+      - name: volume
+        plugin: order
 
         # The offering type used to automatically infer attribute parameters
         # from the OpenAPI schema. This greatly reduces boilerplate configuration.

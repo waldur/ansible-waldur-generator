@@ -82,10 +82,9 @@ class Generator:
         self.copied_runners = set()
 
         # Read collection info from the config, with sane defaults.
-        collection_config = self.config_data.get("collection", {})
-        self.collection_namespace = collection_config.get("namespace", "community")
-        self.collection_name = collection_config.get("name", "generic")
-        self.collection_version = collection_config.get("version", "1.0.0")
+        self.collection_namespace = ""
+        self.collection_name = ""
+        self.collection_version = ""
 
     @classmethod
     def from_files(cls, config_path, api_spec_path):
@@ -293,8 +292,25 @@ class Generator:
             generated_file_paths = []
 
             # --- 2c. Inner Loop to Generate Modules for This Collection ---
-            for module_key, raw_config in collection_config.get("modules", {}).items():
-                module_type = raw_config.get("type")
+            for raw_config in collection_config.get("modules", []):
+                module_key = raw_config.get("name")
+                if not module_key:
+                    collector.add_error(
+                        f"In collection '{self.collection_name}', a module entry is missing the 'name' key."
+                    )
+                    continue
+
+                raw_config.setdefault(
+                    "resource_type", module_key.replace("_facts", "").replace("_", " ")
+                )
+
+                module_type = raw_config.get("plugin")
+                if not module_type:
+                    collector.add_error(
+                        f"In collection '{self.collection_name}', module '{module_key}' is missing the 'plugin' key."
+                    )
+                    continue
+
                 plugin = self.plugin_manager.get_plugin(module_type)
 
                 if not plugin:
