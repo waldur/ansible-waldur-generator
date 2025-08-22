@@ -214,13 +214,23 @@ class ReturnBlockGenerator:
         return None
 
     def generate_example_from_schema(
-        self, schema: Dict[str, Any], resource_type: str
+        self,
+        schema: Dict[str, Any],
+        resource_type: str,
+        resolver_keys: list[str] | None = None,
     ) -> Dict[str, Any]:
         """
         Recursively traverses a schema and builds a complete example dictionary
         suitable for the Ansible EXAMPLES block. It only includes properties that
         a user would provide (i.e., it skips 'readOnly' fields).
+
+        Args:
+            schema: The JSON schema to process.
+            resource_type: The user-friendly name of the resource.
+            resolver_keys: A list of property names that should be treated as
+                           resolvable, for which a placeholder will be generated.
         """
+        resolver_keys = resolver_keys or []
         example_data = {}
         # First, fully resolve the schema to handle any top-level 'allOf' or '$ref'.
         resolved_schema = self._resolve_schema(schema)
@@ -234,12 +244,21 @@ class ReturnBlockGenerator:
             if resolved_prop_schema.get("readOnly"):
                 continue
 
+            # If the property name is in our list of resolvers, generate a
+            # user-friendly placeholder instead of a concrete sample value.
+            if name in resolver_keys:
+                is_list = resolved_prop_schema.get("type") == "array"
+                display_name = name.replace("_", " ").capitalize()
+                placeholder = f"{display_name} name or UUID"
+                example_data[name] = [placeholder] if is_list else placeholder
+                continue
+
             prop_type = resolved_prop_schema.get("type")
 
             # For nested objects, make a recursive call.
             if prop_type == "object" and "properties" in resolved_prop_schema:
                 example_data[name] = self.generate_example_from_schema(
-                    resolved_prop_schema, resource_type
+                    resolved_prop_schema, resource_type, resolver_keys
                 )
             # For arrays of objects, generate one example item and wrap it in a list.
             elif prop_type == "array" and "items" in resolved_prop_schema:
@@ -250,7 +269,9 @@ class ReturnBlockGenerator:
                     # If they are objects, we must recurse to generate a populated object.
                     # We wrap the result in a list to represent the array.
                     example_data[name] = [
-                        self.generate_example_from_schema(item_schema, resource_type)
+                        self.generate_example_from_schema(
+                            item_schema, resource_type, resolver_keys
+                        )
                     ]
                 else:
                     # If the items are simple types (string, int, etc.), we generate

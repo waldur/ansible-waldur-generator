@@ -298,20 +298,20 @@ class BasePlugin(ABC):
             **base_params,
         }
 
+        # The schema parser now handles placeholder generation for all resolvable
+        # fields, including nested ones, by being aware of the resolver keys.
         inferred_payload = schema_parser.generate_example_from_schema(
-            create_schema, module_config.resource_type
+            create_schema,
+            module_config.resource_type,
+            resolver_keys=list(getattr(module_config, "resolvers", {}).keys()),
         )
         create_params.update(inferred_payload)
 
+        #  Post-process path parameters, which are not part of the create_schema.
         path_param_maps = getattr(module_config, "path_param_maps", {})
         for _, ansible_param in path_param_maps.get("create", {}).items():
-            create_params[ansible_param] = f"{ansible_param.capitalize()} Name or UUID"
-
-        for resolver_name in getattr(module_config, "resolvers", {}).keys():
-            if resolver_name in create_params:
-                create_params[resolver_name] = (
-                    f"{resolver_name.capitalize()} Name or UUID"
-                )
+            display_name = ansible_param.replace("_", " ").capitalize()
+            create_params[ansible_param] = f"{display_name} name or UUID"
 
         # --- Delete Example ---
         delete_params = {
