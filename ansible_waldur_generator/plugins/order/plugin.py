@@ -16,8 +16,10 @@ from ansible_waldur_generator.plugins.order.config import (
     OrderModuleConfig,
 )
 
+# A base dictionary for the module's argument_spec, containing common
+# parameters required for every order-based module.
 BASE_SPEC = {
-    **AUTH_OPTIONS,
+    **AUTH_OPTIONS,  # Includes 'api_url' and 'access_token'
     "state": {
         "description": "Should the resource be present or absent.",
         "choices": ["present", "absent"],
@@ -43,9 +45,21 @@ BASE_SPEC = {
 
 
 class OrderPlugin(BasePlugin):
-    """Plugin for handling 'order' module types."""
+    """
+    The generator plugin for creating Ansible modules that manage resources
+    via Waldur's asynchronous marketplace order workflow.
+
+    This is the most powerful plugin, designed to handle:
+    - Asynchronous resource provisioning (`state: present`).
+    - Direct, synchronous resource updates (`state: present` on existing resource).
+    - Asynchronous resource termination (`state: absent`).
+    - Automatic inference of module parameters from the offering type schema.
+    - Complex parameter resolution, including dependent filters and lists of
+      resolvable items (e.g., security groups for a VM).
+    """
 
     def get_type_name(self) -> str:
+        """Returns the unique identifier for this plugin type."""
         return "order"
 
     def _build_return_block(
@@ -53,7 +67,16 @@ class OrderPlugin(BasePlugin):
         module_config: OrderModuleConfig,
         return_generator: ReturnBlockGenerator,
     ) -> Dict[str, Any]:
+        """
+        Constructs the RETURN block for the module's documentation.
+
+        It uses the `existence_check_op` as the source of truth for the returned
+        data structure, as this operation reflects the final, stable state of
+        the provisioned resource.
+        """
         return_content = None
+        # The success response of the existence check operation (e.g., `openstack_volumes_list`)
+        # accurately represents the data structure of the final resource.
         if module_config.existence_check_op:
             existence_check_op_spec = module_config.existence_check_op.raw_spec
             return_content = return_generator.generate_for_operation(
@@ -79,20 +102,22 @@ class OrderPlugin(BasePlugin):
         module_config: OrderModuleConfig,
     ) -> dict:
         """
-        Recursively builds the argument_spec dict for a single parameter,
-        resolving any references ($ref) it encounters.
+        Recursively builds the `argument_spec` dictionary for a single parameter.
+
+        This powerful helper function translates the plugin's internal `ParameterConfig`
+        model into the dictionary structure required by Ansible's documentation and
+        `argument_spec`. It handles nested objects (`suboptions`), lists (`elements`),
+        and resolves schema references (`$ref`) to build a complete definition.
         """
         p_conf_to_process = p_conf
 
-        # --- 1. Resolve Reference ---
-        # If the current parameter is a reference, replace it with a fully parsed
-        # ParameterConfig object created from the resolved schema.
+        # --- Step 1: Resolve Schema References (`$ref`) ---
+        # If the parameter is defined by a reference, we fetch the referenced schema
+        # and create a new, fully populated ParameterConfig from it. This allows
+        # for schema composition and reuse.
         if p_conf.ref:
             ref_path = p_conf.ref
             resolved_schema_dict = api_parser.get_schema_by_ref(ref_path)
-
-            # Convert the resolved raw dictionary into a ParameterConfig object.
-            # We preserve the original 'name' and 'required' status from the point of reference.
             p_conf_to_process = self._create_param_config_from_schema(
                 name=p_conf.name,
                 prop=resolved_schema_dict,
@@ -103,51 +128,60 @@ class OrderPlugin(BasePlugin):
 
         param_spec = {}
 
-        # 2. Determine Ansible Type
-        # This line will now work correctly.
+        # --- Step 2: Determine Ansible Type and Basic Attributes ---
         param_type = OPENAPI_TO_ANSIBLE_TYPE_MAP.get(p_conf_to_process.type, "str")
         param_spec["type"] = param_type
-
-        # 3. Set basic attributes
         param_spec["required"] = p_conf_to_process.required
         if p_conf_to_process.choices:
             param_spec["choices"] = p_conf_to_process.choices
-
         param_spec["description"] = self._get_prop_description(
             p_conf_to_process.name, p_conf_to_process.model_dump(), module_config
         )
 
-        # 4. Handle Complex Types Recursively
+        # --- Step 3: Handle Complex Types Recursively ---
         if param_type == "dict" and p_conf_to_process.properties:
+            # For a dictionary, we build 'suboptions' by recursing for each property.
             suboptions = {}
             for sub_p_conf in p_conf_to_process.properties:
-                # Recursive call, passing all necessary context along
                 suboptions[sub_p_conf.name] = self._build_spec_for_param(
                     sub_p_conf, api_parser, module_config
                 )
             if suboptions:
                 param_spec["suboptions"] = suboptions
 
-        elif param_type == "list" and p_conf_to_process.items:
-            # Recursively build the spec for the items in the list
-            item_spec = self._build_spec_for_param(
-                p_conf_to_process.items, api_parser, module_config
-            )
-
-            item_type = item_spec.get("type", "str")
-            param_spec["elements"] = item_type
-
-            # If the list contains complex objects, copy their suboptions
-            if item_type == "dict" and "suboptions" in item_spec:
-                param_spec["suboptions"] = item_spec["suboptions"]
+        elif param_type == "list":
+            # For lists, we define the type of the items using 'elements'.
+            if p_conf_to_process.is_resolved:
+                # **CRITICAL**: If this is a list of resolvable items (e.g., security groups),
+                # the user provides a simple list of strings (names/UUIDs). The runner
+                # will handle the conversion to the complex API structure.
+                param_spec["elements"] = "str"
+            elif p_conf_to_process.items:
+                # If it's a list of non-resolvable, complex objects (e.g., firewall rules),
+                # we recurse to build the full spec for the items, which may include 'suboptions'.
+                item_spec = self._build_spec_for_param(
+                    p_conf_to_process.items, api_parser, module_config
+                )
+                item_type = item_spec.get("type", "str")
+                param_spec["elements"] = item_type
+                if item_type == "dict" and "suboptions" in item_spec:
+                    param_spec["suboptions"] = item_spec["suboptions"]
 
         return param_spec
 
     def _build_parameters(
         self, module_config: OrderModuleConfig, api_parser: ApiSpecParser
     ) -> AnsibleModuleParams:
+        """
+        Constructs the complete dictionary of parameters for the Ansible module.
+
+        It combines a set of base parameters common to all order modules with
+        the resource-specific `attribute_params` that are either manually defined
+        or inferred from the offering's OpenAPI schema.
+        """
         params: AnsibleModuleParams = {**BASE_SPEC}
 
+        # Add core parameters required for every marketplace order.
         params["name"] = {
             "type": "str",
             "required": True,
@@ -170,16 +204,19 @@ class OrderPlugin(BasePlugin):
         }
         if module_config.has_limits:
             params["limits"] = {
-                "type": "object",
+                "type": "dict",
                 "required": False,
                 "description": "Marketplace resource limits for limit-based billing.",
             }
+        # Add a generic description field, which is common for many resources.
         params["description"] = {
             "type": "str",
             "required": False,
             "description": f"A description for the {module_config.resource_type}.",
         }
 
+        # Iterate through all configured attribute parameters and build their
+        # full Ansible specification using our recursive helper.
         for p_conf in module_config.attribute_params:
             params[p_conf.name] = self._build_spec_for_param(
                 p_conf, api_parser, module_config
@@ -190,17 +227,43 @@ class OrderPlugin(BasePlugin):
     def _build_runner_context(
         self, module_config: OrderModuleConfig, api_parser
     ) -> Dict[str, Any]:
+        """
+        Creates the context dictionary that will be passed to the module's runner.
+
+        This is a critical step that pre-processes all necessary information,
+        including detailed resolver configurations. It detects list-based resolvers
+        and provides the runner with the necessary metadata to correctly format the
+        final API payload.
+        """
         resolvers_data = {}
+        params_map = {p.name: p for p in module_config.attribute_params}
+
         for name, resolver in module_config.resolvers.items():
+            param_config = params_map.get(name)
+            is_list_resolver = param_config and param_config.type == "array"
+            list_item_key = None
+
+            # If this resolver is for a list of items (like security_groups),
+            # we need to tell the runner how to structure the final payload.
+            if is_list_resolver and param_config and param_config.items:
+                # We infer the key for the nested object (e.g., 'url') by looking
+                # at the properties of the item's schema. This assumes a simple
+                # structure like `[{'url': '...'}]`.
+                if param_config.items.properties:
+                    list_item_key = param_config.items.properties[0].name
+
             resolvers_data[name] = {
                 "url": resolver.list_operation.path if resolver.list_operation else "",
                 "error_message": resolver.error_message,
                 "filter_by": [f.model_dump() for f in resolver.filter_by],
+                # This metadata is crucial for the runner's logic.
+                "is_list": is_list_resolver,
+                "list_item_key": list_item_key,
             }
 
+        # Consolidate and sort lists for stable, deterministic output.
         attribute_param_names = [p.name for p in module_config.attribute_params]
         attribute_param_names.append("description")
-
         stable_attribute_param_names = sorted(
             list(dict.fromkeys(attribute_param_names))
         )
@@ -226,39 +289,29 @@ class OrderPlugin(BasePlugin):
         self, module_config: OrderModuleConfig
     ) -> Dict[str, Any]:
         """
-        Constructs a JSON-schema-like dictionary from the list of attribute
-        parameters. This "virtual" schema can then be used by the example generator.
+        Constructs a "virtual" JSON schema from the list of attribute parameters.
+        This schema is then used by the `ReturnBlockGenerator` to create realistic
+        and well-formatted example payloads.
         """
         properties = {}
-        # The 'name' and 'description' are top-level Ansible params but map to
-        # the 'attributes' dict in the order payload.
         properties["name"] = {"type": "string"}
         properties["description"] = {"type": "string"}
 
-        # Recursively build schema for configured attribute params
         def param_to_prop(p_conf: ParameterConfig):
-            # Priority 1: If the parameter is a direct reference to another schema
-            # component, pass the reference along. The schema parser knows how to
-            # resolve this.
+            """Helper to convert a ParameterConfig back into a schema dictionary."""
             if p_conf.ref:
                 return {"$ref": p_conf.ref}
 
             prop: dict[str, Any] = {"type": p_conf.type}
             if p_conf.type == "array":
-                # For arrays, we must correctly define the 'items' schema.
                 if p_conf.is_resolved:
-                    # Case A: A simple list of names/UUIDs (e.g., security_groups for an instance).
-                    # The user provides a list of strings.
+                    # For a list of names, the example generator should see a list of strings.
                     prop["items"] = {"type": "string"}
                 elif p_conf.items:
-                    # Case B: An array of complex objects (e.g., rules for a security group).
-                    # We recurse to build the schema for the nested item object.
+                    # For a list of complex objects, recurse.
                     prop["items"] = param_to_prop(p_conf.items)
-                # If neither, it's an un-typed array, which is rare.
-                # The default sample generator will produce `[]`.
-
             elif p_conf.properties:
-                # For nested objects that are not arrays.
+                # For a nested dictionary, recurse on its properties.
                 prop["properties"] = {
                     sub.name: param_to_prop(sub) for sub in p_conf.properties
                 }
@@ -277,11 +330,9 @@ class OrderPlugin(BasePlugin):
         collection_name: str,
         schema_parser: ReturnBlockGenerator,
     ) -> List[Dict[str, Any]]:
-        """Builds realistic examples using the shared helper from BasePlugin."""
+        """Builds realistic examples by calling the shared helper from BasePlugin."""
         # Step 1: Construct the virtual schema for the 'attributes' payload.
         attributes_schema = self._build_schema_for_attributes(module_config)
-
-        # Base parameters specific to 'order' modules required for the examples.
         base_params = {
             "project": "Project Name or UUID",
             "offering": "Offering Name or UUID",
@@ -296,10 +347,10 @@ class OrderPlugin(BasePlugin):
             schema_parser=schema_parser,
             create_schema=attributes_schema,
             base_params=base_params,
-            delete_identifier_param="name",  # The resource is identified by 'name' for deletion
+            delete_identifier_param="name",
         )
 
-        # Step 3: (Optional) Add any plugin-specific examples, like 'update'.
+        # Step 3: Add an 'update' example if the module supports it.
         if module_config.update_op and module_config.update_check_fields:
             update_example_params = {
                 "state": "present",
@@ -310,13 +361,13 @@ class OrderPlugin(BasePlugin):
                 "access_token": "b83557fd8e2066e98f27dee8f3b3433cdc4183ce",
                 "api_url": "https://waldur.example.com",
             }
-            # Add the first updatable field to the example.
+            # Add the first updatable field to the example for demonstration.
             field_to_update = module_config.update_check_fields[0]
             update_example_params[field_to_update] = f"An updated {field_to_update}"
 
             fqcn = f"{collection_namespace}.{collection_name}.{module_name}"
             examples.insert(
-                1,
+                1,  # Insert after the create example
                 {
                     "name": f"Update an existing {module_config.resource_type}",
                     "hosts": "localhost",
@@ -340,38 +391,35 @@ class OrderPlugin(BasePlugin):
         module_config: OrderModuleConfig,
     ) -> ParameterConfig:
         """
-        Recursively creates a ParameterConfig object from a name and a schema property.
+        Recursively creates a structured `ParameterConfig` object from a raw
+        OpenAPI schema property. This is the core of schema inference.
         """
-        # Determine the type. If there's a $ref, it's an object to be resolved later.
         prop_type = prop.get("type")
         if not prop_type and "$ref" in prop:
             prop_type = "object"
         elif not prop_type:
-            prop_type = "string"  # A safe default
+            prop_type = "string"  # A safe default for typeless schemas
 
-        # Handle nested properties
+        # Recursively parse nested properties for dictionaries.
         sub_properties = []
         if "properties" in prop:
             nested_required = prop.get("required", [])
             for sub_name, sub_prop in prop.get("properties", {}).items():
                 if sub_prop.get("readOnly"):
                     continue
-                # Recursive call for nested properties
                 sub_properties.append(
                     self._create_param_config_from_schema(
                         sub_name, sub_prop, nested_required, api_parser, module_config
                     )
                 )
 
-        # Handle nested items in an array
+        # Recursively parse the item schema for arrays.
         items_config = None
         if "items" in prop and isinstance(prop.get("items"), dict):
-            # The name for an 'items' block is internal; it's not user-facing.
-            # We use a placeholder name.
             items_config = self._create_param_config_from_schema(
-                name="_items_definition",
+                name="_items_definition",  # Internal name, not user-facing
                 prop=prop["items"],
-                required_list=[],  # 'required' is not meaningful inside an array item
+                required_list=[],
                 api_parser=api_parser,
                 module_config=module_config,
             )
@@ -387,7 +435,7 @@ class OrderPlugin(BasePlugin):
             description=self._get_prop_description(name, prop, module_config),
             is_resolved=is_resolved,
             choices=choices if choices else [],
-            ref=prop.get("$ref"),  # The ref is at the top level of the property
+            ref=prop.get("$ref"),
             properties=sub_properties,
             items=items_config,
         )
@@ -395,9 +443,9 @@ class OrderPlugin(BasePlugin):
     def _get_prop_description(
         self, name: str, prop: Dict[str, Any], module_config
     ) -> str:
+        """Generates a user-friendly description for a parameter."""
         description = prop.get("description", "")
         display_name = name.replace("_", " ")
-        # Convert common abbreviations to uppercase
         display_name = re.sub(
             r"\b(ssh|ip|id|url|cpu|ram|vpn|uuid|dns|cidr)\b",
             lambda m: m.group(1).upper(),
@@ -411,7 +459,7 @@ class OrderPlugin(BasePlugin):
             elif prop.get("format") == "uri":
                 description = f"{capitalize_first(display_name)} URL"
             elif prop.get("type") == "array":
-                description = f"A list of {display_name} items."
+                description = f"A list of {display_name} names or UUIDs."
             else:
                 description = capitalize_first(display_name)
         return description
@@ -419,10 +467,16 @@ class OrderPlugin(BasePlugin):
     def _infer_offering_params(
         self, module_config: OrderModuleConfig, api_parser: ApiSpecParser
     ) -> list[ParameterConfig]:
-        """Infers attribute parameters from the OpenAPI schema based on offering_type."""
+        """
+        Infers attribute parameters automatically from the OpenAPI schema based
+        on the configured `offering_type`. This is a key feature that reduces
+        manual configuration.
+        """
         if not module_config.offering_type:
             return []
 
+        # Construct the expected schema name based on Waldur's convention.
+        # e.g., 'OpenStack.Instance' -> 'OpenStackInstanceCreateOrderAttributes'
         schema_name = (
             f"{module_config.offering_type.replace('.', '')}CreateOrderAttributes"
         )
@@ -431,7 +485,7 @@ class OrderPlugin(BasePlugin):
         try:
             schema = api_parser.get_schema_by_ref(schema_ref)
         except ValueError:
-            # Handle error as before
+            # The schema for this offering type might not exist in the spec.
             return []
 
         if not schema or "properties" not in schema:
@@ -440,11 +494,10 @@ class OrderPlugin(BasePlugin):
         inferred_params = []
         required_fields = schema.get("required", [])
 
-        # The loop is now much simpler and delegates the complex creation logic
+        # Iterate through the schema properties and convert each one to a ParameterConfig object.
         for name, prop in schema.get("properties", {}).items():
             if prop.get("readOnly", False):
                 continue
-
             param = self._create_param_config_from_schema(
                 name=name,
                 prop=prop,
@@ -453,7 +506,6 @@ class OrderPlugin(BasePlugin):
                 module_config=module_config,
             )
             inferred_params.append(param)
-
         return inferred_params
 
     def _validate_resolvers(
@@ -462,23 +514,21 @@ class OrderPlugin(BasePlugin):
         api_parser: ApiSpecParser,
         module_key: str,
     ):
-        """
-        Validates the resolver configurations, including the new `filter_by` dependencies.
-        """
+        """Validates resolver configurations to catch errors early."""
         for resolver_name, resolver_config in resolvers.items():
             if not resolver_config.filter_by:
                 continue
 
-            # Get the set of valid query parameters for the list operation.
             list_op_id = resolver_config.list_operation.operation_id
             valid_query_params = api_parser.get_query_parameters_for_operation(
                 list_op_id
             )
 
+            # Ensure that the 'target_key' for a filter is a valid query parameter
+            # on the target API endpoint. This prevents runtime errors.
             for filter_config in resolver_config.filter_by:
                 target_key = filter_config.target_key
                 if target_key not in valid_query_params:
-                    # Throw a specific, helpful error if the target_key is invalid.
                     raise ValueError(
                         f"Validation Error in module '{module_key}', resolver '{resolver_name}': "
                         f"The specified target_key '{target_key}' is not a valid filter parameter for the list operation '{list_op_id}'. "
@@ -486,6 +536,13 @@ class OrderPlugin(BasePlugin):
                     )
 
     def _parse_configuration(self, module_key, raw_config, api_parser):
+        """
+        The main parsing entrypoint for the plugin. It takes the raw config,
+        enriches it with inferred data, validates it, and returns a structured
+        `OrderModuleConfig` object.
+        """
+        # Step 1: Add default resolvers for 'offering' and 'project', as they
+        # are required for every order module.
         raw_config.setdefault("resolvers", {})
         raw_config["resolvers"]["offering"] = {
             "list": "marketplace_public_offerings_list",
@@ -495,12 +552,15 @@ class OrderPlugin(BasePlugin):
             "list": "projects_list",
             "retrieve": "projects_retrieve",
         }
+
+        # Step 2: Convert all operationId strings into full ApiOperation objects.
         raw_config["existence_check_op"] = api_parser.get_operation(
             raw_config["existence_check_op"]
         )
         if "update_op" in raw_config:
             raw_config["update_op"] = api_parser.get_operation(raw_config["update_op"])
 
+        # Step 3: Parse the resolver configurations into Pydantic models for validation.
         parsed_resolvers = {}
         for name, resolver_conf in raw_config.get("resolvers", {}).items():
             resolver_conf["list_operation"] = api_parser.get_operation(
@@ -512,15 +572,19 @@ class OrderPlugin(BasePlugin):
             parsed_resolvers[name] = OrderModuleResolver(**resolver_conf)
 
         self._validate_resolvers(parsed_resolvers, api_parser, module_key)
-
         raw_config["resolvers"] = parsed_resolvers
 
+        # Step 4: Create the initial config object.
         module_config = OrderModuleConfig(**raw_config)
 
-        # Infer params from offering_type and merge them into the module_config
+        # Step 5: Infer additional parameters from the offering type schema.
         inferred_params = self._infer_offering_params(module_config, api_parser)
+
+        # Step 6: Merge inferred params with manually defined params. Manual
+        # definitions take precedence, allowing for overrides.
         final_params_dict = {p.name: p for p in inferred_params}
         for manual_param in module_config.attribute_params:
             final_params_dict[manual_param.name] = manual_param
         module_config.attribute_params = list(final_params_dict.values())
+
         return module_config
