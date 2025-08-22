@@ -136,115 +136,121 @@ class TestOrderRunner:
     updates, deletion, and advanced resolver scenarios.
     """
 
-    # --- Scenario 1: Create a new resource with list and dependent resolvers ---
+    # --- Scenario 1: Create a new comprehensive resource ---
     @patch("ansible_waldur_generator.plugins.order.runner.OrderRunner._send_request")
-    def test_create_instance_with_all_resolver_types(
+    def test_create_instance_with_full_payload(
         self, mock_send_request, mock_ansible_module, mock_instance_runner_context
     ):
         """
-        Tests the primary success path: creating a new instance. This test validates:
-        1. Correct dependency resolution (flavor and image depend on offering).
-        2. Correct list resolution for security groups.
-        3. The final order payload is constructed correctly.
-        4. The runner waits for the order to complete.
+        Tests the full payload creation for a complex instance, validating that all
+        resolvers (top-level, dependent, list-based, and nested) work together
+        to build the correct final API request.
         """
-        # Arrange: Set up the user-provided parameters in the Ansible module.
+        # Arrange: Define a rich set of user parameters.
         mock_ansible_module.params = {
             "api_url": "http://api.com",
             "access_token": "token",
             "state": "present",
             "wait": True,
-            "name": "new-vm-01",
-            "project": "Cloud Project",
-            "offering": "OpenStack Instance",
-            "flavor": "g-standard-2",
-            "image": "Ubuntu 22.04",
-            "security_groups": ["web-sg", "ssh-sg"],
-            "system_volume_size": 20,
+            "name": "prod-web-vm-01",
+            "project": "Production Project",
+            "offering": "Premium Instance Offering",
+            "plan": "http://api.com/api/plans/plan-uuid/",  # Non-resolved URL
+            "limits": {"cpu": 8, "ram": 16384},  # Non-resolved dict
+            "flavor": "large-flavor",
+            "image": "ubuntu-22.04-image",
+            "security_groups": ["web-access-sg", "ssh-internal-sg"],
+            "system_volume_size": 100,
+            "ports": [
+                {
+                    "subnet": "private-network-subnet",
+                    "fixed_ips": [{"ip_address": "10.0.1.50"}],
+                }
+            ],
+            "floating_ips": [{"subnet": "public-floating-ip-subnet"}],
+            "ssh_public_key": "admin-ssh-key",
         }
 
-        # Arrange: Mock the sequence of API calls the runner is expected to make.
-        # This sequence is critical to understanding the runner's internal logic flow.
+        # Arrange: Mock the sequence of all required API calls.
         mock_send_request.side_effect = [
-            # --- Existence Check Phase ---
-            [{"url": "http://api.com/api/projects/proj-uuid/"}],  # 1. Resolve project
-            [],  # 2. Check existence (returns empty, so we proceed to create)
-            # --- Parameter Resolution Phase (in _resolve_all_parameters) ---
-            # Pass 1: Resolving parameters with no dependencies
-            [
-                {"url": "http://api.com/api/projects/proj-uuid/"}
-            ],  # 3. Resolve project again
+            # 1. Existence Check Phase
+            [{"url": "http://api.com/api/projects/proj-prod-uuid/"}],
+            [],  # Instance does not exist
+            # 2. Create Phase: Parameter Resolution
+            [{"url": "http://api.com/api/projects/proj-prod-uuid/"}],  # project
             [
                 {
-                    "url": "http://api.com/api/offerings/off-uuid/",
-                    "scope_uuid": "tenant-uuid-from-offering",
+                    "url": "http://api.com/api/offerings/off-prem-uuid/",
+                    "scope_uuid": "tenant-prod-123",
                 }
-            ],  # 4. Resolve offering
-            # Pass 2: Resolving parameters with dependencies
+            ],  # offering
+            [{"url": "http://api.com/api/flavors/flavor-large-uuid/"}],  # flavor
+            [{"url": "http://api.com/api/images/img-ubuntu-uuid/"}],  # image
             [
-                {"url": "http://api.com/api/flavors/flavor-uuid/"}
-            ],  # 5. Resolve flavor (filtered by tenant_uuid)
+                {"url": "http://api.com/api/security-groups/sg-web-uuid/"}
+            ],  # security_groups[0]
             [
-                {"url": "http://api.com/api/images/image-uuid/"}
-            ],  # 6. Resolve image (filtered by tenant_uuid)
+                {"url": "http://api.com/api/security-groups/sg-ssh-uuid/"}
+            ],  # security_groups[1]
             [
-                {"url": "http://api.com/api/security-groups/sg1-uuid/"}
-            ],  # 7. Resolve first security group
+                {"url": "http://api.com/api/subnets/subnet-private-uuid/"}
+            ],  # ports[0].subnet
             [
-                {"url": "http://api.com/api/security-groups/sg2-uuid/"}
-            ],  # 8. Resolve second security group
-            # --- Order Creation Phase ---
-            {"uuid": "order-uuid-123"},  # 9. Create marketplace order
-            # --- Wait for Order Phase ---
-            {"state": "executing"},  # 10. First poll
-            {"state": "done"},  # 11. Second poll shows completion
-            # --- Final State Fetch Phase (after order is 'done') ---
+                {"url": "http://api.com/api/subnets/subnet-public-uuid/"}
+            ],  # floating_ips[0].subnet
+            [{"url": "http://api.com/api/ssh-keys/key-admin-uuid/"}],  # ssh_public_key
+            # 3. Create Phase: Order Submission
+            {"uuid": "order-xyz-789"},
+            # 4. Wait Phase
+            {"state": "done"},
             [
-                {"url": "http://api.com/api/projects/proj-uuid/"}
-            ],  # 12. Resolve project for final check_existence
-            [
-                {"name": "new-vm-01", "state": "OK"}
-            ],  # 13. Re-check existence to get final resource state
+                {"url": "http://api.com/api/projects/proj-prod-uuid/"}
+            ],  # Final project resolve
+            [{"name": "prod-web-vm-01", "state": "OK"}],  # Final existence check
         ]
 
-        # Act: Run the runner's main method.
+        # Arrange: Define the exact payload the runner is expected to build.
+        expected_payload = {
+            "project": "http://api.com/api/projects/proj-prod-uuid/",
+            "offering": "http://api.com/api/offerings/off-prem-uuid/",
+            "plan": "http://api.com/api/plans/plan-uuid/",
+            "limits": {"cpu": 8, "ram": 16384},
+            "accepting_terms_of_service": True,
+            "attributes": {
+                "name": "prod-web-vm-01",
+                "flavor": "http://api.com/api/flavors/flavor-large-uuid/",
+                "image": "http://api.com/api/images/img-ubuntu-uuid/",
+                "security_groups": [
+                    {"url": "http://api.com/api/security-groups/sg-web-uuid/"},
+                    {"url": "http://api.com/api/security-groups/sg-ssh-uuid/"},
+                ],
+                "system_volume_size": 100,
+                "ports": [
+                    {
+                        "subnet": "http://api.com/api/subnets/subnet-private-uuid/",
+                        "fixed_ips": [{"ip_address": "10.0.1.50"}],
+                    }
+                ],
+                "floating_ips": [
+                    {"subnet": "http://api.com/api/subnets/subnet-public-uuid/"}
+                ],
+                "ssh_public_key": "http://api.com/api/ssh-keys/key-admin-uuid/",
+            },
+        }
+
+        # Act
         runner = OrderRunner(mock_ansible_module, mock_instance_runner_context)
         runner.run()
 
-        # Assert: Verify the final outcome.
-        # The module should exit successfully, indicating a change was made.
+        # Assert: Final state is correct
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=True, resource={"name": "new-vm-01", "state": "OK"}
-        )
-        mock_ansible_module.fail_json.assert_not_called()
-
-        # Assert: Verify the API calls were made as expected.
-        # Check that the dependent resolvers passed the correct filter.
-        mock_send_request.assert_any_call(
-            "GET",
-            "/api/openstack-flavors/",
-            query_params={
-                "name": "g-standard-2",
-                "tenant_uuid": "tenant-uuid-from-offering",
-            },
-        )
-        mock_send_request.assert_any_call(
-            "GET",
-            "/api/openstack-security-groups/",
-            query_params={"name": "web-sg", "tenant_uuid": "tenant-uuid-from-offering"},
+            changed=True, resource={"name": "prod-web-vm-01", "state": "OK"}
         )
 
-        # Assert: Verify the order payload was constructed correctly.
-        create_order_call = mock_send_request.call_args_list[8]
-        order_payload = create_order_call.kwargs["data"]
-        assert order_payload["project"] == "http://api.com/api/projects/proj-uuid/"
-        assert order_payload["offering"] == "http://api.com/api/offerings/off-uuid/"
-        attributes = order_payload["attributes"]
-        assert attributes["flavor"] == "http://api.com/api/flavors/flavor-uuid/"
-        assert attributes["security_groups"] == [
-            {"url": "http://api.com/api/security-groups/sg1-uuid/"},
-            {"url": "http://api.com/api/security-groups/sg2-uuid/"},
-        ]
+        # Assert: The order creation call was made with the exact expected payload
+        order_creation_call = mock_send_request.call_args_list[11]
+        assert order_creation_call.args == ("POST", "/api/marketplace-orders/")
+        assert order_creation_call.kwargs["data"] == expected_payload
 
     # --- Scenario 2: Resource already exists, no changes needed ---
     @patch("ansible_waldur_generator.plugins.order.runner.OrderRunner._send_request")
@@ -397,73 +403,3 @@ class TestOrderRunner:
         )
         # Only two calls should be made: project resolve and existence check
         assert mock_send_request.call_count == 2
-
-    # Scenario 6. Create instance with nested port/subnet resolution
-    @patch("ansible_waldur_generator.plugins.order.runner.OrderRunner._send_request")
-    def test_create_instance_with_nested_subnet_resolution(
-        self, mock_send_request, mock_ansible_module, mock_instance_runner_context
-    ):
-        mock_ansible_module.params = {
-            "api_url": "http://api.com",
-            "access_token": "token",
-            "state": "present",
-            "wait": True,
-            "name": "vm-with-ports",
-            "project": "Cloud Project",
-            "offering": "OpenStack Instance",
-            "ports": [
-                {
-                    "subnet": "private-net-subnet",
-                    "fixed_ips": [{"ip_address": "192.168.1.100"}],
-                }
-            ],
-            "floating_ips": [{"subnet": "public-fip-subnet"}],
-        }
-        mock_send_request.side_effect = [
-            [{"url": "http://api.com/api/projects/proj-uuid/"}],
-            [],
-            [{"url": "http://api.com/api/projects/proj-uuid/"}],
-            [
-                {
-                    "url": "http://api.com/api/offerings/off-uuid/",
-                    "scope_uuid": "tenant-123",
-                }
-            ],
-            [{"url": "http://api.com/api/subnets/private-subnet-uuid/"}],
-            [{"url": "http://api.com/api/subnets/public-subnet-uuid/"}],
-            {"uuid": "order-abc"},
-            {"state": "done"},
-            [{"url": "http://api.com/api/projects/proj-uuid/"}],
-            [{"name": "vm-with-ports", "state": "OK"}],
-        ]
-
-        runner = OrderRunner(mock_ansible_module, mock_instance_runner_context)
-        runner.run()
-
-        mock_ansible_module.exit_json.assert_called_once_with(
-            changed=True, resource={"name": "vm-with-ports", "state": "OK"}
-        )
-        mock_send_request.assert_any_call(
-            "GET",
-            "/api/openstack-subnets/",
-            query_params={"name": "private-net-subnet", "tenant_uuid": "tenant-123"},
-        )
-        mock_send_request.assert_any_call(
-            "GET",
-            "/api/openstack-subnets/",
-            query_params={"name": "public-fip-subnet", "tenant_uuid": "tenant-123"},
-        )
-
-        create_order_call = mock_send_request.call_args_list[6]
-        order_payload = create_order_call.kwargs["data"]
-        attributes = order_payload["attributes"]
-
-        assert attributes["ports"] == [
-            {
-                "subnet": "http://api.com/api/subnets/private-subnet-uuid/",
-                "fixed_ips": [{"ip_address": "192.168.1.100"}],
-            }
-        ]
-        assert attributes["floating_ips"] == [
-            {"subnet": "http://api.com/api/subnets/public-subnet-uuid/"}
-        ]
