@@ -116,32 +116,38 @@ Below is a detailed explanation of each available plugin.
     modules:
       - name: security_group_facts
         plugin: facts
-
-        # User-friendly name for the resource, used in messages and docs.
         resource_type: "security group"
         description: "Get facts about OpenStack security groups."
 
-        # The API operation to get a list of security groups.
-        list_operation: "openstack_security_groups_list"
+        # Defines the base prefix for API operations. The 'facts' plugin uses
+        # this to automatically infer the necessary operation IDs:
+        #  - `check`: via `openstack_security_groups_list`
+        #  - `retrieve`: via `openstack_security_groups_retrieve`
+        # The 'operations' block is therefore not needed for a conventional API.
+        base_operation_id: "openstack_security_groups"
 
-        # The API operation to get a single security group by its UUID.
-        retrieve_operation: "openstack_security_groups_retrieve"
-
-        # `many: true` allows the module to return a list of multiple security groups.
-        # If this were false, finding more than one group would result in an error.
+        # If `true`, the module is allowed to return a list of multiple resources
+        # that match the filter criteria.
+        # If `false` (the default), the module would fail if more than one
+        # resource is found, ensuring a unique result.
         many: true
 
-        # `context_params` define additional parameters for filtering the search.
+        # Defines additional parameters that can be used to filter the search.
+        # This is essential for finding resources within a specific scope.
         context_params:
-          - name: "tenant"
+          - # The name of the Ansible parameter the user will provide.
+            name: "tenant"
             description: "The name or UUID of the tenant to filter security groups by."
-            # The resolver tells the generator how to convert the tenant's name/UUID
-            # into the filter key needed by the 'openstack_security_groups_list' operation.
-            resolver:
-              list: "openstack_tenants_list"
-              retrieve: "openstack_tenants_retrieve"
-              # `filter_key` is the query parameter used in the `list_operation` call.
-              filter_key: "tenant_uuid"
+
+            # Tells the generator how to resolve the user-provided 'tenant' name
+            # into the UUID needed by the API. The string "openstack_tenants" is
+            # a shorthand that expands to the standard list/retrieve operations for tenants.
+            resolver: "openstack_tenants"
+
+            # Specifies the exact query parameter key to use when calling the 'check'
+            # operation. The generator will construct a query like:
+            # `?tenant_uuid=<resolved_tenant_uuid>`
+            filter_key: "tenant_uuid"
     ```
 
 ---
@@ -162,82 +168,68 @@ Below is a detailed explanation of each available plugin.
         2.  If it exists, it calls the `destroy` operation to remove it.
 
 -   **Configuration Example (`generator_config.yaml`):**
-    This example creates a `project` module for managing Waldur projects, showcasing resolvers for handling dependencies.
-
-    ```yaml
-    modules:
-      # The key 'project' is used for the module filename project.
-      - name: project
-        plugin: crud
-
-        # The value is used for user-facing strings (e.g., in error messages).
-        resource_type: "project"
-
-        # Optional. If omitted, it will be auto-generated as "Manage projects in Waldur."
-        description: "Manage Projects in Waldur."
-
-        # This mandatory block maps standard Ansible actions to your API's operationIds.
-        operations:
-          list: "projects_list" # Used to check if the resource exists.
-          create: "projects_create" # Used when state=present and resource doesn't exist.
-          destroy: "projects_destroy" # Used when state=absent and resource exists.
-
-        # This optional block defines how to resolve certain parameters from a
-        # user-friendly name/UUID into an API URL, which is often required by the API.
-        resolvers:
-          # 'customer' is the name of the Ansible parameter to be resolved.
-          customer:
-            # The operationId used to find the resource by name.
-            list: "customers_list"
-            # The operationId used to find the resource by UUID (more efficient).
-            retrieve: "customers_retrieve"
-            # A user-friendly error message if the resource can't be found.
-            error_message: "Customer '{value}' not found."
-    ```
-
     This example creates a `security_group` module that is a **nested resource** under a tenant, and supports both simple updates (description) and a special action (set_rules).
 
     ```yaml
     modules:
       - name: security_group
         plugin: crud
-        resource_type: "security group"
-        description: "Manage OpenStack Security Groups."
+        resource_type: "OpenStack security group"
+        description: "Manage OpenStack Security Groups and their rules in Waldur."
 
-        # This block maps standard Ansible actions to your API's operationIds.
+        # The core prefix for inferring standard API operation IDs.
+        # By providing this, the generator automatically enables:
+        #  - `check`: via `openstack_security_groups_list`
+        #  - `delete`: via `openstack_security_groups_destroy`
+        base_operation_id: "openstack_security_groups"
+
+        # The 'operations' block is now only for EXCEPTIONS and detailed configuration.
+        # Since 'check' and 'delete' follow the convention, they are omitted here.
         operations:
-          list: "openstack_security_groups_list"
-          create: "openstack_tenants_create_security_group" # A nested create endpoint
-          destroy: "openstack_security_groups_destroy"
-          update: "openstack_security_groups_update"     # For PATCH updates
 
-        # This block is crucial for creating resources on nested endpoints.
-        # It maps the URL path placeholder '{uuid}' to the 'tenant' Ansible parameter.
-        path_param_maps:
+          # Configure the 'update' operation.
+          update:
+            # The 'id' is omitted because the API follows the default convention
+            # of using the '_partial_update' suffix.
+
+            # A list of simple fields that are mutable. If the user provides a
+            # different value for 'name' or 'description', a PATCH request will
+            # be sent to update the resource.
+            fields: ["name", "description"]
+
+            # Defines special, non-standard update actions that call dedicated
+            # POST endpoints. These are idempotent and schema-aware.
+            actions:
+              # 'set_rules' is the logical name for our action.
+              set_rules:
+                # The specific operationId to call when this action is triggered.
+                operation: "openstack_security_groups_set_rules"
+                # The name of the Ansible parameter that triggers this action and
+                # provides its data. The runner will only call the operation if
+                # the user provides the 'rules' parameter AND its value differs
+                # from the resource's current state.
+                param: "rules"
+
+          # Override the 'create' operation.
+          # This is necessary because creating a security group is a NESTED action
+          # under a tenant, so it doesn't follow the standard '[base_id]_create' pattern.
           create:
-            uuid: "tenant"
+            id: "openstack_tenants_create_security_group"
 
-        # This block defines how to handle updates for existing resources.
-        update_config:
-          # A list of fields that trigger a PATCH update if changed.
-          fields:
-            - "description"
-          # A map of special actions that call dedicated POST endpoints.
-          actions:
-            set_rules:
-              # The operation to call when the 'rules' parameter is provided.
-              operation: "openstack_security_groups_set_rules"
-              # The Ansible parameter that provides data for this action.
-              param: "rules"
+            # This block is crucial for nested endpoints. It maps the placeholder
+            # in the API URL path (`/api/openstack-tenants/{uuid}/...`) to the
+            # name of an Ansible parameter (`tenant`).
+            path_params:
+              uuid: "tenant"
 
-        # This block defines how to resolve parent/foreign key parameters.
+        # This block defines how to resolve dependencies.
         resolvers:
-          # The 'tenant' parameter is used in `path_param_maps` and must be resolved.
-          tenant:
-            list: "openstack_tenants_list"
-            retrieve: "openstack_tenants_retrieve"
-            error_message: "Tenant '{value}' not found."
-
+          # We need a resolver for 'tenant' because it's used in `path_params` for
+          # the 'create' operation. This tells the generator how to convert the
+          # user-friendly tenant name or UUID into the internal API URL/UUID
+          # needed for the API call.
+          tenant: "openstack_tenants" # Shorthand for the tenants resolver
+    ```
 ---
 
 ### 3. The `order` Plugin
@@ -262,56 +254,65 @@ Below is a detailed explanation of each available plugin.
     modules:
       - name: volume
         plugin: order
+        resource_type: "OpenStack volume"
+        description: "Create, update, or delete an OpenStack Volume via the marketplace."
 
-        # The offering type used to automatically infer attribute parameters
-        # from the OpenAPI schema. This greatly reduces boilerplate configuration.
+        # By specifying the offering type, the generator will automatically find the
+        # corresponding schema in the OpenAPI specification (e.g., for volume size,
+        # image, etc.) and generate all the necessary Ansible parameters.
+        # This dramatically reduces the amount of manual configuration required.
         offering_type: "OpenStack.Volume"
 
-        description: "Create, update, or delete an OpenStack Volume via the marketplace."
-        resource_type: "OpenStack volume"
+        # The base prefix for inferring standard API operation IDs.
+        # The 'order' plugin uses this to automatically enable:
+        #  - `check`: via `openstack_volumes_list` (to see if the volume already exists)
+        base_operation_id: "openstack_volumes"
 
-        # Specifies the API call to check if the final volume exists.
-        existence_check_op: "openstack_volumes_list"
+        # The 'operations' block is for opt-ins and overrides.
+        operations:
+          # Enable the 'update' operation for existing volumes.
+          update:
+            # The 'id' is omitted because the API follows the default convention
+            # of using the '_partial_update' suffix for updates.
+            # A list of fields that can be changed on an existing volume.
+            fields: ["description"]
 
-        # Specifies the API call to update an existing volume.
-        update_op: "openstack_volumes_update"
-
-        # A list of parameters that trigger an update if changed.
-        update_check_fields:
-          - "description"
-
-        # Defines how to convert user-friendly names into API URLs.
-        # The 'order' plugin supports advanced resolvers that can filter based on
-        # the results of other resolved parameters.
+        # This block defines how to resolve dependencies and filter choices for the
+        # module's parameters.
         resolvers:
-          flavor:
-            list: "openstack_flavors_list"
-            retrieve: "openstack_flavors_retrieve"
-            error_message: "Flavor '{value}' not found."
-            # This block tells the generator how to filter the flavor list.
+          # This resolver is for the 'type' parameter, which was automatically
+          # inferred from the offering_type schema.
+          type:
+            # Shorthand for the volume types API endpoints.
+            base: "openstack_volume_types"
+            # This is a powerful feature for dependent filtering. It tells the
+            # generator to filter the list of available volume types based on
+            # the cloud settings of the selected 'offering'.
             filter_by:
-              - # Use the resolved 'offering' parameter as the source.
+              - # The parameter whose resolved value we will use as the filter source.
                 source_param: "offering"
-                # Extract the 'scope_uuid' value from the offering's API response.
+                # The key to extract from the resolved offering's API response.
                 source_key: "scope_uuid"
-                # Use that value for the 'settings_uuid' query parameter when listing flavors.
+                # The query parameter to use when listing volume types. The final
+                # API call will be something like:
+                # `.../openstack-volume-types/?tenant_uuid=<offering_scope_uuid>`
                 target_key: "tenant_uuid"
 
-          # The same pattern can be applied to images, networks, etc.
+          # The same dependent filtering pattern is applied to the 'image' parameter.
           image:
-            list: "openstack_images_list"
-            retrieve: "openstack_images_retrieve"
-            error_message: "Image '{value}' not found."
+            base: "openstack_images"
             filter_by:
               - source_param: "offering"
                 source_key: "scope_uuid"
                 target_key: "tenant_uuid"
 
-          # This resolver is for the optional 'type' attribute.
-          type:
-            list: "openstack_volume_types_list"
-            retrieve: "openstack_volume_types_retrieve"
-            error_message: "Volume type '{value}' not found."
+          # And again for the 'availability_zone' parameter.
+          availability_zone:
+            base: "openstack_volume_availability_zones"
+            filter_by:
+              - source_param: "offering"
+                source_key: "scope_uuid"
+                target_key: "tenant_uuid"
     ```
 
 ## Architecture
