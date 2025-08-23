@@ -249,9 +249,44 @@ class BasePlugin(ABC):
             "short_description": description,
             "description": [description],
             "author": "Waldur Team",
-            "options": parameters,
+            "options": self._clean_parameters_for_documentation(parameters),
             "requirements": ["python >= 3.11"],
         }
+
+    def _clean_parameters_for_documentation(
+        self, parameters: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Filter the internal parameter dictionary to include only keys that are
+        valid for Ansible's DOCUMENTATION block. This prevents leaking internal
+        keys like 'is_resolved' or 'maps_to' into the final output.
+        """
+
+        # Define the set of all valid keys for an option in the DOCUMENTATION block.
+        VALID_DOC_KEYS = {
+            "description",
+            "required",
+            "type",
+            "default",
+            "choices",
+            "no_log",
+            "suboptions",
+            "elements",
+        }
+
+        # Create a new, clean dictionary for the documentation options.
+        cleaned_options = {}
+        for name, opts in parameters.items():
+            # For each parameter, build a new dict containing only the valid keys.
+            clean_opts = {}
+            for key, value in opts.items():
+                if key in VALID_DOC_KEYS:
+                    # Special handling to prevent `choices: null` in the output.
+                    if key == "choices" and not value:
+                        continue
+                    clean_opts[key] = value
+            cleaned_options[name] = clean_opts
+        return cleaned_options
 
     def _build_examples_from_schema(
         self,
