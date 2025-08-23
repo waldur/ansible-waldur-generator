@@ -125,7 +125,7 @@ class OrderRunner(BaseRunner):
         for key in self.context["attribute_param_names"]:
             if key in self.module.params and self.module.params[key] is not None:
                 # Recursively resolve the entire parameter structure.
-                attributes[key] = self._resolve_parameter(key, self.module.params[key])
+                attributes[key] = self.resolver.resolve(key, self.module.params[key])
 
         order_payload = {
             "project": project_url,
