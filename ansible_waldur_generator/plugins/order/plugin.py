@@ -14,6 +14,7 @@ from ansible_waldur_generator.plugins.order.config import (
     OrderModuleResolver,
     ParameterConfig,
     OrderModuleConfig,
+    UpdateActionConfig,
 )
 
 # A base dictionary for the module's argument_spec, containing common
@@ -283,6 +284,15 @@ class OrderPlugin(BasePlugin):
             "update_check_fields": stable_update_check_fields,
             "attribute_param_names": stable_attribute_param_names,
             "resolvers": resolvers_data,
+            # Pass the update actions context to the runner
+            "update_actions": {
+                name: {
+                    "path": action.operation.path,
+                    "param": action.param,
+                    "compare_key": action.compare_key,
+                }
+                for name, action in module_config.update_actions.items()
+            },
         }
 
     def _build_schema_for_attributes(
@@ -573,6 +583,15 @@ class OrderPlugin(BasePlugin):
                 update_id = update_op_conf.get("id", f"{base_id}_partial_update")
                 if "fields" in update_op_conf:
                     raw_config["update_check_fields"] = update_op_conf["fields"]
+                # Parse update actions configuration
+                if "actions" in update_op_conf:
+                    parsed_actions = {}
+                    for name, action_conf in update_op_conf["actions"].items():
+                        action_conf["operation"] = api_parser.get_operation(
+                            action_conf["operation"]
+                        )
+                        parsed_actions[name] = UpdateActionConfig(**action_conf)
+                    raw_config["update_actions"] = parsed_actions
             if update_id:
                 raw_config["update_op"] = update_id
 

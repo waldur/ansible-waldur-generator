@@ -176,6 +176,28 @@ class OrderRunner(BaseRunner):
             )
             self.has_changed = True
 
+        # 2. Handle complex, action-based updates (e.g., updating ports).
+        update_actions = self.context.get("update_actions", {})
+        for _, action_info in update_actions.items():
+            param_name = action_info["param"]
+            compare_key = action_info["compare_key"]
+            param_value = self.module.params.get(param_name)
+            resource_value = self.resource.get(compare_key)
+
+            # Idempotency Check: only call the action if the user-provided
+            # value is different from the current state on the resource.
+            if param_value is not None and param_value != resource_value:
+                self._send_request(
+                    "POST",
+                    action_info["path"],
+                    data=param_value,
+                    path_params={"uuid": self.resource["uuid"]},
+                )
+                self.has_changed = True
+                # After a complex action, the resource state might have changed
+                # significantly. Re-fetch it to ensure the returned data is accurate.
+                self.check_existence()
+
     def delete(self):
         """
         Terminates the resource by calling the marketplace termination endpoint.
@@ -235,6 +257,15 @@ class OrderRunner(BaseRunner):
                     if param_value is not None and param_value != resource_value:
                         self.has_changed = True
                         break
+            # Predicts if any action-based updates would trigger.
+            if not self.has_changed:
+                for action_info in self.context.get("update_actions", {}).values():
+                    param_value = self.module.params.get(action_info["param"])
+                    if self.resource:
+                        resource_value = self.resource.get(action_info["compare_key"])
+                        if param_value is not None and param_value != resource_value:
+                            self.has_changed = True
+                            break
         self.exit()
 
     def exit(self):

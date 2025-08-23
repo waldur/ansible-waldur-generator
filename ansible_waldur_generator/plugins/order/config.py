@@ -4,6 +4,19 @@ from typing import Dict, List
 from ansible_waldur_generator.models import ApiOperation
 
 
+class UpdateActionConfig(BaseModel):
+    """Configuration for a complex, idempotent update action."""
+
+    operation: ApiOperation
+    param: str  # The Ansible parameter providing the data.
+    compare_key: (
+        str  # The key on the existing resource to compare against for idempotency.
+    )
+
+    class Config:
+        arbitrary_types_allowed = True
+
+
 class FilterByConfig(BaseModel):
     """
     Defines a dependency for filtering a resolver's list query.
@@ -58,6 +71,7 @@ class OrderModuleConfig(BaseModel):
     existence_check_op: ApiOperation
     update_op: ApiOperation | None = None
     update_check_fields: List[str] = Field(default_factory=list)
+    update_actions: Dict[str, UpdateActionConfig] = Field(default_factory=dict)
     attribute_params: List[ParameterConfig] = Field(default_factory=list)
     resolvers: Dict[str, OrderModuleResolver] = Field(default_factory=dict)
     has_limits: bool = False
