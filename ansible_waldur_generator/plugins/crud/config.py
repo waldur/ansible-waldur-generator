@@ -53,7 +53,7 @@ class UpdateConfig(BaseModel):
     # on the resource. If any of these parameters have changed, a PATCH request
     # will be sent to the `update_operation` endpoint.
     # Example: ["name", "description"]
-    fields: List[str] = Field(default_factory=list)
+    fields: List[str] | None = None
 
     # A dictionary mapping a logical action name to its configuration. This is for
     # more complex updates that require calling a special action endpoint.
@@ -76,15 +76,19 @@ class CrudModuleConfig(BaseModel):
 
     # --- Core Lifecycle Operations ---
 
+    # The base part of the OpenAPI operationId, used to infer full operation IDs.
+    # Example: 'projects' becomes 'projects_list', 'projects_create', etc.
+    base_operation_id: str | None = None
+
     # The API operation for checking if a resource exists (typically a 'list' endpoint).
-    check_operation: ApiOperation
+    check_operation: ApiOperation | None = None
 
     # The API operation for creating a new resource when `state: present`.
     # This can be a nested endpoint (e.g., under a parent resource).
-    create_operation: ApiOperation
+    create_operation: ApiOperation | None = None
 
     # The API operation for deleting a resource when `state: absent`.
-    destroy_operation: ApiOperation
+    destroy_operation: ApiOperation | None = None
 
     # The API operation for updating a resource with simple field changes (e.g., PATCH).
     # This is optional; if omitted, only action-based updates will be possible.

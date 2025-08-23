@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List
 from pydantic import BaseModel, Field, field_validator
 
 from ansible_waldur_generator.models import ApiOperation
@@ -9,14 +9,10 @@ class ContextParam(BaseModel):
     type: str = "str"
     required: bool = False
     description: str | None = None
-    resolver: Dict[str, str]
-
-    @field_validator("resolver")
-    def resolver_must_contain_required_keys(cls, v):
-        required_keys = {"list", "retrieve", "filter_key"}
-        if not required_keys.issubset(v):
-            raise ValueError(f"Resolver must contain {required_keys}")
-        return v
+    resolver: str
+    # `resolver` is just a string, representing the base_operation_id
+    # of the parent resource (e.g., "openstack_tenants")
+    filter_key: str
 
 
 class FactsModuleConfig(BaseModel):
@@ -24,8 +20,8 @@ class FactsModuleConfig(BaseModel):
 
     description: str | None = None
     resource_type: str
-    list_operation: ApiOperation
-    retrieve_operation: ApiOperation
+    list_operation: ApiOperation | None = None
+    retrieve_operation: ApiOperation | None = None
     context_params: List[ContextParam] = Field(default_factory=list)
     many: bool = False
     identifier_param: str = "name"

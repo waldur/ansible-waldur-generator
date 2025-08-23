@@ -541,28 +541,67 @@ class OrderPlugin(BasePlugin):
         enriches it with inferred data, validates it, and returns a structured
         `OrderModuleConfig` object.
         """
-        # Step 1: Add default resolvers for 'offering' and 'project', as they
+        raw_config.setdefault(
+            "resource_type", raw_config["offering_type"].replace(".", " ")
+        )
+        raw_config.setdefault(
+            "description",
+            f"Create, update or delete a {raw_config['resource_type']} via the marketplace.",
+        )
+        base_id = raw_config.get("base_operation_id", "")
+        operations_config = raw_config.get("operations", {})
+
+        # Infer 'check' operation by default unless explicitly overridden.
+        check_op_conf = operations_config.get("check")
+        if check_op_conf is None:
+            raw_config["check_op"] = f"{base_id}_list"
+        elif isinstance(check_op_conf, str):
+            raw_config["check_op"] = check_op_conf
+
+        # Handle the opt-in 'update' operation and its nested configuration.
+        update_op_conf = operations_config.get("update")
+        if update_op_conf:
+            update_id = None
+            if update_op_conf is True:
+                # Infer with the new default suffix.
+                update_id = f"{base_id}_partial_update"
+            elif isinstance(update_op_conf, str):
+                # Handle explicit ID override.
+                update_id = update_op_conf
+            elif isinstance(update_op_conf, dict):
+                # Handle nested config, inferring ID if not provided.
+                update_id = update_op_conf.get("id", f"{base_id}_partial_update")
+                if "fields" in update_op_conf:
+                    raw_config["update_check_fields"] = update_op_conf["fields"]
+            if update_id:
+                raw_config["update_op"] = update_id
+
+        # Add default resolvers for 'offering' and 'project', as they
         # are required for every order module.
         raw_config.setdefault("resolvers", {})
-        raw_config["resolvers"]["offering"] = {
-            "list": "marketplace_public_offerings_list",
-            "retrieve": "marketplace_public_offerings_retrieve",
-        }
-        raw_config["resolvers"]["project"] = {
-            "list": "projects_list",
-            "retrieve": "projects_retrieve",
-        }
+        raw_config["resolvers"].setdefault("offering", "marketplace_public_offerings")
+        raw_config["resolvers"].setdefault("project", "projects")
 
-        # Step 2: Convert all operationId strings into full ApiOperation objects.
+        # Convert all operationId strings into full ApiOperation objects.
         raw_config["existence_check_op"] = api_parser.get_operation(
-            raw_config["existence_check_op"]
+            raw_config["check_op"]
         )
         if "update_op" in raw_config:
             raw_config["update_op"] = api_parser.get_operation(raw_config["update_op"])
 
-        # Step 3: Parse the resolver configurations into Pydantic models for validation.
+        # Parse the resolver configurations, expanding shorthand where needed
         parsed_resolvers = {}
         for name, resolver_conf in raw_config.get("resolvers", {}).items():
+            if isinstance(resolver_conf, str):
+                resolver_conf = {
+                    "list": f"{resolver_conf}_list",
+                    "retrieve": f"{resolver_conf}_retrieve",
+                }
+            elif "base" in resolver_conf:
+                base = resolver_conf["base"]
+                resolver_conf["list"] = f"{base}_list"
+                resolver_conf["retrieve"] = f"{base}_retrieve"
+
             resolver_conf["list_operation"] = api_parser.get_operation(
                 resolver_conf["list"]
             )
@@ -574,13 +613,13 @@ class OrderPlugin(BasePlugin):
         self._validate_resolvers(parsed_resolvers, api_parser, module_key)
         raw_config["resolvers"] = parsed_resolvers
 
-        # Step 4: Create the initial config object.
+        # Create the initial config object.
         module_config = OrderModuleConfig(**raw_config)
 
-        # Step 5: Infer additional parameters from the offering type schema.
+        # Infer additional parameters from the offering type schema.
         inferred_params = self._infer_offering_params(module_config, api_parser)
 
-        # Step 6: Merge inferred params with manually defined params. Manual
+        # Merge inferred params with manually defined params. Manual
         # definitions take precedence, allowing for overrides.
         final_params_dict = {p.name: p for p in inferred_params}
         for manual_param in module_config.attribute_params:

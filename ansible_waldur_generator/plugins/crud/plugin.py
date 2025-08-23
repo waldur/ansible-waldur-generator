@@ -249,47 +249,65 @@ class CrudPlugin(BasePlugin):
             delete_identifier_param="name",
         )
 
-    def _validate_config(self, config: Dict[str, Any]):
-        """Performs basic validation on the raw module configuration."""
-        # Ensure all mandatory operations are defined.
-        operations = config.get("operations", {})
-        required = ["list", "create", "destroy"]
-        missing = [op for op in required if op not in operations]
-        if missing:
-            raise ValueError(f"Missing required operations in config: {missing}")
-
-        # Ensure all resolvers are well-formed.
-        for name, resolver in config.get("resolvers", {}).items():
-            if "list" not in resolver or "retrieve" not in resolver:
-                raise ValueError(
-                    f"Resolver '{name}' is missing list/retrieve operations"
-                )
-
     def _parse_configuration(
         self,
         module_key: str,
         raw_config: Dict[str, Any],
         api_parser: ApiSpecParser,
     ):
-        self._validate_config(raw_config)
+        base_id = raw_config.get("base_operation_id")
+        operations_config = raw_config.get("operations", {})
+        path_param_maps = {}
 
-        # 1. Parse all operationIds from the config into full ApiOperation objects.
-        operations = raw_config["operations"]
-        raw_config["check_operation"] = api_parser.get_operation(operations["list"])
-        raw_config["create_operation"] = api_parser.get_operation(operations["create"])
-        raw_config["destroy_operation"] = api_parser.get_operation(
-            operations["destroy"]
-        )
+        op_map = {
+            "check": ("check_operation", "_list"),
+            "create": ("create_operation", "_create"),
+            "delete": ("destroy_operation", "_destroy"),
+            "update": ("update_operation", "_partial_update"),
+        }
 
-        if "update" in operations:
-            raw_config["update_operation"] = api_parser.get_operation(
-                operations["update"]
-            )
+        for op_key, (field_name, op_suffix) in op_map.items():
+            op_conf = operations_config.get(op_key, None)
 
+            # If the user explicitly disables this op, skip it.
+            if op_conf is False:
+                continue
+
+            op_id = None
+            # Case 1: Handle explicit overrides (str or dict)
+            if isinstance(op_conf, (str, dict)):
+                if isinstance(op_conf, str):
+                    op_id = op_conf
+                else:  # dict
+                    op_id = op_conf.get("id")
+                    if "path_params" in op_conf:
+                        path_param_maps[op_key] = op_conf["path_params"]
+                    if op_key == "update":
+                        if "fields" in op_conf:
+                            raw_config.setdefault("update_config", {})["fields"] = (
+                                op_conf["fields"]
+                            )
+                        if "actions" in op_conf:
+                            raw_config.setdefault("update_config", {})["actions"] = (
+                                op_conf["actions"]
+                            )
+            # Case 2: Infer the operation if it's not disabled, not overridden, and not 'false'.
+            elif op_conf is not False:
+                if not base_id:
+                    raise ValueError(
+                        f"Cannot infer operation '{op_key}' because `base_operation_id` is not defined."
+                    )
+                op_id = f"{base_id}{op_suffix}"
+
+            if op_id:
+                raw_config[field_name] = api_parser.get_operation(op_id)
+
+        raw_config["path_param_maps"] = path_param_maps
+
+        # Post-process actions within update_config
         update_config_raw = raw_config.get("update_config", {})
-        if update_config_raw:
-            actions_raw = update_config_raw.get("actions", {})
-            for _, action_conf in actions_raw.items():
+        if "actions" in update_config_raw:
+            for _, action_conf in update_config_raw["actions"].items():
                 action_conf["operation"] = api_parser.get_operation(
                     action_conf["operation"]
                 )
@@ -309,12 +327,27 @@ class CrudPlugin(BasePlugin):
 
         # Parse resolver operationIds as well.
         for name, resolver_conf in raw_config.get("resolvers", {}).items():
-            resolver_conf["list_operation"] = api_parser.get_operation(
-                resolver_conf["list"]
+            if isinstance(resolver_conf, str):
+                # Expand shorthand
+                raw_config["resolvers"][name] = {
+                    "list": f"{resolver_conf}_list",
+                    "retrieve": f"{resolver_conf}_retrieve",
+                }
+            # Re-fetch the (potentially new) conf
+            current_resolver_conf = raw_config["resolvers"][name]
+            current_resolver_conf["list_operation"] = api_parser.get_operation(
+                current_resolver_conf["list"]
             )
-            resolver_conf["retrieve_operation"] = api_parser.get_operation(
-                resolver_conf["retrieve"]
+            current_resolver_conf["retrieve_operation"] = api_parser.get_operation(
+                current_resolver_conf["retrieve"]
             )
 
-        # 2. Create a strongly-typed configuration object using Pydantic.
-        return CrudModuleConfig(**raw_config)
+        module_config = CrudModuleConfig(**raw_config)
+
+        # Final validation after parsing
+        if not module_config.check_operation:
+            raise ValueError(f"Module '{module_key}' must have a 'check' operation.")
+        if not module_config.create_operation:
+            raise ValueError(f"Module '{module_key}' must have a 'create' operation.")
+
+        return module_config
