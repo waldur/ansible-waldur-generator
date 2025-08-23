@@ -38,6 +38,11 @@ class UpdateAction(BaseModel):
     # The name of the Ansible parameter that triggers this action and provides its data (e.g., 'rules').
     param: str
 
+    # An optional field to specify which key on the existing resource
+    # should be used for the idempotency check. If omitted, it defaults
+    # to the value of 'param'.
+    check_field: str | None = None
+
     class Config:
         arbitrary_types_allowed = True
 

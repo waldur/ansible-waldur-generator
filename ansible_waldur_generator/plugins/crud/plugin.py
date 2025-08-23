@@ -94,9 +94,17 @@ class CrudPlugin(BasePlugin):
         update_actions_context = {}
         if conf.update_config and conf.update_config.actions:
             for key, action in conf.update_config.actions.items():
+                request_body_schema = action.operation.model_schema or {}
+                # If the schema is a direct array, we pass the data directly.
+                # Otherwise, we wrap it in an object with the parameter name as the key.
+                body_format_is_object = request_body_schema.get("type") == "object"
+
                 update_actions_context[key] = {
                     "path": action.operation.path,
                     "param": action.param,
+                    "check_field": action.check_field
+                    or action.param,  # Default check_field to param name
+                    "wrap_in_object": body_format_is_object,
                 }
 
         update_fields = []
@@ -109,9 +117,13 @@ class CrudPlugin(BasePlugin):
         return {
             "resource_type": conf.resource_type,
             # API paths for each lifecycle stage.
-            "list_path": conf.check_operation.path,
-            "create_path": conf.create_operation.path,
-            "destroy_path": conf.destroy_operation.path,
+            "list_path": conf.check_operation.path if conf.check_operation else None,
+            "create_path": conf.create_operation.path
+            if conf.create_operation
+            else None,
+            "destroy_path": conf.destroy_operation.path
+            if conf.destroy_operation
+            else None,
             "update_path": conf.update_operation.path
             if conf.update_operation
             else None,

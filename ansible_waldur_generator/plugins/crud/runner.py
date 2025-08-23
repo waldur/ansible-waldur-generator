@@ -146,14 +146,27 @@ class CrudRunner(BaseRunner):
         for _, action_info in update_actions.items():
             param_name = action_info["param"]
             param_value = self.module.params.get(param_name)
-            # If the user provided the parameter for this action, execute it.
-            if param_value is not None:
+
+            # Perform idempotency check before executing the action.
+            # Compare the user-provided value with the corresponding field on the resource.
+            check_field = action_info["check_field"]
+            if param_value is not None and param_value != self.resource.get(
+                check_field
+            ):
+                # Construct the request body based on the schema analysis
+                # done by the plugin.
+                if action_info.get("wrap_in_object"):
+                    data_to_send = {param_name: param_value}
+                else:
+                    data_to_send = param_value
+
                 self._send_request(
                     "POST",
                     action_info["path"],
-                    data=param_value,
+                    data=data_to_send,
                     path_params={"uuid": self.resource["uuid"]},
                 )
+
                 # After an action, the resource state might have changed significantly,
                 # so we re-fetch it to ensure our local state is accurate.
                 self.check_existence()
