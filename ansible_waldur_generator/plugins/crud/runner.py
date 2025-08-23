@@ -203,9 +203,15 @@ class CrudRunner(BaseRunner):
             # Predicts action-based updates.
             if not self.has_changed:
                 for action_info in self.context.get("update_actions", {}).values():
-                    if self.module.params.get(action_info["param"]) is not None:
+                    param_value = self.module.params.get(action_info["param"])
+                    # Add idempotency check for actions in check mode.
+                    check_field = action_info["check_field"]
+                    if param_value is not None and param_value != self.resource.get(
+                        check_field
+                    ):
                         self.has_changed = True
                         break
+
         self.exit()
 
     def exit(self):
