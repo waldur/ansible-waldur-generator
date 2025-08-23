@@ -1,3 +1,4 @@
+from ansible_waldur_generator.interfaces.resolver import ParameterResolver
 from ansible_waldur_generator.interfaces.runner import BaseRunner
 
 
@@ -15,6 +16,15 @@ class CrudRunner(BaseRunner):
           handle both simple field changes (PATCH) and special actions (POST)
           within a single `state: present` task.
     """
+
+    def __init__(self, module, context):
+        """
+        Initializes the runner and its composed ParameterResolver.
+        """
+        super().__init__(module, context)
+        # An instance of the resolver is created, giving this runner access to
+        # all the centralized resolution logic.
+        self.resolver = ParameterResolver(self)
 
     def run(self):
         """
@@ -69,13 +79,10 @@ class CrudRunner(BaseRunner):
             for key in self.context["model_param_names"]
             if key in self.module.params and self.module.params[key] is not None
         }
-        # Resolve any foreign key parameters (e.g., 'customer' name) to their full API URLs.
-        for name, resolver in self.context.get("resolvers", {}).items():
+        for name in self.context.get("resolvers", {}).keys():
             if self.module.params.get(name) and name in payload:
-                payload[name] = self._resolve_to_url(
-                    path=resolver["url"],
-                    value=self.module.params[name],
-                    error_message=resolver["error_message"],
+                payload[name] = self.resolver.resolve_to_url(
+                    name, self.module.params[name]
                 )
 
         # 2. Prepare the API path and any required path parameters for nested endpoints.
@@ -92,16 +99,10 @@ class CrudRunner(BaseRunner):
                 )
 
             # Resolve the parent resource's name/UUID to its UUID for the path.
-            resolver = self.context.get("resolvers", {}).get(ansible_param_name)
-            if not resolver:
-                self.module.fail_json(
-                    msg=f"No resolver found for path parameter '{ansible_param_name}'."
-                )
-            resolved_url = self._resolve_to_url(
-                path=resolver["url"],
-                value=ansible_param_value,
-                error_message=resolver["error_message"],
+            resolved_url = self.resolver.resolve_to_url(
+                ansible_param_name, ansible_param_value
             )
+
             # Extract the UUID from the resolved URL.
             path_params[path_param_key] = resolved_url.strip("/").split("/")[-1]
 

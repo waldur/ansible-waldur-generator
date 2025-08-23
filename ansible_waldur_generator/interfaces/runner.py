@@ -1,6 +1,6 @@
 import json
-from urllib.parse import urlencode
 import uuid
+from urllib.parse import urlencode
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.urls import fetch_url
@@ -130,22 +130,3 @@ class BaseRunner:
             return True
         except (ValueError, TypeError, AttributeError):
             return False
-
-    def _resolve_to_url(self, path, value, error_message):
-        """
-        Resolves a resource name or UUID to its API URL.
-        """
-        if self._is_uuid(value):
-            # This assumes that the path for a single resource is the list path + uuid
-            return f"{self.module.params['api_url']}{path}{value}/"
-
-        # If it's a name, we add it to the query parameters and search.
-        response = self._send_request("GET", path, query_params={"name": value})
-        if not response:
-            self.module.fail_json(msg=error_message)
-            return
-        if response and len(response) > 1:
-            self.module.warn(
-                f"Multiple resources found for '{self.module.params['name']}'. The first one will be used."
-            )
-        return response[0]["url"]
