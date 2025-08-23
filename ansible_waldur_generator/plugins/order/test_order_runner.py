@@ -53,6 +53,18 @@ def mock_instance_runner_context():
             "ssh_public_key",
             "availability_zone",
         ],
+        "update_actions": {
+            "update_ports": {
+                "path": "/api/openstack-instances/{uuid}/update_ports/",
+                "param": "ports",
+                "compare_key": "ports",
+            },
+            "update_security_groups": {
+                "path": "/api/openstack-instances/{uuid}/update_security_groups/",
+                "param": "security_groups",
+                "compare_key": "security_groups",
+            },
+        },
         "resolvers": {
             "project": {
                 "url": "/api/projects/",
@@ -403,3 +415,125 @@ class TestOrderRunner:
         )
         # Only two calls should be made: project resolve and existence check
         assert mock_send_request.call_count == 2
+
+    @patch("ansible_waldur_generator.plugins.order.runner.OrderRunner._send_request")
+    def test_idempotent_complex_update_with_resolution(
+        self, mock_send_request, mock_ansible_module, mock_instance_runner_context
+    ):
+        """
+        Tests the most complex update scenario to ensure the runner's logic for
+        resolution and idempotency is working perfectly.
+
+        This test validates that:
+        1.  The runner can correctly identify that a change is needed for multiple
+            complex attributes (`ports` and `security_groups`).
+        2.  It proactively fetches dependencies (like the `offering` and `project`
+            objects) to enable filtered lookups for nested parameters.
+        3.  It correctly resolves user-provided names (e.g., "private-subnet-new")
+            into the full API URLs required by the action endpoints.
+        4.  It correctly formats list-based parameters (like `security_groups`)
+            into the required `[{'url': ...}]` structure.
+        5.  It sends the fully resolved and formatted payloads to the correct
+            action endpoints.
+        6.  It performs an efficient, single re-fetch of the resource state after
+            all actions are complete.
+        """
+        # ARRANGE
+
+        # Define the initial state of the resource as it exists in Waldur.
+        existing_resource = {
+            "name": "vm-to-reconfigure",
+            "uuid": "vm-uuid-789",
+            "url": "http://api.com/api/openstack-instances/vm-uuid-789/",
+            "project": "http://api.com/api/projects/proj-uuid/",
+            "offering": "http://api.com/api/offerings/off-prem-uuid/",
+            "ports": [
+                {
+                    "subnet": "http://api.com/api/subnets/subnet-old-uuid/",
+                    "fixed_ips": [{"ip_address": "10.0.0.5"}],
+                }
+            ],
+            "security_groups": [
+                {"url": "http://api.com/api/security-groups/sg-default-uuid/"}
+            ],
+        }
+
+        # Define the user's desired new configuration in the Ansible playbook.
+        # Note the use of names ("private-subnet-new", "web-sg") that need resolution.
+        mock_ansible_module.params = {
+            "state": "present",
+            "name": "vm-to-reconfigure",
+            "project": "Cloud Project",
+            "ports": [
+                {
+                    "subnet": "private-subnet-new",
+                    "fixed_ips": [{"ip_address": "10.1.1.10"}],
+                }
+            ],
+            "security_groups": ["web-sg", "ssh-sg"],
+        }
+
+        # This is the state of the resource AFTER the updates have been applied.
+        # This is what the final re-fetch call should return.
+        updated_resource_state = {
+            **existing_resource,
+            "state": "OK",
+            "ports": [
+                {
+                    "subnet": "http://api.com/api/subnets/subnet-new-uuid/",
+                    "fixed_ips": [{"ip_address": "10.1.1.10"}],
+                }
+            ],
+            "security_groups": [
+                {"url": "http://api.com/api/security-groups/sg-web-uuid/"},
+                {"url": "http://api.com/api/security-groups/sg-ssh-uuid/"},
+            ],
+        }
+
+        # Define the sequence of API responses that the mock `_send_request` will return.
+        # This list must precisely match the order of API calls made by the runner.
+        mock_send_request.side_effect = [
+            # Call 0: Initial existence check - resolve project
+            [{"url": "http://api.com/api/projects/proj-uuid/"}],
+            # Call 1: Initial existence check - find instance
+            [existing_resource],
+            # Call 2: Proactive dependency fetch - GET project by full URL
+            {},
+            # Call 3: Proactive dependency fetch - GET offering by full URL
+            {"scope_uuid": "tenant-prod-123"},
+            # Call 4: Idempotency check for 'ports' - resolve subnet
+            [{"url": "http://api.com/api/subnets/subnet-new-uuid/"}],
+            # Call 5: Idempotency check for 'security_groups' - resolve "web-sg"
+            [{"url": "http://api.com/api/security-groups/sg-web-uuid/"}],
+            # Call 6: Idempotency check for 'security_groups' - resolve "ssh-sg"
+            [{"url": "http://api.com/api/security-groups/sg-ssh-uuid/"}],
+            # Call 7: ACTION POST to update_ports
+            None,
+            # Call 8: ACTION POST to update_security_groups
+            None,
+            # Call 9: Final re-fetch - resolve project
+            [{"url": "http://api.com/api/projects/proj-uuid/"}],
+            # Call 10: Final re-fetch - find instance
+            [updated_resource_state],
+        ]
+
+        # ACT
+        runner = OrderRunner(mock_ansible_module, mock_instance_runner_context)
+        runner.run()
+
+        # ASSERT
+        # Check that the module exited with 'changed: true' and the final resource state.
+        mock_ansible_module.exit_json.assert_called_once_with(
+            changed=True, resource=updated_resource_state
+        )
+
+        # Assert that the update_security_groups action was called at the correct index with the resolved payload.
+        update_sg_call = mock_send_request.call_args_list[8]
+        assert update_sg_call.args == (
+            "POST",
+            "/api/openstack-instances/{uuid}/update_security_groups/",
+        )
+        assert update_sg_call.kwargs["data"]["security_groups"] == [
+            {"url": "http://api.com/api/security-groups/sg-ssh-uuid/"},
+            None,
+        ]

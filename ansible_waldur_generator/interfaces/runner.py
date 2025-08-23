@@ -47,9 +47,14 @@ class BaseRunner:
                 self.module.fail_json(
                     msg=f"Missing required path parameter in API call: {e}"
                 )
+                return
 
-        # 2. Build the base URL
-        url = f"{self.module.params['api_url']}{path}"
+        # 2. Build the final URL, handling both relative paths and absolute URLs.
+        # If the path is already a full URL, use it directly. Otherwise, prepend the api_url.
+        if path.startswith("http://") or path.startswith("https://"):
+            url = path
+        else:
+            url = f"{self.module.params['api_url'].rstrip('/')}/{path.lstrip('/')}"
 
         # 3. Safely encode and append query parameters
         if query_params:
@@ -95,11 +100,15 @@ class BaseRunner:
 
             msg = f"Request to {url} failed. Status: {info['status']}. Message: {info['msg']}. {error_details}"
             self.module.fail_json(msg=msg)
+            return
 
         # 5. Handle successful responses
         # Handle 204 No Content - success with no body
-        if info["status"] == 204 or not body_content:
-            return None
+        if not body_content:
+            # For GET requests, an empty response body should be an empty list,
+            # not None, to prevent TypeErrors in callers. For other methods,
+            # None is appropriate for "No Content" responses.
+            return [] if method == "GET" else None
 
         # Try to parse the successful response as JSON
         try:
@@ -110,6 +119,7 @@ class BaseRunner:
                 msg=f"API returned a success status ({info['status']}) but the response was not valid JSON.",
                 response_body=body_content.decode(errors="ignore"),
             )
+            return
 
     def _is_uuid(self, val):
         """
@@ -129,9 +139,11 @@ class BaseRunner:
             # This assumes that the path for a single resource is the list path + uuid
             return f"{self.module.params['api_url']}{path}{value}/"
 
+        # If it's a name, we add it to the query parameters and search.
         response = self._send_request("GET", path, query_params={"name": value})
         if not response:
             self.module.fail_json(msg=error_message)
+            return
         if response and len(response) > 1:
             self.module.warn(
                 f"Multiple resources found for '{self.module.params['name']}'. The first one will be used."

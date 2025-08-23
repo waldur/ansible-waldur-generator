@@ -36,7 +36,7 @@ class OrderRunner(BaseRunner):
         desired state (present or absent).
         """
         # Step 1: Determine the current state of the resource in Waldur.
-        self.check_existence()
+        self.resource = self.check_existence()
 
         # Step 2: Handle Ansible's --check mode. If enabled, we predict changes
         # without making any modifying API calls and exit early.
@@ -103,8 +103,11 @@ class OrderRunner(BaseRunner):
                 f"Multiple resources found for '{self.module.params['name']}'. The first one will be used."
             )
 
-        # Store the first result found, or None if the list is empty.
-        self.resource = data[0] if data else None
+        # The _send_request method can return a list (from a list endpoint)
+        # or a dict (from a retrieve endpoint). This handles both cases safely.
+        if isinstance(data, list):
+            return data[0] if data else None
+        return data  # It's already a single item or None
 
     def create(self):
         """
@@ -172,6 +175,9 @@ class OrderRunner(BaseRunner):
                     dep_data = self._send_request("GET", self.resource[dep_name])
                     self.resolved_api_responses[dep_name] = dep_data
 
+        # Use a flag to perform the re-fetch only once at the end.
+        needs_refetch = False
+
         update_payload = {}
         # Iterate through the fields that are configured as updatable.
         for field in self.context["update_check_fields"]:
@@ -203,24 +209,28 @@ class OrderRunner(BaseRunner):
 
             # Perform the idempotency check ONLY if the user provided the parameter.
             if param_value is not None:
-                resource_value = self.resource.get(compare_key)
-                # If the user-provided structure differs from the current state...
-                if param_value != resource_value:
-                    # ...resolve the user's payload before sending it.
-                    # This converts all names/UUIDs (e.g., in subnets) to API URLs,
-                    # respecting all `filter_by` rules from the main resolvers.
-                    resolved_payload = self._resolve_parameter(param_name, param_value)
+                # The idempotency check must compare like-with-like.
+                # We must resolve the user-provided parameters FIRST, before
+                # comparing them to the current state of the resource.
+                resolved_payload_for_comparison = self._resolve_parameter(
+                    param_name, param_value
+                )
 
+                if resolved_payload_for_comparison != self.resource.get(compare_key):
+                    # The payload for the API must be wrapped in a dictionary
+                    final_api_payload = {param_name: resolved_payload_for_comparison}
                     self._send_request(
                         "POST",
                         action_info["path"],
-                        data=resolved_payload,
+                        data=final_api_payload,
                         path_params={"uuid": self.resource["uuid"]},
                     )
                     self.has_changed = True
-                    # After a complex action, the resource state might have changed.
-                    # Re-fetch it to ensure the returned data is accurate.
-                    self.check_existence()
+                    needs_refetch = True
+
+        # After all actions are processed, re-fetch the state if necessary.
+        if needs_refetch:
+            self.resource = self.check_existence()
 
     def delete(self):
         """
@@ -250,12 +260,13 @@ class OrderRunner(BaseRunner):
             if order and order["state"] == "done":
                 # CRITICAL: After the order completes, the resource has been created.
                 # We must re-fetch its final state to return accurate data to the user.
-                self.check_existence()
+                self.resource = self.check_existence()
                 return
             if order and order["state"] in ["erred", "rejected", "canceled"]:
                 self.module.fail_json(
                     msg=f"Order finished with status '{order['state']}'. Error message: {order.get('error_message')}"
                 )
+                return
 
             time.sleep(interval)
 
@@ -345,6 +356,7 @@ class OrderRunner(BaseRunner):
             self.module.fail_json(
                 msg=resolver_conf["error_message"].format(value=value)
             )
+            return None  # This line is unreachable but clarifies intent.
         if len(resource_list) > 1:
             # If multiple resources match a name, warn the user and proceed with the first one.
             self.module.warn(
@@ -455,11 +467,13 @@ class OrderRunner(BaseRunner):
                 self.module.fail_json(
                     msg=f"Configuration error: Resolver for '{name}' depends on '{source_param}', which has not been resolved yet."
                 )
+                return
             source_value = resolved_api_responses[source_param].get(dep["source_key"])
             if source_value is None:
                 self.module.fail_json(
                     msg=f"Could not find key '{dep['source_key']}' in the response for '{source_param}'."
                 )
+                return
             query_params[dep["target_key"]] = source_value
         return query_params
 
@@ -471,10 +485,17 @@ class OrderRunner(BaseRunner):
         # If the value is a UUID, we can fetch it directly for efficiency.
         if self._is_uuid(value):
             # We ignore query_params here as direct fetch is more specific.
-            resource = self._send_request("GET", f"{path}{value}/")
+            # A direct GET by UUID returns a dict, not a list. We must
+            # normalize this into a list to fulfill the contract of this function.
+            resource = self._send_request("GET", f"{path.rstrip('/')}/{value}/")
             return [resource] if resource else []
 
         # If it's a name, we add it to the query parameters and search.
         final_query = query_params.copy() if query_params else {}
         final_query["name"] = value
-        return self._send_request("GET", path, query_params=final_query)
+
+        # Ensure this function ALWAYS returns a list. If _send_request
+        # returns None (which can happen with empty responses), convert it
+        # to an empty list to prevent TypeErrors in the caller.
+        result = self._send_request("GET", path, query_params=final_query)
+        return result if result is not None else []
