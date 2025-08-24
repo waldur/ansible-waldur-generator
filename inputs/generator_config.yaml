@@ -188,6 +188,7 @@ collections:
           state_field: "state"
         resolvers:
           tenant: "openstack_tenants"
+          remote_group: "openstack_security_groups"
 
       - name: network
         plugin: crud

@@ -59,7 +59,15 @@ class BaseRunner:
 
         # 3. Safely encode and append query parameters
         if query_params:
-            url += "?" + urlencode(query_params)
+            # Convert list values to repeated parameters
+            encoded_params = []
+            for key, value in query_params.items():
+                if isinstance(value, list):
+                    for v in value:
+                        encoded_params.append((key, v))
+                else:
+                    encoded_params.append((key, value))
+            url += "?" + urlencode(encoded_params)
 
         # Prepare data for the request body
         # Ansible's fetch_url handles dict->json conversion if headers are correct,
@@ -101,9 +109,9 @@ class BaseRunner:
                         f"API Response (raw): {body_content.decode(errors='ignore')}"
                     )
 
-            msg = f"Request to {url} failed. Status: {status_code}. Message: {info['msg']}. {error_details}"
+            msg = f"Request to {url} failed. Status: {status_code}. Message: {info['msg']}. {error_details}. Payload: {data}"
             self.module.fail_json(msg=msg)
-            return
+            return (error_details, status_code)
 
         # 5. Handle successful responses
         # Handle 204 No Content - success with no body

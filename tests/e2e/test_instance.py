@@ -35,3 +35,21 @@ class TestInstanceModule:
         assert "allow-all" in final_sg_names
         assert "ssh" in final_sg_names
         assert len(final_sg_names) == 2
+
+    def test_terminate(self, auth_params):
+        """End-to-end test for terminating an existing instance."""
+        user_params = {
+            "state": "absent",
+            "name": "ttu-runner-0e",
+            "offering": "Virtual machine in waldur-dev-farm",
+            "project": "Self-Service dev infrastructure",
+            "wait": False,
+            "termination_action": "force_destroy",
+            **auth_params,  # Unpack the auth fixture here
+        }
+
+        # ACT: Use the generic harness, passing the instance module object
+        exit_result, fail_result = run_module_harness(instance_module, user_params)
+        assert fail_result is None, f"Module failed unexpectedly with: {fail_result}"
+        assert exit_result is not None
+        assert exit_result["changed"] is True
