@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import patch, ANY
 
 # The class we are testing
+from ansible_waldur_generator.plugins import order
 from ansible_waldur_generator.plugins.order.runner import OrderRunner
 
 
@@ -109,6 +110,11 @@ def mock_instance_runner_context():
                 "is_list": False,
                 "filter_by": [],
             },
+        },
+        "termination_attributes_map": {
+            "termination_action": "action",
+            "delete_volumes": "delete_volumes",
+            "release_floating_ips": "release_floating_ips",
         },
     }
     return context
@@ -571,3 +577,53 @@ class TestOrderRunner:
             {"url": "http://api.com/api/security-groups/sg-web-uuid/"},
             {"url": "http://api.com/api/security-groups/sg-ssh-uuid/"},
         ]
+
+    @patch("ansible_waldur_generator.plugins.order.runner.OrderRunner._send_request")
+    def test_delete_resource_with_all_termination_attributes(
+        self, mock_send_request, mock_ansible_module, mock_instance_runner_context
+    ):
+        """
+        Tests that `state: absent` correctly includes all provided termination
+        attributes in the payload, mapping them to the correct API keys.
+        """
+        # ARRANGE
+        mock_ansible_module.params = {
+            "state": "absent",
+            "name": "vm-to-force-delete",
+            "project": "Cloud Project",
+            # User-provided termination options
+            "termination_action": "force_destroy",
+            "delete_volumes": True,
+            "release_floating_ips": True,
+        }
+        existing_resource = {
+            "name": "vm-to-force-delete",
+            "marketplace_resource_uuid": "mkt-res-uuid-123",
+        }
+        mock_send_request.side_effect = [
+            ([{"url": "p-uuid"}], 200),
+            ([existing_resource], 200),
+            (None, 204),
+        ]
+
+        # ACT
+        runner = OrderRunner(mock_ansible_module, mock_instance_runner_context)
+        runner.run()
+
+        # ASSERT
+        mock_ansible_module.exit_json.assert_called_once_with(
+            changed=True, resource=None, order=ANY
+        )
+        # Verify the payload contains the mapped attributes.
+        expected_payload = {
+            "attributes": {
+                "action": "force_destroy",
+                "delete_volumes": True,
+                "release_floating_ips": True,
+            }
+        }
+        mock_send_request.assert_any_call(
+            "POST",
+            "/api/marketplace-resources/mkt-res-uuid-123/terminate/",
+            data=expected_payload,
+        )

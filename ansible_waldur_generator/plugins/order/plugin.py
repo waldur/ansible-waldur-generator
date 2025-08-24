@@ -200,6 +200,12 @@ class OrderPlugin(BasePlugin):
                 p_conf, api_parser, module_config
             )
 
+        # Add termination-specific parameters.
+        for p_conf in module_config.termination_attributes:
+            param_spec = self._build_spec_for_param(p_conf, api_parser, module_config)
+            param_spec["required"] = False  # Termination attributes should be optional.
+            params[p_conf.name] = param_spec
+
         return params
 
     def _build_runner_context(
@@ -249,6 +255,10 @@ class OrderPlugin(BasePlugin):
             list(dict.fromkeys(module_config.update_check_fields))
         )
 
+        termination_attributes_map = {
+            p.name: p.maps_to or p.name for p in module_config.termination_attributes
+        }
+
         runner_context = {
             "resource_type": module_config.resource_type,
             "existence_check_url": module_config.existence_check_op.path
@@ -260,6 +270,7 @@ class OrderPlugin(BasePlugin):
             else None,
             "update_check_fields": stable_update_check_fields,
             "attribute_param_names": stable_attribute_param_names,
+            "termination_attributes_map": termination_attributes_map,
             "resolvers": resolvers_data,
             # Pass the update actions context to the runner
             "update_actions": {
@@ -345,6 +356,20 @@ class OrderPlugin(BasePlugin):
             base_params=base_params,
             delete_identifier_param="name",
         )
+
+        # Add termination attributes to the delete example.
+        if module_config.termination_attributes:
+            delete_example_task = examples[-1]["tasks"][0]
+            fqcn = list(delete_example_task.keys())[1]
+            for term_attr in module_config.termination_attributes:
+                sample_prop_schema = {"type": term_attr.type}
+                if term_attr.choices:
+                    sample_prop_schema["enum"] = term_attr.choices
+                delete_example_task[fqcn][term_attr.name] = (
+                    schema_parser._generate_sample_value(
+                        term_attr.name, sample_prop_schema, module_config.resource_type
+                    )
+                )
 
         # Step 3: Add an 'update' example if the module supports it.
         if module_config.update_op and module_config.update_check_fields:
@@ -580,6 +605,14 @@ class OrderPlugin(BasePlugin):
                     raw_config["update_actions"] = parsed_actions
             if update_id:
                 raw_config["update_op"] = update_id
+
+        # Handle termination attributes from the 'delete' operation config
+        delete_op_conf = operations_config.get("delete")
+        if isinstance(delete_op_conf, dict):
+            term_attrs_raw = delete_op_conf.get("attributes")
+            if isinstance(term_attrs_raw, list):
+                parsed_term_attrs = [ParameterConfig(**attr) for attr in term_attrs_raw]
+                raw_config["termination_attributes"] = parsed_term_attrs
 
         # Add default resolvers for 'offering' and 'project', as they
         # are required for every order module.

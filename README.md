@@ -246,6 +246,7 @@ Below is a detailed explanation of each available plugin.
 
 **Attribute Inference**: To simplify configuration, you can specify an offering_type. The generator will then look for a corresponding schema in the OpenAPI specification (e.g., Marketplace.Volume becomes MarketplaceVolumeCreateOrderAttributes) and automatically generate all the necessary attribute_params. Any manually defined attribute_params will override the inferred ones, allowing for customization.
 
+**Termination Attributes**: You can define a set of optional parameters that will be passed as attributes in the termination order. This is useful for resources that require extra options during deletion, such as forcing destruction or deleting associated sub-resources. This is configured under the `operations.delete` key. You can use the `maps_to` field to define a different name for the attribute in the API payload.
 
 -   **Workflow:** This plugin encapsulates a complex, multi-step process:
     -   **`state: present`**:
@@ -256,7 +257,7 @@ Below is a detailed explanation of each available plugin.
             -   **Asynchronous Actions:** For complex operations defined in `update_actions`, it sends a `POST` request. If this request returns a `202 Accepted` status, the module recognizes it as an asynchronous task. If `wait: true` is set, the module will then poll the *resource's status* (not the order) until it reaches a stable state (e.g., "OK" or "Erred"), which can be configured via `wait_config`.
     -   **`state: absent`**:
         1.  Finds the existing resource.
-        2.  Calls the standard `marketplace_resources_terminate` endpoint.
+        2.  Calls the standard `marketplace_resources_terminate` endpoint, passing any configured termination attributes.
 
 -   **Configuration Example (`generator_config.yaml`):**
 

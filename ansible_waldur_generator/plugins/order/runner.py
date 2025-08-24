@@ -257,10 +257,24 @@ class OrderRunner(BaseRunner):
             # for termination actions.
             uuid_to_terminate = self.resource["marketplace_resource_uuid"]
             path = f"/api/marketplace-resources/{uuid_to_terminate}/terminate/"
-            self._send_request("POST", path, data={})
+
+            # Build the termination payload from configured attributes.
+            termination_payload = {}
+            attributes = {}
+            term_attr_map = self.context.get("termination_attributes_map", {})
+
+            for ansible_name, api_name in term_attr_map.items():
+                if self.module.params.get(ansible_name) is not None:
+                    attributes[api_name] = self.module.params[ansible_name]
+
+            if attributes:
+                termination_payload["attributes"] = attributes
+
+            order, _ = self._send_request("POST", path, data=termination_payload)
             self.has_changed = True
             # After termination, the resource is considered gone.
             self.resource = None
+            self.order = order
 
     def _wait_for_order(self, order_uuid):
         """

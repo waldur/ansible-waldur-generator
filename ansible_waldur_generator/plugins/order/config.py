@@ -63,6 +63,9 @@ class ParameterConfig(BaseModel):
     # For references
     ref: str | None = None
 
+    # Optional mapping to a different attribute name in the API payload.
+    maps_to: str | None = None
+
 
 class WaitConfig(BaseModel):
     """Configuration for polling an asynchronous task."""
@@ -81,6 +84,7 @@ class OrderModuleConfig(BaseModel):
     update_check_fields: List[str] = Field(default_factory=list)
     update_actions: Dict[str, UpdateActionConfig] = Field(default_factory=dict)
     attribute_params: List[ParameterConfig] = Field(default_factory=list)
+    termination_attributes: List[ParameterConfig] = Field(default_factory=list)
     resolvers: Dict[str, OrderModuleResolver] = Field(default_factory=dict)
     has_limits: bool = False
     wait_config: WaitConfig | None = None
