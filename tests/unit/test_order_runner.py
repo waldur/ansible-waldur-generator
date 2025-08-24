@@ -82,7 +82,6 @@ def mock_instance_runner_context():
                 "url": "/api/openstack-security-groups/",
                 "error_message": "Security group '{value}' not found.",
                 "is_list": True,
-                "list_item_key": "url",
                 "filter_by": [
                     {
                         "source_param": "offering",
@@ -90,6 +89,7 @@ def mock_instance_runner_context():
                         "target_key": "tenant_uuid",
                     }
                 ],
+                "list_item_keys": {"create": "url", "update_action": None},
             },
             # This is the key resolver for the new complex test case
             "subnet": {
@@ -574,8 +574,8 @@ class TestOrderRunner:
             "/api/openstack-instances/{uuid}/update_security_groups/",
         )
         assert update_sg_call.kwargs["data"]["security_groups"] == [
-            {"url": "http://api.com/api/security-groups/sg-web-uuid/"},
-            {"url": "http://api.com/api/security-groups/sg-ssh-uuid/"},
+            "http://api.com/api/security-groups/sg-web-uuid/",
+            "http://api.com/api/security-groups/sg-ssh-uuid/",
         ]
 
     @patch("ansible_waldur_generator.plugins.order.runner.OrderRunner._send_request")

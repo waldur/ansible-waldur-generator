@@ -126,7 +126,10 @@ class OrderRunner(BaseRunner):
         for key in self.context["attribute_param_names"]:
             if key in self.module.params and self.module.params[key] is not None:
                 # Recursively resolve the entire parameter structure.
-                attributes[key] = self.resolver.resolve(key, self.module.params[key])
+                # Provide the 'create' hint when resolving for the order payload.
+                attributes[key] = self.resolver.resolve(
+                    key, self.module.params[key], output_format="create"
+                )
 
         order_payload = {
             "project": project_url,
@@ -217,8 +220,9 @@ class OrderRunner(BaseRunner):
                 # We use the resolver to get the fully resolved, API-ready version
                 # of the user's input *before*
                 # comparing them to the current state of the resource.
+                # Provide the 'update_action' hint when resolving for idempotency checks and payloads.
                 resolved_payload_for_comparison = self.resolver.resolve(
-                    param_name, param_value
+                    param_name, param_value, output_format="update_action"
                 )
 
                 if resolved_payload_for_comparison != self.resource.get(compare_key):

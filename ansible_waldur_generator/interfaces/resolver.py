@@ -129,7 +129,9 @@ class ParameterResolver:
         # Return the 'url' field from the first matching resource.
         return response[0]["url"]
 
-    def resolve(self, param_name: str, param_value: any) -> any:
+    def resolve(
+        self, param_name: str, param_value: any, output_format: str = "create"
+    ) -> any:
         """
         Recursively traverses a parameter's value structure (which can be a
         dictionary, a list, or a primitive) and resolves any fields that have
@@ -141,6 +143,7 @@ class ParameterResolver:
         Args:
             param_name: The name of the current parameter context (e.g., "ports").
             param_value: The data structure provided by the user for this parameter.
+            output_format: A hint for the desired output format ('create' or 'update_action').
 
         Returns:
             The fully resolved data structure, with all names/UUIDs replaced by
@@ -156,7 +159,10 @@ class ParameterResolver:
             # Iterate through the dictionary's items and recurse. The dictionary key
             # becomes the new `param_name` context for the next level down.
             for key, value in param_value.items():
-                resolved_dict[key] = self.resolve(key, value)
+                # Pass the hint down during recursion
+                resolved_dict[key] = self.resolve(
+                    key, value, output_format=output_format
+                )
             return resolved_dict
 
         # Case 2: The value is a list.
@@ -166,36 +172,48 @@ class ParameterResolver:
             #    The resolver config for `security_groups` will have `is_list: true`.
             if resolver_conf and resolver_conf.get("is_list"):
                 return [
-                    self._resolve_single_value(param_name, item, resolver_conf)
+                    self._resolve_single_value(
+                        param_name, item, resolver_conf, output_format=output_format
+                    )
                     for item in param_value
                 ]
             # B) A list of complex objects (e.g., ports: [{'subnet': 'net-A'}, {'subnet': 'net-B'}]).
             #    We just recurse into each object in the list.
             else:
-                return [self.resolve(param_name, item) for item in param_value]
+                return [
+                    self.resolve(param_name, item, output_format=output_format)
+                    for item in param_value
+                ]
 
         # --- Base Case ---
 
         # Case 3: The value is a primitive (string, int, etc.).
         # If a resolver exists for it, delegate the work to the single-value resolver.
         if resolver_conf:
-            return self._resolve_single_value(param_name, param_value, resolver_conf)
+            return self._resolve_single_value(
+                param_name, param_value, resolver_conf, output_format=output_format
+            )
 
         # If it's a primitive with no resolver, return it unchanged.
         return param_value
 
     def _resolve_single_value(
-        self, param_name: str, value: any, resolver_conf: dict
+        self,
+        param_name: str,
+        value: any,
+        resolver_conf: dict,
+        output_format: str = "create",
     ) -> any:
         """
         Resolves a single primitive value (name/UUID) into its final, API-ready representation.
         This is the core worker method that performs the API lookups, handles dependencies,
-        manages the cache, and formats the output.
+        manages the cache, and formats the output based on the provided hint.
 
         Args:
             param_name: The name of the parameter being resolved (e.g., "subnet").
             value: The primitive value provided by the user (e.g., "private-subnet-A").
             resolver_conf: The full configuration for this resolver from the context.
+            output_format: A hint for the desired output format ('create' or 'update_action').
 
         Returns:
             The resolved and formatted value, ready for the API payload.
@@ -239,15 +257,20 @@ class ParameterResolver:
             if param_name in self.module.params:
                 self.cache[param_name] = resolved_object
 
-        # Step 4: Format the return value based on the resolver's configuration.
-        # If it's for a list of items (like 'security_groups'), the API might expect
-        # a list of objects, e.g., `[{'url': '...'}]`.
+        # Step 4: Format the return value based on the resolver's configuration and context hint.
         if resolver_conf.get("is_list"):
-            item_key = resolver_conf.get("list_item_key")
+            # Use the new context-aware dictionary
+            list_item_keys = resolver_conf.get("list_item_keys", {})
+            # Get the specific key for the current format ('create' or 'update_action')
+            item_key = list_item_keys.get(output_format)
+
+            # If item_key is a string (like 'url'), wrap the URL in an object.
+            # If item_key is None, this condition is false, and we fall through.
             if item_key:
                 return {item_key: resolved_object["url"]}
 
-        # For all other cases, return the direct URL.
+        # For non-list resolvers, or for list resolvers where the format is a raw string,
+        # return the direct URL.
         return resolved_object["url"]
 
     def _build_dependency_filters(self, name: str, dependencies: list) -> dict:

@@ -326,7 +326,10 @@ class TestRecursiveResolution:
 
         # Assert
         resolver._resolve_single_value.assert_called_once_with(
-            "subnet", "private-subnet-A", resolver.context["resolvers"]["subnet"]
+            "subnet",
+            "private-subnet-A",
+            resolver.context["resolvers"]["subnet"],
+            output_format="create",
         )
         assert result == "https://api.waldur.com/api/subnets/subnet-123/"
 
@@ -381,7 +384,10 @@ class TestRecursiveResolution:
         }
         assert result == expected
         resolver._resolve_single_value.assert_called_once_with(
-            "subnet", "private-subnet-A", resolver.context["resolvers"]["subnet"]
+            "subnet",
+            "private-subnet-A",
+            resolver.context["resolvers"]["subnet"],
+            output_format="create",
         )
 
     def test_resolve_list_of_primitives_with_is_list_config(self):
@@ -650,7 +656,7 @@ class TestSingleValueResolution:
             "url": "/api/security-groups/",
             "error_message": "Security group '{value}' not found",
             "is_list": True,
-            "list_item_key": "security_group",
+            "list_item_keys": {"create": "url", "update_action": None},
         }
 
         # Act
@@ -659,9 +665,7 @@ class TestSingleValueResolution:
         )
 
         # Assert
-        expected = {
-            "security_group": "https://api.waldur.com/api/security-groups/sg-123/"
-        }
+        expected = {"url": "https://api.waldur.com/api/security-groups/sg-123/"}
         assert result == expected
 
     def test_resolve_single_value_no_results_fails(self):
@@ -958,7 +962,7 @@ class TestComplexIntegrationScenarios:
                     "url": "/api/security-groups/",
                     "error_message": "Security group '{value}' not found",
                     "is_list": True,
-                    "list_item_key": "url",
+                    "list_item_keys": {"create": "url", "update_action": None},
                     "filter_by": [
                         {
                             "source_param": "offering",

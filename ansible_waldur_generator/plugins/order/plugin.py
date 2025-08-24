@@ -225,24 +225,52 @@ class OrderPlugin(BasePlugin):
         for name, resolver in module_config.resolvers.items():
             param_config = params_map.get(name)
             is_list_resolver = param_config and param_config.type == "array"
-            list_item_key = None
+            list_item_keys = {}
 
             # If this resolver is for a list of items (like security_groups),
-            # we need to tell the runner how to structure the final payload.
+            # we need to tell the runner how to structure the final payload for each context.
             if is_list_resolver and param_config and param_config.items:
-                # We infer the key for the nested object (e.g., 'url') by looking
-                # at the properties of the item's schema. This assumes a simple
-                # structure like `[{'url': '...'}]`.
+                # 1. Determine the key for the 'create' context (marketplace order)
                 if param_config.items.properties:
-                    list_item_key = param_config.items.properties[0].name
+                    # Infer the key from the nested object's properties (e.g., 'url')
+                    list_item_keys["create"] = param_config.items.properties[0].name
+
+                # 2. Determine the key for the 'update_action' context
+                # Find the update action that uses this parameter.
+                matching_action = None
+                for action in module_config.update_actions.values():
+                    if action.param == name:
+                        matching_action = action
+                        break
+
+                if matching_action:
+                    action_schema = matching_action.operation.model_schema
+                    if action_schema and name in action_schema.get("properties", {}):
+                        param_schema_in_action = action_schema["properties"][name]
+                        # Check if the items in the update action are simple strings
+                        if (
+                            param_schema_in_action.get("items", {}).get("type")
+                            == "string"
+                        ):
+                            list_item_keys["update_action"] = (
+                                None  # None signifies a raw list of strings
+                            )
+                        else:
+                            # Handle cases where update also expects objects (less common)
+                            item_props = param_schema_in_action.get("items", {}).get(
+                                "properties"
+                            )
+                            if item_props:
+                                list_item_keys["update_action"] = list(
+                                    item_props.keys()
+                                )[0]
 
             resolvers_data[name] = {
                 "url": resolver.list_operation.path if resolver.list_operation else "",
                 "error_message": resolver.error_message,
                 "filter_by": [f.model_dump() for f in resolver.filter_by],
-                # This metadata is crucial for the runner's logic.
                 "is_list": is_list_resolver,
-                "list_item_key": list_item_key,
+                "list_item_keys": list_item_keys,
             }
 
         # Consolidate and sort lists for stable, deterministic output.
@@ -415,6 +443,22 @@ class OrderPlugin(BasePlugin):
         Recursively creates a structured `ParameterConfig` object from a raw
         OpenAPI schema property. This is the core of schema inference.
         """
+        # If the property is a reference, resolve it immediately.
+        # This ensures the rest of the function works with a concrete, fully-detailed schema.
+        prop_ref = prop.get("$ref")
+        if prop_ref:
+            try:
+                # Replace the current property with the resolved schema.
+                prop = api_parser.get_schema_by_ref(prop_ref)
+            except ValueError:
+                # If ref can't be resolved, return a basic config to avoid crashing.
+                return ParameterConfig(
+                    name=name,
+                    ref=prop_ref,
+                    type="object",
+                    required=(name in required_list),
+                )
+
         prop_type = prop.get("type")
         if not prop_type and "$ref" in prop:
             prop_type = "object"
