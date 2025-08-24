@@ -68,7 +68,7 @@ Run E2E tests:
     - poetry run ansible-waldur-generator
 
     # Target only the E2E test directory
-    - poetry run pytest tests/e2e/ --junitxml=e2e_report.xml --vcr-record=none
+    - WALDUR_API_URL=http://127.0.0.1:8000/ poetry run pytest tests/e2e/ --junitxml=e2e_report.xml --vcr-record=none
   artifacts:
     when: always
     reports:

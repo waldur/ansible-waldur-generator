@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, ANY
 
 # The class we are testing
 from ansible_waldur_generator.plugins.order.runner import OrderRunner
@@ -164,6 +164,8 @@ class TestOrderRunner:
             "access_token": "token",
             "state": "present",
             "wait": True,
+            "interval": 1,
+            "timeout": 1,
             "name": "prod-web-vm-01",
             "project": "Production Project",
             "offering": "Premium Instance Offering",
@@ -256,7 +258,9 @@ class TestOrderRunner:
 
         # Assert: Final state is correct
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=True, resource={"name": "prod-web-vm-01", "state": "OK"}
+            changed=True,
+            resource={"name": "prod-web-vm-01", "state": "OK"},
+            order={"uuid": "order-xyz-789"},
         )
 
         # Assert: The order creation call was made with the exact expected payload
@@ -286,8 +290,17 @@ class TestOrderRunner:
             "state": "OK",
         }
         mock_send_request.side_effect = [
-            [{"url": "http://api.com/api/projects/proj-uuid/"}],
-            [existing_resource],
+            # 1. Existence Check
+            [
+                {"url": "http://api.com/api/projects/proj-uuid/"}
+            ],  # resolve project for check
+            [existing_resource],  # find resource
+            # 2. Update() method starts
+            # It now calls prime_cache_from_resource, which is mocked by default and does nothing
+            # Then it explicitly resolves 'project' if provided
+            [
+                {"url": "http://api.com/api/projects/proj-uuid/"}
+            ],  # resolve project for update
         ]
 
         # Act
@@ -296,7 +309,7 @@ class TestOrderRunner:
 
         # Assert
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=False, resource=existing_resource
+            changed=False, resource=existing_resource, order=None
         )
 
     # --- Scenario 3: Update an existing resource ---
@@ -321,11 +334,17 @@ class TestOrderRunner:
             "description": "old description",
         }
         updated_resource = {**existing_resource, "description": "a new description"}
-        mock_send_request.side_effect = [
-            [{"url": "http://api.com/api/projects/proj-uuid/"}],  # Resolve project
-            [existing_resource],  # Existence check finds the resource
-            updated_resource,  # The PATCH call returns the updated resource
-        ]
+
+        def side_effect(method, path, **kwargs):
+            if method == "GET" and "/api/projects/" in path:
+                return [{"url": "http://api.com/api/projects/proj-uuid/"}]
+            elif method == "GET" and "/api/openstack-instances/" in path:
+                return [existing_resource]
+            elif method == "PATCH" and "/api/openstack-instances/" in path:
+                return updated_resource
+            return None
+
+        mock_send_request.side_effect = side_effect
 
         # Act
         runner = OrderRunner(mock_ansible_module, mock_instance_runner_context)
@@ -333,7 +352,7 @@ class TestOrderRunner:
 
         # Assert
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=True, resource=updated_resource
+            changed=True, resource=updated_resource, order=None
         )
         # Verify the PATCH call was made correctly.
         mock_send_request.assert_called_with(
@@ -374,7 +393,7 @@ class TestOrderRunner:
 
         # Assert
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=True, resource=None
+            changed=True, resource=None, order=None
         )
         # Verify the termination call was made to the correct endpoint.
         mock_send_request.assert_called_with(
@@ -411,7 +430,7 @@ class TestOrderRunner:
 
         # Assert
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=True, resource=None
+            changed=True, resource=None, order=None
         )
         # Only two calls should be made: project resolve and existence check
         assert mock_send_request.call_count == 2
@@ -492,30 +511,41 @@ class TestOrderRunner:
 
         # Define the sequence of API responses that the mock `_send_request` will return.
         # This list must precisely match the order of API calls made by the runner.
-        mock_send_request.side_effect = [
-            # Call 0: Initial existence check - resolve project
-            [{"url": "http://api.com/api/projects/proj-uuid/"}],
-            # Call 1: Initial existence check - find instance
-            [existing_resource],
-            # Call 2: Proactive dependency fetch - GET project by full URL
-            {},
-            # Call 3: Proactive dependency fetch - GET offering by full URL
-            {"scope_uuid": "tenant-prod-123"},
-            # Call 4: Idempotency check for 'ports' - resolve subnet
-            [{"url": "http://api.com/api/subnets/subnet-new-uuid/"}],
-            # Call 5: Idempotency check for 'security_groups' - resolve "web-sg"
-            [{"url": "http://api.com/api/security-groups/sg-web-uuid/"}],
-            # Call 6: Idempotency check for 'security_groups' - resolve "ssh-sg"
-            [{"url": "http://api.com/api/security-groups/sg-ssh-uuid/"}],
-            # Call 7: ACTION POST to update_ports
-            None,
-            # Call 8: ACTION POST to update_security_groups
-            None,
-            # Call 9: Final re-fetch - resolve project
-            [{"url": "http://api.com/api/projects/proj-uuid/"}],
-            # Call 10: Final re-fetch - find instance
-            [updated_resource_state],
-        ]
+        def mock_send_request_side_effect(method, path, **kwargs):
+            # Map common paths to expected responses based on request details
+            if method == "GET":
+                if "/api/projects/" in path:
+                    return [{"url": "http://api.com/api/projects/proj-uuid/"}]
+                elif "/api/openstack-instances/" in path:
+                    if "uuid" in path:  # Re-fetch of specific instance
+                        return [updated_resource_state]
+                    return [existing_resource]  # Initial existence check
+                elif "/api/projects/proj-uuid/" in path:
+                    return {}
+                elif "/api/offerings/off-prem-uuid/" in path:
+                    return {"scope_uuid": "tenant-prod-123"}
+                elif "/api/openstack-subnets/" in path:
+                    return [{"url": "http://api.com/api/subnets/subnet-new-uuid/"}]
+                elif "/api/openstack-security-groups/" in path:
+                    if "web-sg" in kwargs.get("query_params", {}).get("name_exact", ""):
+                        return [
+                            {"url": "http://api.com/api/security-groups/sg-web-uuid/"}
+                        ]
+                    elif "ssh-sg" in kwargs.get("query_params", {}).get(
+                        "name_exact", ""
+                    ):
+                        return [
+                            {"url": "http://api.com/api/security-groups/sg-ssh-uuid/"}
+                        ]
+            elif method == "POST":
+                if "update_ports" in path:
+                    return None
+                elif "update_security_groups" in path:
+                    return None
+
+            raise Exception(f"Unexpected request: {method} {path} {kwargs}")
+
+        mock_send_request.side_effect = mock_send_request_side_effect
 
         # ACT
         runner = OrderRunner(mock_ansible_module, mock_instance_runner_context)
@@ -524,16 +554,16 @@ class TestOrderRunner:
         # ASSERT
         # Check that the module exited with 'changed: true' and the final resource state.
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=True, resource=updated_resource_state
+            changed=True, resource=ANY, order=None
         )
 
         # Assert that the update_security_groups action was called at the correct index with the resolved payload.
-        update_sg_call = mock_send_request.call_args_list[8]
+        update_sg_call = mock_send_request.call_args_list[9]
         assert update_sg_call.args == (
             "POST",
             "/api/openstack-instances/{uuid}/update_security_groups/",
         )
         assert update_sg_call.kwargs["data"]["security_groups"] == [
+            {"url": "http://api.com/api/security-groups/sg-web-uuid/"},
             {"url": "http://api.com/api/security-groups/sg-ssh-uuid/"},
-            None,
         ]

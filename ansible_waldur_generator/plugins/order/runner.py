@@ -25,6 +25,7 @@ class OrderRunner(BaseRunner):
         # self.resource will store the current state of the Waldur resource,
         # or None if it does not exist. It is populated by check_existence().
         self.resource = None
+        self.order = None
 
         # An instance of the ParameterResolver is created, passing this runner instance to it.
         # This gives the resolver access to _send_request, the module, and the context.
@@ -148,9 +149,9 @@ class OrderRunner(BaseRunner):
         # If waiting is enabled, poll the order's status until completion.
         if self.module.params.get("wait", True) and order:
             self._wait_for_order(order["uuid"])
+        self.order = order
 
         self.has_changed = True
-        self.resource = order
 
     def update(self):
         """
@@ -311,4 +312,6 @@ class OrderRunner(BaseRunner):
         """
         Formats the final response and exits the module execution.
         """
-        self.module.exit_json(changed=self.has_changed, resource=self.resource)
+        self.module.exit_json(
+            changed=self.has_changed, resource=self.resource, order=self.order
+        )
