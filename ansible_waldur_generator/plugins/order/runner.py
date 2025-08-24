@@ -233,7 +233,11 @@ class OrderRunner(BaseRunner):
                     self.has_changed = True
 
                     # If the API accepted the task for async processing, wait for it.
-                    if status_code == 202 and self.module.params.get("wait", True):
+                    if (
+                        status_code == 202
+                        and self.module.params.get("wait", True)
+                        and self.context.get("wait_config")
+                    ):
                         self._wait_for_resource_state(self.resource["uuid"])
                         # After waiting, self.resource is updated, so no re-fetch is needed for this action.
                     else:

@@ -171,7 +171,11 @@ class CrudRunner(BaseRunner):
                 )
 
                 # If the API accepted the task for async processing, wait for it.
-                if status_code == 202 and self.module.params.get("wait", True):
+                if (
+                    status_code == 202
+                    and self.module.params.get("wait", True)
+                    and self.context.get("wait_config")
+                ):
                     self._wait_for_resource_state(self.resource["uuid"])
                 else:
                     # For synchronous actions (200, 201, 204), re-fetch immediately.
