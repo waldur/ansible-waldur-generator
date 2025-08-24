@@ -41,7 +41,7 @@ Run unit tests:
     - pip install poetry
 
      # Install dependencies but not the project itself
-    - poetry install --no-root
+    - poetry install
 
     # Target only the unit test directory
     - poetry run pytest tests/unit/ --junitxml=unit_report.xml
@@ -62,7 +62,7 @@ Run E2E tests:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
   script:
     - pip install poetry
-    - poetry install --no-root
+    - poetry install
 
     # Generating Ansible Collections
     - poetry run ansible-waldur-generator
