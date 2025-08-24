@@ -215,6 +215,16 @@ class Generator:
                 shutil.copy(base_runner_src, base_runner_dest)
                 self.copied_runners.add("base")
 
+        # Copy the ParameterResolver, as runners depend on it.
+        if "resolver" not in self.copied_runners:
+            resolver_src = os.path.join(
+                project_root, "ansible_waldur_generator", "interfaces", "resolver.py"
+            )
+            resolver_dest = os.path.join(dest_utils_dir, "resolver.py")
+            if os.path.exists(resolver_src):
+                shutil.copy(resolver_src, resolver_dest)
+                self.copied_runners.add("resolver")
+
         # Copy the specific runner for the current plugin type (e.g., crud_runner.py).
         runner_dest_path = os.path.join(dest_utils_dir, f"{plugin_type}_runner.py")
         shutil.copy(runner_src_path, runner_dest_path)
@@ -229,10 +239,18 @@ class Generator:
                 f".plugins.module_utils.waldur.base_runner"
             )
 
+            resolver_fqcn = (
+                f"ansible_collections.{self.collection_namespace}.{self.collection_name}"
+                f".plugins.module_utils.waldur.resolver"
+            )
+
             # Replace the generator-internal import with the new FQCN.
             new_content = content.replace(
                 "from ansible_waldur_generator.interfaces.runner import BaseRunner",
                 f"from {base_runner_fqcn} import BaseRunner",
+            ).replace(
+                "from ansible_waldur_generator.interfaces.resolver import ParameterResolver",
+                f"from {resolver_fqcn} import ParameterResolver",
             )
             f.seek(0)
             f.write(new_content)
