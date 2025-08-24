@@ -29,6 +29,4 @@ class TestVolumeModule:
         assert exit_result is not None
         assert exit_result["changed"] is True
         # Note: The response for a create order is the order object, not the final resource
-        assert (
-            exit_result["resource"]["attributes"]["name"] == "E2E Test Volume via VCR"
-        )
+        assert exit_result["order"]["attributes"]["name"] == "E2E Test Volume via VCR"
