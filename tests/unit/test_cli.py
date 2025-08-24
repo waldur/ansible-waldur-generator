@@ -77,15 +77,23 @@ class TestCliArgumentParsing:
         )
 
         # Verify generate was called with default output dir
-        mock_generator.generate.assert_called_once_with(output_dir=cli.DEFAULT_OUTPUT_DIR)
+        mock_generator.generate.assert_called_once_with(
+            output_dir=cli.DEFAULT_OUTPUT_DIR
+        )
 
     @patch("ansible_waldur_generator.cli.Generator")
-    @patch("sys.argv", [
-        "generate",
-        "--config", "/custom/config.yaml",
-        "--api-spec", "/custom/api.yaml",
-        "--output-dir", "/custom/output"
-    ])
+    @patch(
+        "sys.argv",
+        [
+            "generate",
+            "--config",
+            "/custom/config.yaml",
+            "--api-spec",
+            "/custom/api.yaml",
+            "--output-dir",
+            "/custom/output",
+        ],
+    )
     def test_main_with_custom_arguments(self, mock_generator_class):
         """Test main function with custom arguments."""
         mock_generator = Mock()
@@ -106,7 +114,9 @@ class TestCliArgumentParsing:
     @patch("os.makedirs")
     @patch("os.path.exists", return_value=False)
     @patch("sys.argv", ["generate"])
-    def test_main_creates_output_directory_if_missing(self, mock_exists, mock_makedirs, mock_generator_class):
+    def test_main_creates_output_directory_if_missing(
+        self, mock_exists, mock_makedirs, mock_generator_class
+    ):
         """Test that main creates output directory if it doesn't exist."""
         mock_generator = Mock()
         mock_generator_class.from_files.return_value = mock_generator
@@ -120,7 +130,9 @@ class TestCliArgumentParsing:
     @patch("os.makedirs")
     @patch("os.path.exists", return_value=True)
     @patch("sys.argv", ["generate"])
-    def test_main_skips_creating_existing_output_directory(self, mock_exists, mock_makedirs, mock_generator_class):
+    def test_main_skips_creating_existing_output_directory(
+        self, mock_exists, mock_makedirs, mock_generator_class
+    ):
         """Test that main doesn't create output directory if it exists."""
         mock_generator = Mock()
         mock_generator_class.from_files.return_value = mock_generator
@@ -134,7 +146,9 @@ class TestCliArgumentParsing:
     @patch("builtins.print")
     @patch("os.path.exists", return_value=True)
     @patch("sys.argv", ["generate"])
-    def test_main_prints_completion_message(self, mock_exists, mock_print, mock_generator_class):
+    def test_main_prints_completion_message(
+        self, mock_exists, mock_print, mock_generator_class
+    ):
         """Test that main prints completion message."""
         mock_generator = Mock()
         mock_generator_class.from_files.return_value = mock_generator
@@ -176,12 +190,18 @@ class TestCliIntegration:
         mock_generator_class.from_files.return_value = mock_generator
 
         # Test with real argument parsing
-        with patch("sys.argv", [
-            "generate",
-            "--config", self.config_file,
-            "--api-spec", self.api_spec_file,
-            "--output-dir", self.output_dir
-        ]):
+        with patch(
+            "sys.argv",
+            [
+                "generate",
+                "--config",
+                self.config_file,
+                "--api-spec",
+                self.api_spec_file,
+                "--output-dir",
+                self.output_dir,
+            ],
+        ):
             with patch("os.path.exists", return_value=False):
                 with patch("os.makedirs"):
                     cli.main()
@@ -200,7 +220,9 @@ class TestCliErrorHandling:
     @patch("sys.argv", ["generate"])
     def test_generator_from_files_error_propagates(self, mock_generator_class):
         """Test that Generator.from_files errors are propagated."""
-        mock_generator_class.from_files.side_effect = FileNotFoundError("Config file not found")
+        mock_generator_class.from_files.side_effect = FileNotFoundError(
+            "Config file not found"
+        )
 
         with patch("os.path.exists", return_value=True):
             with pytest.raises(FileNotFoundError, match="Config file not found"):
@@ -275,12 +297,14 @@ class TestCliRealWorldScenarios:
         output_dir = os.path.join(self.temp_dir, "output")
 
         test_config = {
-            "collections": [{
-                "namespace": "test",
-                "name": "collection",
-                "version": "1.0.0",
-                "modules": []
-            }]
+            "collections": [
+                {
+                    "namespace": "test",
+                    "name": "collection",
+                    "version": "1.0.0",
+                    "modules": [],
+                }
+            ]
         }
         test_api_spec = {"openapi": "3.0.0", "paths": {}}
 
@@ -294,12 +318,18 @@ class TestCliRealWorldScenarios:
         mock_generator_class.from_files.return_value = mock_generator
 
         # Run CLI with test arguments
-        with patch("sys.argv", [
-            "generate",
-            "--config", config_file,
-            "--api-spec", api_spec_file,
-            "--output-dir", output_dir
-        ]):
+        with patch(
+            "sys.argv",
+            [
+                "generate",
+                "--config",
+                config_file,
+                "--api-spec",
+                api_spec_file,
+                "--output-dir",
+                output_dir,
+            ],
+        ):
             with patch("builtins.print") as mock_print:
                 cli.main()
 
@@ -319,12 +349,18 @@ class TestCliRealWorldScenarios:
         mock_generator = Mock()
         mock_generator_class.from_files.return_value = mock_generator
 
-        with patch("sys.argv", [
-            "generate",
-            "--config", "./config.yaml",
-            "--api-spec", "../api.yaml",
-            "--output-dir", "output"
-        ]):
+        with patch(
+            "sys.argv",
+            [
+                "generate",
+                "--config",
+                "./config.yaml",
+                "--api-spec",
+                "../api.yaml",
+                "--output-dir",
+                "output",
+            ],
+        ):
             with patch("os.path.exists", return_value=True):
                 cli.main()
 
