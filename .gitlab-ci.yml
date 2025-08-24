@@ -2,6 +2,11 @@ include:
   - project: "waldur/waldur-pipelines"
     file: "/templates/stages.yml"
 
+cache:
+  key:
+    files:
+      - poetry.lock
+
 Run linters:
   image: registry.hpc.ut.ee/mirror/library/python:3.11-bullseye
   stage: test
@@ -19,7 +24,7 @@ Run linters:
     - pip install pre-commit
     - pre-commit run --all
 
-Run tests:
+Run unit tests:
   image: registry.hpc.ut.ee/mirror/library/python:3.11-bullseye
   stage: test
   interruptible: true
@@ -34,9 +39,37 @@ Run tests:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
   script:
     - pip install poetry
-    - poetry install
-    - poetry run pytest --junitxml=report.xml
+
+     # Install dependencies but not the project itself
+    - poetry install --no-root
+
+    # Target only the unit test directory
+    - poetry run pytest tests/unit/ --junitxml=unit_report.xml
   artifacts:
     when: always
     reports:
-      junit: report.xml
+      junit: unit_report.xml
+
+Run E2E tests:
+  image: registry.hpc.ut.ee/mirror/library/python:3.11-bullseye
+  stage: test
+  interruptible: true
+  rules:
+    - if: '$SKIP_TESTS == "true" || $SKIP_TESTS == "yes"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  script:
+    - pip install poetry
+    - poetry install --no-root
+
+    # Generating Ansible Collections
+    - poetry run ansible-waldur-generator
+
+    # Target only the E2E test directory
+    - poetry run pytest tests/e2e/ --junitxml=e2e_report.xml --vcr-record=none
+  artifacts:
+    when: always
+    reports:
+      junit: e2e_report.xml

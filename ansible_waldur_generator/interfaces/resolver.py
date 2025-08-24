@@ -114,7 +114,10 @@ class ParameterResolver:
 
         # Handle the results of the search.
         if not response:
-            error_msg = resolver_conf["error_message"].format(value=value)
+            error_template = (
+                resolver_conf.get("error_message") or "Resource '{value}' not found."
+            )
+            error_msg = error_template.format(value=value)
             self.module.fail_json(msg=error_msg)
             return ""  # Unreachable
 
@@ -216,9 +219,11 @@ class ParameterResolver:
             )
 
             if not resource_list:
-                self.module.fail_json(
-                    msg=resolver_conf["error_message"].format(value=value)
+                error_template = (
+                    resolver_conf.get("error_message")
+                    or "Resource '{value}' not found."
                 )
+                self.module.fail_json(msg=error_template.format(value=value))
                 return None  # Unreachable
             if len(resource_list) > 1:
                 self.module.warn(

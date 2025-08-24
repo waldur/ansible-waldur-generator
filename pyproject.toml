@@ -22,6 +22,7 @@ pyyaml = "^6.0"
 ansible = "^11.8.0"
 ruff = "^0.12.8"
 pydantic = "^2.5.3"
+pytest-vcr = "^1.0.2"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.2.0"
@@ -34,3 +35,9 @@ build-backend = "poetry.core.masonry.api"
 "crud" = "ansible_waldur_generator.plugins.crud.plugin:CrudPlugin"
 "facts" = "ansible_waldur_generator.plugins.facts.plugin:FactsPlugin"
 "order" = "ansible_waldur_generator.plugins.order.plugin:OrderPlugin"
+
+[tool.pytest.ini_options]
+pythonpath = [
+  ".",
+  "outputs"
+]

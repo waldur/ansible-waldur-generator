@@ -130,11 +130,15 @@ class OrderRunner(BaseRunner):
         order_payload = {
             "project": project_url,
             "offering": offering_url,
-            "plan": self.module.params.get("plan"),
-            "limits": self.module.params.get("limits", {}),
             "attributes": attributes,
             "accepting_terms_of_service": True,
         }
+        plan = self.module.params.get("plan")
+        if plan:
+            order_payload.update({"plan": plan})
+        limits = self.module.params.get("limits")
+        if limits:
+            order_payload.update({"limits": limits})
 
         # Send the request to create the order.
         order = self._send_request(
@@ -146,6 +150,7 @@ class OrderRunner(BaseRunner):
             self._wait_for_order(order["uuid"])
 
         self.has_changed = True
+        self.resource = order
 
     def update(self):
         """
@@ -164,6 +169,14 @@ class OrderRunner(BaseRunner):
             self.resolver.prime_cache_from_resource(
                 self.resource, ["offering", "project"]
             )
+
+        # If the user provides an 'offering' or 'project' parameter, their choice
+        # should override the existing one. We explicitly resolve it here to
+        # update the cache with the user-provided value.
+        if self.module.params.get("offering"):
+            self.resolver.resolve("offering", self.module.params["offering"])
+        if self.module.params.get("project"):
+            self.resolver.resolve("project", self.module.params["project"])
 
         # Use a flag to perform the re-fetch only once at the end.
         needs_refetch = False

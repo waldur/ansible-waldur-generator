@@ -1,0 +1,213 @@
+collections:
+  - namespace: waldur
+    name: structure
+    version: 1.0.0
+    modules:
+      - name: project
+        plugin: crud
+        base_operation_id: "projects"
+        resolvers:
+          customer: "customers"
+          type: "project_types"
+
+      - name: customer
+        plugin: crud
+        base_operation_id: "customers"
+        skip_resolver_check:
+          - homepage
+
+  - namespace: waldur
+    name: openstack
+    version: 1.0.0
+    modules:
+      - name: instance_facts
+        plugin: facts
+        base_operation_id: "openstack_instances"
+
+      - name: security_group_facts
+        plugin: facts
+        base_operation_id: "openstack_security_groups"
+        many: true
+        context_params:
+          - name: tenant
+            resolver: "openstack_tenants"
+            filter_key: "tenant_uuid"
+
+      - name: subnet_facts
+        plugin: facts
+        base_operation_id: "openstack_subnets"
+        many: true
+        context_params:
+          - name: tenant
+            resolver: "openstack_tenants"
+            filter_key: "tenant_uuid"
+
+      - name: vpc
+        plugin: order
+        offering_type: OpenStack.Tenant
+        base_operation_id: "openstack_tenants"
+        has_limits: true
+
+      - name: volume
+        plugin: order
+        offering_type: OpenStack.Volume
+        base_operation_id: "openstack_volumes"
+        operations:
+          update:
+            fields: ["description"]
+        resolvers:
+          type:
+            base: "openstack_volume_types"
+            filter_by:
+              - source_param: "offering"
+                source_key: "scope_uuid"
+                target_key: "tenant_uuid"
+
+          image:
+            base: "openstack_images"
+            filter_by:
+              - source_param: "offering"
+                source_key: "scope_uuid"
+                target_key: "tenant_uuid"
+
+          availability_zone:
+            base: "openstack_volume_availability_zones"
+            filter_by:
+              - source_param: "offering"
+                source_key: "scope_uuid"
+                target_key: "tenant_uuid"
+
+      - name: instance
+        plugin: order
+        offering_type: OpenStack.Instance
+        base_operation_id: "openstack_instances"
+        operations:
+          update:
+            fields: ["name", "description"]
+            actions:
+              update_ports:
+                operation: "openstack_instances_update_ports"
+                param: "ports"
+                compare_key: "ports"
+              update_security_groups:
+                operation: "openstack_instances_update_security_groups"
+                param: "security_groups"
+                compare_key: "security_groups"
+              update_floating_ips:
+                operation: "openstack_instances_update_floating_ips"
+                param: "floating_ips"
+                compare_key: "floating_ips"
+        resolvers:
+          flavor:
+            base: "openstack_flavors"
+            filter_by:
+              - source_param: "offering"
+                source_key: "scope_uuid"
+                target_key: "tenant_uuid"
+
+          image:
+            base: "openstack_images"
+            filter_by:
+              - source_param: "offering"
+                source_key: "scope_uuid"
+                target_key: "tenant_uuid"
+
+          system_volume_type:
+            base: "openstack_volume_types"
+            filter_by:
+              - source_param: "offering"
+                source_key: "scope_uuid"
+                target_key: "tenant_uuid"
+
+          data_volume_type:
+            base: "openstack_volume_types"
+            filter_by:
+              - source_param: "offering"
+                source_key: "scope_uuid"
+                target_key: "tenant_uuid"
+
+          security_groups:
+            base: "openstack_security_groups"
+            filter_by:
+              - source_param: "offering"
+                source_key: "scope_uuid"
+                target_key: "tenant_uuid"
+
+          availability_zone:
+            base: "openstack_instance_availability_zones"
+            filter_by:
+              - source_param: "offering"
+                source_key: "scope_uuid"
+                target_key: "tenant_uuid"
+          subnet:
+            base: "openstack_subnets"
+            filter_by:
+              - source_param: "offering"
+                source_key: "scope_uuid"
+                target_key: "tenant_uuid"
+
+          ssh_public_key: "keys"
+
+      - name: security_group
+        plugin: crud
+        resource_type: "OpenStack security group"
+        description: "Manage OpenStack Security Groups and their rules in Waldur."
+        base_operation_id: "openstack_security_groups"
+        operations:
+          update:
+            fields: ["name", "description"]
+            actions:
+              set_rules:
+                operation: "openstack_security_groups_set_rules"
+                param: "rules"
+          create:
+            id: "openstack_tenants_create_security_group"
+            path_params: { uuid: "tenant" }
+        resolvers:
+          tenant: "openstack_tenants"
+
+      - name: network
+        plugin: crud
+        resource_type: "OpenStack network"
+        description: "Manage OpenStack Networks in Waldur."
+        base_operation_id: "openstack_networks"
+        operations:
+          update:
+            fields: ["name", "description"]
+            actions:
+              set_mtu:
+                operation: "openstack_networks_set_mtu"
+                param: "mtu"
+          create:
+            id: "openstack_tenants_create_network"
+            path_params: { uuid: "tenant" }
+        resolvers:
+          tenant: "openstack_tenants"
+
+      - name: server_group
+        plugin: crud
+        resource_type: "OpenStack server group"
+        description: "Manage OpenStack Server Groups (Affinity Groups) in Waldur."
+        base_operation_id: "openstack_server_groups"
+        operations:
+          update:
+            fields: ["name", "description"]
+          create:
+            id: "openstack_tenants_create_server_group"
+            path_params: { uuid: "tenant" }
+        resolvers:
+          tenant: "openstack_tenants"
+
+      - name: floating_ip
+        plugin: crud
+        resource_type: "OpenStack floating IP"
+        description: "Manage OpenStack Floating IPs in Waldur."
+        base_operation_id: "openstack_floating_ips"
+        operations:
+          update:
+            fields: ["description"]
+          create:
+            id: "openstack_tenants_create_floating_ip"
+            path_params: { uuid: "tenant" }
+        resolvers:
+          tenant: "openstack_tenants"
