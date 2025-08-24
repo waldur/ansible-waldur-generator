@@ -54,10 +54,16 @@ class TestCrudRunner:
         # Simulate that the resource does NOT exist, and the create call returns the new resource.
         new_resource = {"name": "New Research Project", "uuid": "new-uuid"}
         mock_send_request.side_effect = [
-            [],  # First call for existence check
-            [{"url": "http://api.com/customers/cust-uuid/"}],  # Resolver for customer
-            [{"url": "http://api.com/project-types/type-uuid/"}],  # Resolver for type
-            new_resource,  # Create call
+            ([], 200),  # First call for existence check
+            (
+                [{"url": "http://api.com/customers/cust-uuid/"}],
+                200,
+            ),  # Resolver for customer
+            (
+                [{"url": "http://api.com/project-types/type-uuid/"}],
+                200,
+            ),  # Resolver for type
+            (new_resource, 200),  # Create call
         ]
 
         # Act
@@ -85,7 +91,7 @@ class TestCrudRunner:
 
         # Simulate that the resource EXISTS.
         existing_resource = {"name": "Existing Project", "uuid": "existing-uuid"}
-        mock_send_request.return_value = [existing_resource]
+        mock_send_request.return_value = ([existing_resource], 200)
 
         # Act
         runner = CrudRunner(mock_ansible_module, mock_crud_runner_context)
@@ -113,8 +119,8 @@ class TestCrudRunner:
         # Simulate the resource exists and has the required UUID for deletion.
         existing_resource = {"name": "Project to Delete", "uuid": "proj-to-delete-uuid"}
         mock_send_request.side_effect = [
-            [existing_resource],
-            None,
+            ([existing_resource], 200),
+            (None, 204),
         ]  # Existence check, then delete
 
         # Act
@@ -141,7 +147,7 @@ class TestCrudRunner:
         }
 
         # Simulate the resource does not exist.
-        mock_send_request.return_value = []
+        mock_send_request.return_value = ([], 200)
 
         # Act
         runner = CrudRunner(mock_ansible_module, mock_crud_runner_context)
@@ -168,7 +174,7 @@ class TestCrudRunner:
         }
 
         # Simulate the resource does not exist.
-        mock_send_request.return_value = []
+        mock_send_request.return_value = ([], 200)
 
         # Act
         runner = CrudRunner(mock_ansible_module, mock_crud_runner_context)

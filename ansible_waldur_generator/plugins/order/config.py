@@ -64,6 +64,14 @@ class ParameterConfig(BaseModel):
     ref: str | None = None
 
 
+class WaitConfig(BaseModel):
+    """Configuration for polling an asynchronous task."""
+
+    ok_states: List[str] = Field(default_factory=lambda: ["OK"])
+    erred_states: List[str] = Field(default_factory=lambda: ["Erred"])
+    state_field: str = "state"
+
+
 class OrderModuleConfig(BaseModel):
     offering_type: str | None = None
     resource_type: str
@@ -75,6 +83,7 @@ class OrderModuleConfig(BaseModel):
     attribute_params: List[ParameterConfig] = Field(default_factory=list)
     resolvers: Dict[str, OrderModuleResolver] = Field(default_factory=dict)
     has_limits: bool = False
+    wait_config: WaitConfig | None = None
 
     class Config:
         arbitrary_types_allowed = True

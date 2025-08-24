@@ -27,6 +27,30 @@ AUTH_OPTIONS = {
     },
 }
 
+WAITER_OPTIONS = {
+    "state": {
+        "description": "Should the resource be present or absent.",
+        "choices": ["present", "absent"],
+        "default": "present",
+        "type": "str",
+    },
+    "wait": {
+        "description": "A boolean value that defines whether to wait for the async action to complete.",
+        "default": True,
+        "type": "bool",
+    },
+    "timeout": {
+        "description": "The maximum number of seconds to wait for the async action to complete.",
+        "default": 600,
+        "type": "int",
+    },
+    "interval": {
+        "description": "The interval in seconds for polling the async action status.",
+        "default": 20,
+        "type": "int",
+    },
+}
+
 
 def to_snake_case(name):
     """Converts CamelCase to snake_case."""

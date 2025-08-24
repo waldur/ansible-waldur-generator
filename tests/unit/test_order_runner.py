@@ -163,39 +163,50 @@ class TestOrderRunner:
         # Arrange: Mock the sequence of all required API calls.
         mock_send_request.side_effect = [
             # 1. Existence Check Phase
-            [{"url": "http://api.com/api/projects/proj-prod-uuid/"}],
-            [],  # Instance does not exist
+            ([{"url": "http://api.com/api/projects/proj-prod-uuid/"}], 200),
+            ([], 200),  # Instance does not exist
             # 2. Create Phase: Parameter Resolution
-            [{"url": "http://api.com/api/projects/proj-prod-uuid/"}],  # project
-            [
-                {
-                    "url": "http://api.com/api/offerings/off-prem-uuid/",
-                    "scope_uuid": "tenant-prod-123",
-                }
-            ],  # offering
-            [{"url": "http://api.com/api/flavors/flavor-large-uuid/"}],  # flavor
-            [{"url": "http://api.com/api/images/img-ubuntu-uuid/"}],  # image
-            [
-                {"url": "http://api.com/api/security-groups/sg-web-uuid/"}
-            ],  # security_groups[0]
-            [
-                {"url": "http://api.com/api/security-groups/sg-ssh-uuid/"}
-            ],  # security_groups[1]
-            [
-                {"url": "http://api.com/api/subnets/subnet-private-uuid/"}
-            ],  # ports[0].subnet
-            [
-                {"url": "http://api.com/api/subnets/subnet-public-uuid/"}
-            ],  # floating_ips[0].subnet
-            [{"url": "http://api.com/api/ssh-keys/key-admin-uuid/"}],  # ssh_public_key
+            ([{"url": "http://api.com/api/projects/proj-prod-uuid/"}], 200),  # project
+            (
+                [
+                    {
+                        "url": "http://api.com/api/offerings/off-prem-uuid/",
+                        "scope_uuid": "tenant-prod-123",
+                    }
+                ],
+                200,
+            ),  # offering
+            ([{"url": "http://api.com/api/flavors/flavor-large-uuid/"}], 200),  # flavor
+            ([{"url": "http://api.com/api/images/img-ubuntu-uuid/"}], 200),  # image
+            (
+                [{"url": "http://api.com/api/security-groups/sg-web-uuid/"}],
+                200,
+            ),  # security_groups[0]
+            (
+                [{"url": "http://api.com/api/security-groups/sg-ssh-uuid/"}],
+                200,
+            ),  # security_groups[1]
+            (
+                [{"url": "http://api.com/api/subnets/subnet-private-uuid/"}],
+                200,
+            ),  # ports[0].subnet
+            (
+                [{"url": "http://api.com/api/subnets/subnet-public-uuid/"}],
+                200,
+            ),  # floating_ips[0].subnet
+            (
+                [{"url": "http://api.com/api/ssh-keys/key-admin-uuid/"}],
+                200,
+            ),  # ssh_public_key
             # 3. Create Phase: Order Submission
-            {"uuid": "order-xyz-789"},
+            ({"uuid": "order-xyz-789"}, 200),
             # 4. Wait Phase
-            {"state": "done"},
-            [
-                {"url": "http://api.com/api/projects/proj-prod-uuid/"}
-            ],  # Final project resolve
-            [{"name": "prod-web-vm-01", "state": "OK"}],  # Final existence check
+            ({"state": "done"}, 200),
+            (
+                [{"url": "http://api.com/api/projects/proj-prod-uuid/"}],
+                200,
+            ),  # Final project resolve
+            ([{"name": "prod-web-vm-01", "state": "OK"}], 200),  # Final existence check
         ]
 
         # Arrange: Define the exact payload the runner is expected to build.
@@ -266,16 +277,18 @@ class TestOrderRunner:
         }
         mock_send_request.side_effect = [
             # 1. Existence Check
-            [
-                {"url": "http://api.com/api/projects/proj-uuid/"}
-            ],  # resolve project for check
-            [existing_resource],  # find resource
+            (
+                [{"url": "http://api.com/api/projects/proj-uuid/"}],
+                200,
+            ),  # resolve project for check
+            ([existing_resource], 200),  # find resource
             # 2. Update() method starts
             # It now calls prime_cache_from_resource, which is mocked by default and does nothing
             # Then it explicitly resolves 'project' if provided
-            [
-                {"url": "http://api.com/api/projects/proj-uuid/"}
-            ],  # resolve project for update
+            (
+                [{"url": "http://api.com/api/projects/proj-uuid/"}],
+                200,
+            ),  # resolve project for update
         ]
 
         # Act
@@ -312,11 +325,11 @@ class TestOrderRunner:
 
         def side_effect(method, path, **kwargs):
             if method == "GET" and "/api/projects/" in path:
-                return [{"url": "http://api.com/api/projects/proj-uuid/"}]
+                return ([{"url": "http://api.com/api/projects/proj-uuid/"}], 200)
             elif method == "GET" and "/api/openstack-instances/" in path:
-                return [existing_resource]
+                return ([existing_resource], 200)
             elif method == "PATCH" and "/api/openstack-instances/" in path:
-                return updated_resource
+                return (updated_resource, 200)
             return None
 
         mock_send_request.side_effect = side_effect
@@ -357,9 +370,12 @@ class TestOrderRunner:
             "marketplace_resource_uuid": "mkt-res-uuid-789",
         }
         mock_send_request.side_effect = [
-            [{"url": "http://api.com/api/projects/proj-uuid/"}],  # Resolve project
-            [existing_resource],  # Existence check finds it
-            None,  # The terminate call returns 204 No Content
+            (
+                [{"url": "http://api.com/api/projects/proj-uuid/"}],
+                200,
+            ),  # Resolve project
+            ([existing_resource], 200),  # Existence check finds it
+            (None, 204),  # The terminate call returns 204 No Content
         ]
 
         # Act
@@ -395,8 +411,8 @@ class TestOrderRunner:
         }
         # Simulate that the resource does not exist.
         mock_send_request.side_effect = [
-            [{"url": "http://api.com/api/projects/proj-uuid/"}],
-            [],
+            ([{"url": "http://api.com/api/projects/proj-uuid/"}], 200),
+            ([], 200),
         ]
 
         # Act
@@ -490,33 +506,46 @@ class TestOrderRunner:
             # Map common paths to expected responses based on request details
             if method == "GET":
                 if "/api/projects/" in path:
-                    return [{"url": "http://api.com/api/projects/proj-uuid/"}]
+                    return ([{"url": "http://api.com/api/projects/proj-uuid/"}], 200)
                 elif "/api/openstack-instances/" in path:
                     if "uuid" in path:  # Re-fetch of specific instance
-                        return [updated_resource_state]
-                    return [existing_resource]  # Initial existence check
+                        return ([updated_resource_state], 200)
+                    return ([existing_resource], 200)  # Initial existence check
                 elif "/api/projects/proj-uuid/" in path:
-                    return {}
+                    return ({}, 200)
                 elif "/api/offerings/off-prem-uuid/" in path:
-                    return {"scope_uuid": "tenant-prod-123"}
+                    return ({"scope_uuid": "tenant-prod-123"}, 200)
                 elif "/api/openstack-subnets/" in path:
-                    return [{"url": "http://api.com/api/subnets/subnet-new-uuid/"}]
+                    return (
+                        [{"url": "http://api.com/api/subnets/subnet-new-uuid/"}],
+                        200,
+                    )
                 elif "/api/openstack-security-groups/" in path:
                     if "web-sg" in kwargs.get("query_params", {}).get("name_exact", ""):
-                        return [
-                            {"url": "http://api.com/api/security-groups/sg-web-uuid/"}
-                        ]
+                        return (
+                            [
+                                {
+                                    "url": "http://api.com/api/security-groups/sg-web-uuid/"
+                                }
+                            ],
+                            200,
+                        )
                     elif "ssh-sg" in kwargs.get("query_params", {}).get(
                         "name_exact", ""
                     ):
-                        return [
-                            {"url": "http://api.com/api/security-groups/sg-ssh-uuid/"}
-                        ]
+                        return (
+                            [
+                                {
+                                    "url": "http://api.com/api/security-groups/sg-ssh-uuid/"
+                                }
+                            ],
+                            200,
+                        )
             elif method == "POST":
                 if "update_ports" in path:
-                    return None
+                    return (None, 202)  # Action accepted
                 elif "update_security_groups" in path:
-                    return None
+                    return (None, 202)  # Action accepted
 
             raise Exception(f"Unexpected request: {method} {path} {kwargs}")
 

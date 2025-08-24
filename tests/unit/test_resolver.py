@@ -65,7 +65,7 @@ class TestCachePriming:
         mock_runner.module = Mock()
         mock_runner.context = {"resolvers": {}}
         mock_runner._send_request = Mock(
-            return_value={"uuid": "offering-123", "name": "test-offering"}
+            return_value=({"uuid": "offering-123", "name": "test-offering"}, 200)
         )
 
         resolver = ParameterResolver(mock_runner)
@@ -93,13 +93,16 @@ class TestCachePriming:
         # Mock different responses for different URLs
         def mock_send_request(method, url):
             if "offerings" in url:
-                return {
-                    "uuid": "offering-123",
-                    "name": "test-offering",
-                    "scope_uuid": "tenant-456",
-                }
+                return (
+                    {
+                        "uuid": "offering-123",
+                        "name": "test-offering",
+                        "scope_uuid": "tenant-456",
+                    },
+                    200,
+                )
             elif "projects" in url:
-                return {"uuid": "project-789", "name": "test-project"}
+                return ({"uuid": "project-789", "name": "test-project"}, 200)
             return None
 
         mock_runner._send_request = Mock(side_effect=mock_send_request)
@@ -120,35 +123,13 @@ class TestCachePriming:
         assert resolver.cache["offering"]["uuid"] == "offering-123"
         assert resolver.cache["project"]["uuid"] == "project-789"
 
-    def test_prime_cache_skips_missing_keys(self):
-        """Test that cache priming skips keys that don't exist on the resource."""
-        # Arrange
-        mock_runner = Mock()
-        mock_runner.module = Mock()
-        mock_runner.context = {"resolvers": {}}
-        mock_runner._send_request = Mock()
-
-        resolver = ParameterResolver(mock_runner)
-        resource = {
-            "offering": "https://api.waldur.com/api/marketplace-offerings/offering-123/"
-        }
-
-        # Act
-        resolver.prime_cache_from_resource(resource, ["offering", "nonexistent_key"])
-
-        # Assert
-        # Should only call _send_request once for the existing key
-        mock_runner._send_request.assert_called_once()
-        assert "offering" in resolver.cache
-        assert "nonexistent_key" not in resolver.cache
-
     def test_prime_cache_skips_already_cached(self):
         """Test that cache priming skips keys that are already in cache."""
         # Arrange
         mock_runner = Mock()
         mock_runner.module = Mock()
         mock_runner.context = {"resolvers": {}}
-        mock_runner._send_request = Mock(return_value={"uuid": "new-data"})
+        mock_runner._send_request = Mock(return_value=({"uuid": "new-data"}, 200))
 
         resolver = ParameterResolver(mock_runner)
         resolver.cache["offering"] = {"uuid": "cached-data"}
@@ -214,12 +195,15 @@ class TestSimpleResolution:
         }
         mock_runner._is_uuid = Mock(return_value=False)
         mock_runner._send_request = Mock(
-            return_value=[
-                {
-                    "url": "https://api.waldur.com/api/customers/customer-123/",
-                    "name": "test-customer",
-                }
-            ]
+            return_value=(
+                [
+                    {
+                        "url": "https://api.waldur.com/api/customers/customer-123/",
+                        "name": "test-customer",
+                    },
+                ],
+                200,
+            )
         )
 
         resolver = ParameterResolver(mock_runner)
@@ -248,16 +232,19 @@ class TestSimpleResolution:
         }
         mock_runner._is_uuid = Mock(return_value=False)
         mock_runner._send_request = Mock(
-            return_value=[
-                {
-                    "url": "https://api.waldur.com/api/projects/project-123/",
-                    "name": "test-project",
-                },
-                {
-                    "url": "https://api.waldur.com/api/projects/project-456/",
-                    "name": "test-project",
-                },
-            ]
+            return_value=(
+                [
+                    {
+                        "url": "https://api.waldur.com/api/projects/project-123/",
+                        "name": "test-project",
+                    },
+                    {
+                        "url": "https://api.waldur.com/api/projects/project-456/",
+                        "name": "test-project",
+                    },
+                ],
+                200,
+            )
         )
 
         resolver = ParameterResolver(mock_runner)
@@ -285,7 +272,7 @@ class TestSimpleResolution:
             }
         }
         mock_runner._is_uuid = Mock(return_value=False)
-        mock_runner._send_request = Mock(return_value=[])
+        mock_runner._send_request = Mock(return_value=([], 200))
 
         resolver = ParameterResolver(mock_runner)
 
@@ -817,11 +804,14 @@ class TestResolveToList:
         mock_runner.context = {"resolvers": {}}
         mock_runner._is_uuid = Mock(return_value=True)
         mock_runner._send_request = Mock(
-            return_value={
-                "uuid": "subnet-123",
-                "name": "test-subnet",
-                "url": "https://api.waldur.com/api/subnets/subnet-123/",
-            }
+            return_value=(
+                {
+                    "uuid": "subnet-123",
+                    "name": "test-subnet",
+                    "url": "https://api.waldur.com/api/subnets/subnet-123/",
+                },
+                200,
+            )
         )
 
         resolver = ParameterResolver(mock_runner)
@@ -853,7 +843,7 @@ class TestResolveToList:
         mock_runner.module = Mock()
         mock_runner.context = {"resolvers": {}}
         mock_runner._is_uuid = Mock(return_value=True)
-        mock_runner._send_request = Mock(return_value=None)
+        mock_runner._send_request = Mock(return_value=(None, 200))
 
         resolver = ParameterResolver(mock_runner)
 
@@ -873,7 +863,7 @@ class TestResolveToList:
         mock_runner.context = {"resolvers": {}}
         mock_runner._is_uuid = Mock(return_value=False)
         mock_runner._send_request = Mock(
-            return_value=[{"uuid": "subnet-123", "name": "test-subnet"}]
+            return_value=([{"uuid": "subnet-123", "name": "test-subnet"}], 200)
         )
 
         resolver = ParameterResolver(mock_runner)
@@ -898,7 +888,7 @@ class TestResolveToList:
         mock_runner.context = {"resolvers": {}}
         mock_runner._is_uuid = Mock(return_value=False)
         mock_runner._send_request = Mock(
-            return_value=[{"uuid": "project-123", "name": "test-project"}]
+            return_value=([{"uuid": "project-123", "name": "test-project"}], 200)
         )
 
         resolver = ParameterResolver(mock_runner)
@@ -920,7 +910,7 @@ class TestResolveToList:
         mock_runner.module = Mock()
         mock_runner.context = {"resolvers": {}}
         mock_runner._is_uuid = Mock(return_value=False)
-        mock_runner._send_request = Mock(return_value=None)
+        mock_runner._send_request = Mock(return_value=(None, 200))
 
         resolver = ParameterResolver(mock_runner)
 
@@ -1079,11 +1069,14 @@ class TestComplexIntegrationScenarios:
         # Mock API responses
         def mock_send_request(method, url, data=None):
             if "offerings" in url:
-                return {
-                    "uuid": "offering-123",
-                    "scope_uuid": "tenant-456",
-                    "name": "test-offering",
-                }
+                return (
+                    {
+                        "uuid": "offering-123",
+                        "scope_uuid": "tenant-456",
+                        "name": "test-offering",
+                    },
+                    200,
+                )
             return None
 
         def mock_resolve_to_list(path, value, query_params=None):

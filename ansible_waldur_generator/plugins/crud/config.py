@@ -66,6 +66,14 @@ class UpdateConfig(BaseModel):
     actions: Dict[str, UpdateAction] = Field(default_factory=dict)
 
 
+class WaitConfig(BaseModel):
+    """Configuration for polling an asynchronous task."""
+
+    ok_states: List[str] = Field(default_factory=lambda: ["OK"])
+    erred_states: List[str] = Field(default_factory=lambda: ["ERRED"])
+    state_field: str = "state"
+
+
 class CrudModuleConfig(BaseModel):
     """
     The main configuration model for a 'crud' type Ansible module.
@@ -124,6 +132,9 @@ class CrudModuleConfig(BaseModel):
     # A list of parameter names that have 'format: uri' but should NOT be treated
     # as needing a resolver. This is an escape hatch for special cases.
     skip_resolver_check: List[str] = Field(default_factory=list)
+
+    # Configuration for waiting on asynchronous actions.
+    wait_config: WaitConfig | None = None
 
     class Config:
         arbitrary_types_allowed = True

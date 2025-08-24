@@ -8,24 +8,13 @@ from ansible_waldur_generator.models import (
 from ansible_waldur_generator.helpers import (
     AUTH_OPTIONS,
     OPENAPI_TO_ANSIBLE_TYPE_MAP,
+    WAITER_OPTIONS,
     capitalize_first,
 )
 from ansible_waldur_generator.interfaces.plugin import BasePlugin
 from ansible_waldur_generator.plugins.crud.config import (
     CrudModuleConfig,
 )
-
-# A base dictionary for the module's argument_spec, containing common
-# parameters required for every module, such as authentication and state.
-BASE_SPEC = {
-    **AUTH_OPTIONS,  # Includes 'api_url' and 'access_token'
-    "state": {
-        "description": "Should the resource be present or absent.",
-        "choices": ["present", "absent"],
-        "default": "present",
-        "type": "str",
-    },
-}
 
 
 class CrudPlugin(BasePlugin):
@@ -114,7 +103,7 @@ class CrudPlugin(BasePlugin):
             )
 
         # The final context dictionary passed to the runner.
-        return {
+        runner_context = {
             "resource_type": conf.resource_type,
             # API paths for each lifecycle stage.
             "list_path": conf.check_operation.path if conf.check_operation else None,
@@ -136,7 +125,16 @@ class CrudPlugin(BasePlugin):
             # Dictionary of complex update actions (e.g., set_rules).
             "update_actions": update_actions_context,
             "resolvers": resolvers_data,
+            # Add the generic polling path. The destroy path is the detail view.
+            "resource_detail_path": conf.destroy_operation.path
+            if conf.destroy_operation
+            else None,
         }
+
+        if module_config.wait_config:
+            runner_context["wait_config"] = module_config.wait_config.model_dump()
+
+        return runner_context
 
     def _get_model_param_names(self, module_config: CrudModuleConfig) -> List[str]:
         """Helper to get a list of parameter names from the create operation's request body schema."""
@@ -160,7 +158,10 @@ class CrudPlugin(BasePlugin):
         Creates the complete dictionary of Ansible module parameters by combining
         explicitly defined parameters with those inferred from the API specification.
         """
-        params: AnsibleModuleParams = {**BASE_SPEC}
+        params: AnsibleModuleParams = {
+            **AUTH_OPTIONS,  # Includes 'api_url' and 'access_token'
+            **WAITER_OPTIONS,  # Includes 'state', 'wait', 'timeout', 'interval'
+        }
         conf = module_config
 
         # 1. Add parameters used for checking existence (e.g., 'name').

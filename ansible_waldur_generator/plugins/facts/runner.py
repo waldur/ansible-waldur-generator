@@ -76,7 +76,7 @@ class FactsRunner(BaseRunner):
         # If the user provides a valid UUID as the main identifier, we can fetch the
         # resource directly from its specific endpoint, bypassing the need for a search.
         if self._is_uuid(value):
-            resource = self._send_request(
+            resource, _ = self._send_request(
                 "GET", self.context["retrieve_url"], path_params={"uuid": value}
             )
             # We wrap the single result in a list to maintain a consistent return type.
@@ -111,7 +111,7 @@ class FactsRunner(BaseRunner):
                     query_params[resolver_info["filter_key"]] = resolved_uuid
 
         # Perform the final API call with the combined dictionary of filters.
-        data = self._send_request(
+        data, _ = self._send_request(
             "GET", self.context["list_url"], query_params=query_params
         )
 

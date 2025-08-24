@@ -64,7 +64,9 @@ class CrudRunner(BaseRunner):
         endpoint with an exact name match.
         """
         params = {"name_exact": self.module.params["name"]}
-        data = self._send_request("GET", self.context["list_path"], query_params=params)
+        data, _ = self._send_request(
+            "GET", self.context["list_path"], query_params=params
+        )
         # The API returns a list; we take the first result if it exists.
         self.resource = data[0] if data else None
 
@@ -107,7 +109,7 @@ class CrudRunner(BaseRunner):
             path_params[path_param_key] = resolved_url.strip("/").split("/")[-1]
 
         # 3. Send the request and store the newly created resource.
-        self.resource = self._send_request(
+        self.resource, _ = self._send_request(
             "POST", path, data=payload, path_params=path_params
         )
         self.has_changed = True
@@ -132,7 +134,7 @@ class CrudRunner(BaseRunner):
                     update_payload[field] = param_value
             # If there are changes, send a PATCH request.
             if update_payload:
-                updated_resource = self._send_request(
+                updated_resource, _ = self._send_request(
                     "PATCH",
                     update_path,
                     data=update_payload,
@@ -161,16 +163,20 @@ class CrudRunner(BaseRunner):
                 else:
                     data_to_send = param_value
 
-                self._send_request(
+                _, status_code = self._send_request(
                     "POST",
                     action_info["path"],
                     data=data_to_send,
                     path_params={"uuid": self.resource["uuid"]},
                 )
 
-                # After an action, the resource state might have changed significantly,
-                # so we re-fetch it to ensure our local state is accurate.
-                self.check_existence()
+                # If the API accepted the task for async processing, wait for it.
+                if status_code == 202 and self.module.params.get("wait", True):
+                    self._wait_for_resource_state(self.resource["uuid"])
+                else:
+                    # For synchronous actions (200, 201, 204), re-fetch immediately.
+                    self.check_existence()
+
                 self.has_changed = True
 
     def delete(self):

@@ -7,6 +7,7 @@ from ansible_waldur_generator.models import AnsibleModuleParams
 from ansible_waldur_generator.helpers import (
     AUTH_OPTIONS,
     OPENAPI_TO_ANSIBLE_TYPE_MAP,
+    WAITER_OPTIONS,
     capitalize_first,
 )
 from ansible_waldur_generator.interfaces.plugin import BasePlugin
@@ -16,33 +17,6 @@ from ansible_waldur_generator.plugins.order.config import (
     OrderModuleConfig,
     UpdateActionConfig,
 )
-
-# A base dictionary for the module's argument_spec, containing common
-# parameters required for every order-based module.
-BASE_SPEC = {
-    **AUTH_OPTIONS,  # Includes 'api_url' and 'access_token'
-    "state": {
-        "description": "Should the resource be present or absent.",
-        "choices": ["present", "absent"],
-        "default": "present",
-        "type": "str",
-    },
-    "wait": {
-        "description": "A boolean value that defines whether to wait for the order to complete.",
-        "default": True,
-        "type": "bool",
-    },
-    "timeout": {
-        "description": "The maximum number of seconds to wait for the order to complete.",
-        "default": 600,
-        "type": "int",
-    },
-    "interval": {
-        "description": "The interval in seconds for polling the order status.",
-        "default": 20,
-        "type": "int",
-    },
-}
 
 
 class OrderPlugin(BasePlugin):
@@ -180,7 +154,10 @@ class OrderPlugin(BasePlugin):
         the resource-specific `attribute_params` that are either manually defined
         or inferred from the offering's OpenAPI schema.
         """
-        params: AnsibleModuleParams = {**BASE_SPEC}
+        params: AnsibleModuleParams = {
+            **AUTH_OPTIONS,  # Includes 'api_url' and 'access_token'
+            **WAITER_OPTIONS,  # Includes 'state', 'wait', 'timeout', 'interval'
+        }
 
         # Add core parameters required for every marketplace order.
         params["name"] = {
@@ -272,7 +249,7 @@ class OrderPlugin(BasePlugin):
             list(dict.fromkeys(module_config.update_check_fields))
         )
 
-        return {
+        runner_context = {
             "resource_type": module_config.resource_type,
             "existence_check_url": module_config.existence_check_op.path
             if module_config.existence_check_op
@@ -293,7 +270,16 @@ class OrderPlugin(BasePlugin):
                 }
                 for name, action in module_config.update_actions.items()
             },
+            # Add the generic polling path. The update path is the detail view.
+            "resource_detail_path": module_config.update_op.path
+            if module_config.update_op
+            else None,
         }
+
+        if module_config.wait_config:
+            runner_context["wait_config"] = module_config.wait_config.model_dump()
+
+        return runner_context
 
     def _build_schema_for_attributes(
         self, module_config: OrderModuleConfig

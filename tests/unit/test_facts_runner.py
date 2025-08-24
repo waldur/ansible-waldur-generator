@@ -54,7 +54,7 @@ class TestFactsRunner:
 
         # Simulate the `_send_request` finding exactly one resource.
         found_resource = {"name": "default-sg", "uuid": "sg-uuid"}
-        mock_send_request.return_value = [found_resource]
+        mock_send_request.return_value = ([found_resource], 200)
 
         # Act
         runner = FactsRunner(mock_ansible_module, mock_facts_runner_context)
@@ -84,7 +84,7 @@ class TestFactsRunner:
 
         # Simulate the `_send_request` finding the resource.
         found_resource = {"name": "default-sg", "uuid": test_uuid}
-        mock_send_request.return_value = found_resource
+        mock_send_request.return_value = (found_resource, 200)
 
         # Act
         runner = FactsRunner(mock_ansible_module, mock_facts_runner_context)
@@ -116,9 +116,15 @@ class TestFactsRunner:
         # Simulate the resolver and the final resource fetch.
         found_resource = {"name": "web-sg", "uuid": "web-sg-uuid"}
         mock_send_request.side_effect = [
-            [{"url": "http://api.com/api/projects/proj-uuid/"}],  # project resolver
-            [{"url": "http://api.com/api/tenants/tenant-uuid/"}],  # tenant resolver
-            [found_resource],  # final resource fetch
+            (
+                [{"url": "http://api.com/api/projects/proj-uuid/"}],
+                200,
+            ),  # project resolver
+            (
+                [{"url": "http://api.com/api/tenants/tenant-uuid/"}],
+                200,
+            ),  # tenant resolver
+            ([found_resource], 200),  # final resource fetch
         ]
 
         # Act
@@ -153,7 +159,7 @@ class TestFactsRunner:
         }
 
         # Simulate `_send_request` returning an empty list.
-        mock_send_request.return_value = []
+        mock_send_request.return_value = ([], 200)
 
         # Act
         runner = FactsRunner(mock_ansible_module, mock_facts_runner_context)
@@ -178,7 +184,7 @@ class TestFactsRunner:
         }
 
         # Simulate `_send_request` returning an empty list.
-        mock_send_request.return_value = []
+        mock_send_request.return_value = ([], 200)
 
         # Act
         runner = FactsRunner(mock_ansible_module, mock_facts_runner_context)
@@ -203,9 +209,13 @@ class TestFactsRunner:
         }
 
         # Simulate `_send_request` returning multiple resources.
-        resource1 = {"name": "ambiguous-name", "uuid": "uuid1"}
-        resource2 = {"name": "ambiguous-name", "uuid": "uuid2"}
-        mock_send_request.return_value = [resource1, resource2]
+        mock_send_request.return_value = (
+            [
+                {"name": "ambiguous-name", "uuid": "uuid1"},
+                {"name": "ambiguous-name", "uuid": "uuid2"},
+            ],
+            200,
+        )
 
         # Act
         runner = FactsRunner(mock_ansible_module, mock_facts_runner_context)
@@ -233,7 +243,7 @@ class TestFactsRunner:
         # Simulate `_send_request` returning multiple resources.
         resource1 = {"name": "ambiguous-name", "uuid": "uuid1"}
         resource2 = {"name": "ambiguous-name", "uuid": "uuid2"}
-        mock_send_request.return_value = [resource1, resource2]
+        mock_send_request.return_value = ([resource1, resource2], 200)
 
         # Act
         runner = FactsRunner(mock_ansible_module, mock_facts_runner_context)

@@ -163,6 +163,9 @@ Below is a detailed explanation of each available plugin.
         3.  If it **does exist**, it checks for changes:
             -   It compares values for parameters listed in `update_config.fields` and sends a `PATCH` request via the `update` operation if any have changed.
             -   It checks if any parameters for special `update_config.actions` are provided and calls their respective `POST` operations.
+                -   **Asynchronous Actions**: If the `POST` action returns a `202 Accepted` status code, the module recognizes it as an asynchronous task.
+                -   If the `wait: true` parameter is set (the default), the module will poll the resource's status until it reaches a stable state (e.g., "OK" or "ERRED").
+                -   You can configure the stable/error states and polling parameters in `generator_config.yaml`.
     -   **`state: absent`**:
         1.  Calls the `list` operation to find the resource.
         2.  If it exists, it calls the `destroy` operation to remove it.
@@ -222,6 +225,11 @@ Below is a detailed explanation of each available plugin.
             path_params:
               uuid: "tenant"
 
+        wait_config:
+          ok_states: ["OK"] # The state(s) that mean success
+          erred_states: ["ERRED"] # The state(s) that mean failure
+          state_field: "state" # The key in the resource dict that holds the state
+
         # This block defines how to resolve dependencies.
         resolvers:
           # We need a resolver for 'tenant' because it's used in `path_params` for
@@ -243,7 +251,9 @@ Below is a detailed explanation of each available plugin.
     -   **`state: present`**:
         1.  Checks for the existence of the *final resource* (e.g., the volume) using `existence_check_op`.
         2.  If it **does not exist**, it creates a marketplace order via `marketplace_orders_create` and, if `wait: true`, polls for completion.
-        3.  If it **does exist**, it checks if any fields in `update_check_fields` have changed and calls `update_op` to update the resource directly.
+        2.  If it **does exist**, it checks for changes. It supports two kinds of updates:
+            -   **Synchronous Updates:** For simple fields listed in `update_check_fields`, it sends a direct `PATCH` request.
+            -   **Asynchronous Actions:** For complex operations defined in `update_actions`, it sends a `POST` request. If this request returns a `202 Accepted` status, the module recognizes it as an asynchronous task. If `wait: true` is set, the module will then poll the *resource's status* (not the order) until it reaches a stable state (e.g., "OK" or "Erred"), which can be configured via `wait_config`.
     -   **`state: absent`**:
         1.  Finds the existing resource.
         2.  Calls the standard `marketplace_resources_terminate` endpoint.
@@ -448,8 +458,6 @@ A simple resolver handles a direct, one-to-one relationship. It takes a name or 
         Waldur-->>Module: Returns newly created project
         Module-->>User: Success (changed: true)
     ```
-
----
 
 #### Advanced Resolvers: Dependency Filtering
 

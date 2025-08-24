@@ -163,6 +163,10 @@ collections:
           create:
             id: "openstack_tenants_create_security_group"
             path_params: { uuid: "tenant" }
+        wait_config:
+          ok_states: ["OK"]
+          erred_states: ["ERRED"]
+          state_field: "state"
         resolvers:
           tenant: "openstack_tenants"
 
@@ -181,6 +185,10 @@ collections:
           create:
             id: "openstack_tenants_create_network"
             path_params: { uuid: "tenant" }
+        wait_config:
+          ok_states: ["OK"]
+          erred_states: ["ERRED"]
+          state_field: "state"
         resolvers:
           tenant: "openstack_tenants"
 

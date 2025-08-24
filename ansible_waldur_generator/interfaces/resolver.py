@@ -74,7 +74,7 @@ class ParameterResolver:
             if resource.get(key) and key not in self.cache:
                 # The value (e.g., resource['offering']) is a URL.
                 # We make a GET request to that URL to fetch the full object.
-                obj_data = self.runner._send_request("GET", resource[key])
+                obj_data, _ = self.runner._send_request("GET", resource[key])
                 if obj_data:
                     self.cache[key] = obj_data
 
@@ -108,7 +108,7 @@ class ParameterResolver:
             return f"{api_url}/{list_path}/{value}/"
 
         # If it's a name, perform a search using the configured list endpoint.
-        response = self.runner._send_request(
+        response, _ = self.runner._send_request(
             "GET", resolver_conf["url"], query_params={"name_exact": value}
         )
 
@@ -308,7 +308,9 @@ class ParameterResolver:
         if self.runner._is_uuid(value):
             # A GET to a specific resource returns a dict, not a list. We must
             # normalize this into a list to fulfill this method's contract.
-            resource = self.runner._send_request("GET", f"{path.rstrip('/')}/{value}/")
+            resource, _ = self.runner._send_request(
+                "GET", f"{path.rstrip('/')}/{value}/"
+            )
             return [resource] if resource else []
 
         # For name-based lookups, combine the name filter with any dependency filters.
@@ -317,7 +319,7 @@ class ParameterResolver:
 
         # The `_send_request` helper is designed to return an empty list for 204 or empty
         # JSON array responses, which simplifies handling here.
-        result = self.runner._send_request("GET", path, query_params=final_query)
+        result, _ = self.runner._send_request("GET", path, query_params=final_query)
 
         # Ensure we always return a list.
         return result if result is not None else []

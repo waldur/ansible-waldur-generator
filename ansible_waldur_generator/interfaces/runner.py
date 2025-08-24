@@ -1,4 +1,5 @@
 import json
+import time
 import uuid
 from urllib.parse import urlencode
 
@@ -35,7 +36,7 @@ class BaseRunner:
 
     def _send_request(
         self, method, path, data=None, query_params=None, path_params=None
-    ):
+    ) -> tuple[any, int]:
         """
         A wrapper around fetch_url to handle API requests robustly.
         """
@@ -84,8 +85,10 @@ class BaseRunner:
         if response:
             body_content = response.read()
 
+        status_code = info["status"]
+
         # 4. Handle failed requests with detailed error messages
-        if info["status"] not in [200, 201, 202, 204]:
+        if status_code not in [200, 201, 202, 204]:
             error_details = ""
             if body_content:
                 try:
@@ -98,7 +101,7 @@ class BaseRunner:
                         f"API Response (raw): {body_content.decode(errors='ignore')}"
                     )
 
-            msg = f"Request to {url} failed. Status: {info['status']}. Message: {info['msg']}. {error_details}"
+            msg = f"Request to {url} failed. Status: {status_code}. Message: {info['msg']}. {error_details}"
             self.module.fail_json(msg=msg)
             return
 
@@ -108,11 +111,13 @@ class BaseRunner:
             # For GET requests, an empty response body should be an empty list,
             # not None, to prevent TypeErrors in callers. For other methods,
             # None is appropriate for "No Content" responses.
-            return [] if method == "GET" else None
+            # For GET, return empty list; for others, return None.
+            body = [] if method == "GET" else None
+            return body, status_code
 
         # Try to parse the successful response as JSON
         try:
-            return json.loads(body_content)
+            return json.loads(body_content), status_code
         except json.JSONDecodeError:
             # The server returned a 2xx status but the body was not valid JSON
             self.module.fail_json(
@@ -130,3 +135,61 @@ class BaseRunner:
             return True
         except (ValueError, TypeError, AttributeError):
             return False
+
+    def _wait_for_resource_state(self, resource_uuid: str):
+        """
+        Polls a resource by its UUID until it reaches a stable state (OK or Erred).
+        This is a generic utility for actions that trigger asynchronous background jobs.
+        """
+        wait_config = self.context.get("wait_config", {})
+        if not wait_config:
+            self.module.fail_json(
+                msg="Runner Error: _wait_for_resource_state called but 'wait_config' is not defined in the runner context."
+            )
+            return
+
+        # The path to the resource's detail view, used for polling.
+        # We'll configure plugins to ensure this key is in the context.
+        polling_path = self.context.get("resource_detail_path")
+        if not polling_path:
+            self.module.fail_json(
+                msg="Runner Error: 'resource_detail_path' is required in runner context for waiting."
+            )
+            return
+
+        ok_states = wait_config.get("ok_states", ["OK"])
+        erred_states = wait_config.get("erred_states", ["Erred"])
+        state_field = wait_config.get("state_field", "state")
+
+        timeout = self.module.params.get("timeout", 600)
+        interval = self.module.params.get("interval", 20)
+        start_time = time.time()
+
+        while time.time() - start_time < timeout:
+            resource_state, status_code = self._send_request(
+                "GET", polling_path, path_params={"uuid": resource_uuid}
+            )
+
+            if status_code == 404:
+                # This can happen in a terminate/delete workflow where the resource disappears
+                # before we can confirm its final state. We can consider this a success.
+                self.resource = None
+                return
+
+            if resource_state:
+                current_state = resource_state.get(state_field)
+                if current_state in ok_states:
+                    self.resource = resource_state  # Update runner's resource state
+                    return
+                if current_state in erred_states:
+                    self.module.fail_json(
+                        msg=f"Resource action resulted in an error state: '{current_state}'.",
+                        resource=resource_state,
+                    )
+                    return  # Unreachable
+
+            time.sleep(interval)
+
+        self.module.fail_json(
+            msg=f"Timeout waiting for resource {resource_uuid} to become stable."
+        )
