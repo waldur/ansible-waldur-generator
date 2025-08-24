@@ -90759,6 +90759,12 @@ components:
         connect_directly_to_external_network:
           type: boolean
           description: If True, instance will be connected directly to external network
+        data_volumes:
+          type: array
+          items:
+            $ref: '#/components/schemas/OpenStackDataVolumeRequest'
+          writeOnly: true
+          description: Additional data volumes to attach to the instance
       required:
       - flavor
       - image

@@ -17,6 +17,7 @@ class TestInstanceModule:
             "offering": "Virtual machine in E2E Ansible tenant",
             "project": "E2E Ansible project",
             "security_groups": ["allow-all", "ssh"],
+            "wait": False,
             **auth_params,  # Unpack the auth fixture here
         }
 
