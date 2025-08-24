@@ -968,7 +968,7 @@ class TestComplexIntegrationScenarios:
                     "url": "/api/security-groups/",
                     "error_message": "Security group '{value}' not found",
                     "is_list": True,
-                    "list_item_key": "security_group",
+                    "list_item_key": "url",
                     "filter_by": [
                         {
                             "source_param": "offering",
@@ -1040,16 +1040,14 @@ class TestComplexIntegrationScenarios:
                 {
                     "subnet": "/api/subnets/subnet-123/",
                     "security_groups": [
-                        {"security_group": "/api/security-groups/sg-123/"},
-                        {"security_group": "/api/security-groups/sg-456/"},
+                        {"url": "/api/security-groups/sg-123/"},
+                        {"url": "/api/security-groups/sg-456/"},
                     ],
                     "description": "Web server port",
                 },
                 {
                     "subnet": "/api/subnets/subnet-456/",
-                    "security_groups": [
-                        {"security_group": "/api/security-groups/sg-789/"}
-                    ],
+                    "security_groups": [{"url": "/api/security-groups/sg-789/"}],
                     "description": "Admin port",
                 },
             ]
