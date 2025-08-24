@@ -215,9 +215,15 @@ class BasePlugin(ABC):
         """
         spec = {}
         for name, opts in parameters.items():
-            param_spec = {"type": opts["type"], "required": opts.get("required", False)}
+            param_spec = {"type": opts["type"]}
             if "choices" in opts and opts["choices"] is not None:
                 param_spec["choices"] = opts["choices"]
+            if "default" in opts:
+                param_spec["default"] = opts["default"]
+            if opts.get("no_log", False):
+                param_spec["no_log"] = True
+            if opts.get("required", False):
+                param_spec["required"] = True
             spec[name] = param_spec
         return spec
 

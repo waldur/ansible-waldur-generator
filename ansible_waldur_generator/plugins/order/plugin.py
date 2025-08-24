@@ -313,6 +313,7 @@ class OrderPlugin(BasePlugin):
             "resource_detail_path": module_config.update_op.path
             if module_config.update_op
             else None,
+            "transformations": module_config.transformations,
         }
 
         if module_config.wait_config:
@@ -527,6 +528,18 @@ class OrderPlugin(BasePlugin):
                 description = f"A list of {display_name} names or UUIDs."
             else:
                 description = capitalize_first(display_name)
+
+        # Append transformation details to the description.
+        if name in module_config.transformations:
+            transform_type = module_config.transformations[name]
+            if transform_type == "gb_to_mb":
+                # Ensure we don't add a period if there isn't one.
+                if not description.endswith("."):
+                    description += "."
+                description += (
+                    " The value should be provided in GiB and will be converted to MiB."
+                )
+
         return description
 
     def _infer_offering_params(

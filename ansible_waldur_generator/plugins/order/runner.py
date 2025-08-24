@@ -3,6 +3,12 @@ import time
 from ansible_waldur_generator.interfaces.resolver import ParameterResolver
 from ansible_waldur_generator.interfaces.runner import BaseRunner
 
+# A map of transformation types to their corresponding functions.
+# This makes the system easily extendable with new transformations.
+TRANSFORMATION_MAP = {
+    "gb_to_mb": lambda x: int(x) * 1024,
+}
+
 
 class OrderRunner(BaseRunner):
     """
@@ -31,6 +37,38 @@ class OrderRunner(BaseRunner):
         # This gives the resolver access to _send_request, the module, and the context.
         # The resolver will now manage its own internal cache, replacing `self.resolved_api_responses`.
         self.resolver = ParameterResolver(self)
+
+    def _apply_transformations(self, payload: dict) -> dict:
+        """
+        Applies configured value transformations to a payload dictionary.
+
+        Args:
+            payload: The dictionary of parameters to transform.
+
+        Returns:
+            A new dictionary with the transformed values.
+        """
+        transformations = self.context.get("transformations", {})
+        if not transformations:
+            return payload
+
+        transformed_payload = payload.copy()
+        for param_name, transform_type in transformations.items():
+            if (
+                param_name in transformed_payload
+                and transformed_payload[param_name] is not None
+            ):
+                transform_func = TRANSFORMATION_MAP.get(transform_type)
+                if transform_func:
+                    try:
+                        original_value = transformed_payload[param_name]
+                        transformed_payload[param_name] = transform_func(original_value)
+                    except (ValueError, TypeError):
+                        # If conversion fails (e.g., user provides "10GB" instead of 10),
+                        # we let it pass. The API validation will catch it and provide a
+                        # more user-friendly error than a Python traceback.
+                        pass
+        return transformed_payload
 
     def run(self):
         """
@@ -131,10 +169,13 @@ class OrderRunner(BaseRunner):
                     key, self.module.params[key], output_format="create"
                 )
 
+        # Apply transformations to the attributes before sending to the API.
+        transformed_attributes = self._apply_transformations(attributes)
+
         order_payload = {
             "project": project_url,
             "offering": offering_url,
-            "attributes": attributes,
+            "attributes": transformed_attributes,
             "accepting_terms_of_service": True,
         }
         plan = self.module.params.get("plan")

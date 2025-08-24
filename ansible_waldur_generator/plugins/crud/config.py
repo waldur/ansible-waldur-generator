@@ -20,10 +20,6 @@ class ModuleResolver(BaseModel):
     # A user-friendly error message to display if the resource cannot be found.
     error_message: str | None = None
 
-    class Config:
-        # Pydantic configuration to allow non-standard types like ApiOperation.
-        arbitrary_types_allowed = True
-
 
 class UpdateAction(BaseModel):
     """
@@ -42,9 +38,6 @@ class UpdateAction(BaseModel):
     # should be used for the idempotency check. If omitted, it defaults
     # to the value of 'param'.
     check_field: str | None = None
-
-    class Config:
-        arbitrary_types_allowed = True
 
 
 class UpdateConfig(BaseModel):
@@ -135,6 +128,3 @@ class CrudModuleConfig(BaseModel):
 
     # Configuration for waiting on asynchronous actions.
     wait_config: WaitConfig | None = None
-
-    class Config:
-        arbitrary_types_allowed = True

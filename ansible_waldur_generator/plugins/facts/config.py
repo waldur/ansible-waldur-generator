@@ -9,9 +9,9 @@ class ContextParam(BaseModel):
     type: str = "str"
     required: bool = False
     description: str | None = None
-    resolver: str
     # `resolver` is just a string, representing the base_operation_id
     # of the parent resource (e.g., "openstack_tenants")
+    resolver: str
     filter_key: str
 
 
@@ -32,6 +32,3 @@ class FactsModuleConfig(BaseModel):
             resource_type = values.data.get("resource_type", "").replace("_", " ")
             return f"Get an existing {resource_type}."
         return v
-
-    class Config:
-        arbitrary_types_allowed = True

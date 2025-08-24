@@ -13,9 +13,6 @@ class UpdateActionConfig(BaseModel):
         str  # The key on the existing resource to compare against for idempotency.
     )
 
-    class Config:
-        arbitrary_types_allowed = True
-
 
 class FilterByConfig(BaseModel):
     """
@@ -40,9 +37,6 @@ class OrderModuleResolver(BaseModel):
     error_message: str | None = None
     # A list of dependencies used to filter the 'list' operation call.
     filter_by: List[FilterByConfig] = Field(default_factory=list)
-
-    class Config:
-        arbitrary_types_allowed = True
 
 
 class ParameterConfig(BaseModel):
@@ -88,6 +82,4 @@ class OrderModuleConfig(BaseModel):
     resolvers: Dict[str, OrderModuleResolver] = Field(default_factory=dict)
     has_limits: bool = False
     wait_config: WaitConfig | None = None
-
-    class Config:
-        arbitrary_types_allowed = True
+    transformations: Dict[str, str] = Field(default_factory=dict)

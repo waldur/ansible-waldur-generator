@@ -81,6 +81,10 @@ collections:
         plugin: order
         offering_type: OpenStack.Instance
         base_operation_id: "openstack_instances"
+        transformations:
+          data_volume_size: 'gb_to_mb'
+          system_volume_size: 'gb_to_mb'
+          size: 'gb_to_mb'
         operations:
           update:
             fields: ["name", "description"]
