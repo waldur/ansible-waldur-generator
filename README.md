@@ -392,6 +392,145 @@ sequenceDiagram
     end
 ```
 
+### The Resolvers Concept: Bridging the Human-API Gap
+
+At the heart of the generator's power is the **Resolver System**. Its fundamental purpose is to bridge the gap between a human-friendly Ansible playbook and the strict requirements of a machine-focused API.
+
+-   **The Problem:** An Ansible user wants to write `customer: 'Big Corp Inc.'`. However, the Waldur API requires a full URL for the customer field when creating a new project, like `customer: 'https://api.example.com/api/customers/a1b2-c3d4-e5f6/'`. Asking users to find and hardcode these URLs is cumbersome, error-prone, and goes against the principle of declarative, readable automation.
+
+-   **The Solution:** Resolvers automate this translation. You define *how* to find a resource (like a customer) by its name or UUID, and the generated module's runtime logic (the "runner") will handle the lookup and substitution for you.
+
+This system is used by all plugins but is most critical for the `crud` and `order` plugins, which manage resource relationships. Let's explore how it works using examples from our `generator_config.yaml`.
+
+#### Simple Resolvers
+
+A simple resolver handles a direct, one-to-one relationship. It takes a name or UUID and finds the corresponding resource's URL. This is common for top-level resources or parent-child relationships.
+
+-   **Mechanism:** It works by using two API operations which are inferred from a base string:
+    1.  A `list` operation to search for the resource by its name (e.g., `customers_list` with a `name_exact` filter).
+    2.  A `retrieve` operation to fetch the resource directly if the user provides a UUID (this is a performance optimization).
+
+-   **Configuration Example (from `waldur.structure`):**
+    This example configures resolvers for the `customer` and `type` parameters in the `project` module.
+
+    ```yaml
+    # In generator_config.yaml
+    - name: project
+      plugin: crud
+      base_operation_id: "projects"
+      resolvers:
+        # Shorthand notation. This tells the generator:
+        # 1. There is an Ansible parameter named 'customer'.
+        # 2. To resolve it, use the 'customers_list' and 'customers_retrieve' API operations.
+        customer: "customers"
+
+        # Another example for the project's 'type'.
+        type: "project_types"
+    ```
+
+-   **Runtime Workflow:**
+    When a user runs a playbook with `customer: "Big Corp"`, the `project` module's runner executes the following logic:
+
+    ```mermaid
+    sequenceDiagram
+        participant User as Ansible User
+        participant Module as waldur.structure.project
+        participant Resolver as ParameterResolver
+        participant Waldur as Waldur API
+
+        User->>Module: Executes playbook with `customer: "Big Corp"`
+        Module->>Resolver: resolve("customer", "Big Corp")
+        Resolver->>Waldur: GET /api/customers/?name_exact="Big Corp" (via 'customers_list')
+        Waldur-->>Resolver: Returns customer object `{"url": "...", "name": "Big Corp", ...}`
+        Resolver-->>Module: Returns resolved URL: "https://.../customers/..."
+
+        Module->>Waldur: POST /api/projects/ with body `{"customer": "https://.../customers/...", "name": "..."}`
+        Waldur-->>Module: Returns newly created project
+        Module-->>User: Success (changed: true)
+    ```
+
+---
+
+#### Advanced Resolvers: Dependency Filtering
+
+The true power of the resolver system shines when dealing with nested or context-dependent resources. This is essential for the `order` plugin.
+
+-   **The Problem:** Many cloud resources are not globally unique. For example, an OpenStack "flavor" named `small` might exist in multiple tenants. To create a VM, you need the *specific* `small` flavor that belongs to the tenant where you are deploying. A simple name lookup is not enough.
+
+-   **The Solution:** The `order` plugin's resolvers support a `filter_by` configuration. This allows one resolver's lookup to be filtered by the results of another, previously resolved parameter.
+
+-   **Configuration Example (from `waldur.openstack`):**
+    This `instance` module resolves a `flavor`. The list of available flavors *must* be filtered by the tenant, which is derived from the `offering` the user has chosen.
+
+    ```yaml
+    # In generator_config.yaml
+    - name: instance
+      plugin: order
+      offering_type: OpenStack.Instance
+      # ...
+      resolvers:
+        # The 'flavor' resolver depends on the 'offering'.
+        flavor:
+          # Shorthand to infer 'openstack_flavors_list' and 'openstack_flavors_retrieve'
+          base: "openstack_flavors"
+
+          # This block establishes the dependency.
+          filter_by:
+            - # 1. Look at the result of the 'offering' parameter.
+              source_param: "offering"
+              # 2. From the resolved offering's API response, get the value of the 'scope_uuid' key.
+              #    (In Waldur, this is the UUID of the tenant associated with the offering).
+              source_key: "scope_uuid"
+              # 3. When calling 'openstack_flavors_list', add a query parameter.
+              #    The parameter key will be 'tenant_uuid', and its value will be the
+              #    'scope_uuid' we just extracted.
+              target_key: "tenant_uuid"
+    ```
+
+-   **Runtime Workflow:** This is a multi-step process managed internally by the runner and resolver.
+
+    ```mermaid
+    sequenceDiagram
+        participant User as Ansible User
+        participant Runner as OrderRunner
+        participant Resolver as ParameterResolver
+        participant Waldur as Waldur API
+
+        Note over User, Runner: Playbook runs with `offering: "VMs in Tenant A"` and `flavor: "small"`
+
+        Runner->>Resolver: resolve("offering", "VMs in Tenant A")
+        Resolver->>Waldur: GET /api/marketplace-public-offerings/?name_exact=...
+        Waldur-->>Resolver: Returns Offering object `{"url": "...", "scope_uuid": "tenant-A-uuid", ...}`
+        Note right of Resolver: Caches the full Offering object internally.
+        Resolver-->>Runner: Returns Offering URL
+
+        Runner->>Resolver: resolve("flavor", "small")
+        Note right of Resolver: Sees `filter_by` config for 'flavor'.
+        Resolver->>Resolver: Looks up 'offering' in its cache. Finds the object.
+        Resolver->>Resolver: Extracts `scope_uuid` ("tenant-A-uuid") from cached object.
+
+        Note right of Resolver: Builds query: `?name_exact=small&tenant_uuid=tenant-A-uuid`
+        Resolver->>Waldur: GET /api/openstack-flavors/?name_exact=small&tenant_uuid=tenant-A-uuid
+        Waldur-->>Resolver: Returns the correct Flavor object for Tenant A.
+        Resolver-->>Runner: Returns Flavor URL
+
+        Note over Runner, Waldur: Runner now has all resolved URLs and creates the final marketplace order.
+    ```
+
+#### Resolving Lists of Items
+
+Another common scenario is a parameter that accepts a list of resolvable items, such as the `security_groups` for a VM.
+
+-   **The Problem:** The user wants to provide a simple list of names: `security_groups: ['web', 'ssh']`. The API, however, often requires a more complex structure, like a list of objects: `security_groups: [{ "url": "https://.../sg-web-uuid/" }, { "url": "https://.../sg-ssh-uuid/" }]`.
+
+-   **The Solution:** The resolver system handles this automatically. The generator analyzes the OpenAPI schema for the `offering_type`. When it sees that the `security_groups` attribute is an `array` of objects with a `url` property, it configures the runner to:
+    1.  Iterate through the user's simple list (`['web', 'ssh']`).
+    2.  Resolve each name individually to its full object, using the `security_groups` resolver configuration (which itself uses dependency filtering, as shown above).
+    3.  Extract the `url` from each resolved object.
+    4.  Construct the final list of dictionaries in the format required by the API.
+
+This powerful abstraction keeps the Ansible playbook clean and simple, hiding the complexity of the underlying API. The user only needs to provide the list of names, and the resolver handles the rest.
+
 ### Component Responsibilities
 
 1.  **Core System (`generator.py`, `plugin_manager.py`)**:
