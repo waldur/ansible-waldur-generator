@@ -317,7 +317,7 @@ Below is a detailed explanation of each available plugin.
 
 ## Architecture
 
-The generator's architecture is designed to decouple the Ansible logic from the API implementation details. It achieves this by using the `generator_config.yaml` as a "bridge" between the OpenAPI specification and the generated code.
+The generator's architecture is designed to decouple the Ansible logic from the API implementation details. It achieves this by using the `generator_config.yaml` as a "bridge" between the OpenAPI specification and the generated code. The generator can produce multiple, self-contained Ansible Collections in a single run.
 
 ```mermaid
 graph TD
@@ -341,15 +341,28 @@ graph TD
     D -- Renders final code --> E
 ```
 
+
 ### Plugin-Based Architecture
 
 The system's flexibility comes from its plugin architecture. The `Generator` itself does not know the details of a `crud` module versus an `order` module. It only knows how to interact with the `BasePlugin` interface.
 
 1.  **Plugin Discovery**: The `PluginManager` uses Python's entry point system to automatically discover and register plugins at startup.
-2.  **Delegation**: The `Generator` reads a module's `type` from the config and asks the `PluginManager` for the corresponding plugin.
+2.  **Delegation**: The `Generator` reads a module's `plugin` key from the config and asks the `PluginManager` for the corresponding plugin.
 3.  **Encapsulation**: Each plugin fully encapsulates the logic for its type. It knows how to parse its specific YAML configuration, interact with the `ApiSpecParser` to get operation details, and build the final `GenerationContext` needed to render the module.
 4.  **Plugin Contract**: All plugins implement the `BasePlugin` interface, which requires a central `generate()` method. This ensures a consistent interaction pattern between the `Generator` and all plugins.
-5.  **Runtime Logic (Runners)**: Each plugin is paired with a `runner.py` file. This runner contains the actual Python logic that will be executed by the Ansible module at runtime. The `Generator` copies this runner into the collection's `plugins/module_utils/` directory, making the collection self-contained. The generated module is a thin wrapper that calls its corresponding runner.
+
+### Runtime Logic (Runners and the Resolver)
+
+The logic that executes at runtime inside an Ansible module is split between two key components: **Runners** and the **ParameterResolver**.
+
+1.  **Runners (`runner.py`)**: Each plugin is paired with a `runner.py` file (e.g., `CrudRunner`, `OrderRunner`). This runner contains the Python logic for the module's state management (create, update, delete). The generated module file (e.g., `project.py`) is a thin wrapper that calls its corresponding runner. The generator copies the runner and a `base_runner.py` into the collection's `plugins/module_utils/` directory and rewrites their imports, making the collection **fully self-contained**.
+
+2.  **ParameterResolver**: This is a powerful, centralized utility that is composed within each runner. Its sole responsibility is to handle the complex, recursive resolution of user-friendly inputs (like resource names) into the URLs or other data structures required by the API. By centralizing this logic, runners are kept clean and focused on their state-management tasks. The resolver supports:
+    *   Simple name/UUID to URL conversion.
+    *   Recursive resolution of nested dictionaries and lists.
+    *   Caching of API responses to avoid redundant network calls.
+    *   Dependency-based filtering (e.g., filtering flavors by the tenant of a resolved offering).
+
 
 The diagram below shows how the system processes each module definition.
 
@@ -383,25 +396,26 @@ sequenceDiagram
 
 1.  **Core System (`generator.py`, `plugin_manager.py`)**:
     -   **`Generator`**: The main orchestrator. It is type-agnostic. Its job is to:
-        1.  Initialize the `PluginManager`.
-        2.  Parse the API spec *once* using the shared `ApiSpecParser`.
-        3.  Loop through module definitions.
-        4.  For each definition, get the correct plugin from the `PluginManager`.
-        5.  Call the plugin's `generate()` method, passing in the necessary tools like the config and API parser.
-        6.  Take the returned `GenerationContext` and render the final module file.
-        7.  Copy the plugin's associated `runner.py` file into `module_utils`.
-    -   **`PluginManager`**: The discovery service. It finds and loads all available plugins registered under the `ansible_waldur_generator` entry point in `pyproject.toml`.
+        1.  Loop through each **collection** definition in the config.
+        2.  For each collection, create the standard directory skeleton (`galaxy.yml`, etc.).
+        3.  Loop through the **module** definitions within that collection.
+        4.  Delegate to the correct plugin to get a `GenerationContext`.
+        5.  Render the final module file.
+        6.  Copy the plugin's `runner.py` and a shared `base_runner.py` into `module_utils`, rewriting their imports to make the collection self-contained.
+    -   **`PluginManager`**: The discovery service. It finds and loads all available plugins registered via entry points.
 
 2.  **Plugin Interface (`interfaces/plugin.py`)**:
-    -   **`BasePlugin`**: An abstract base class that defines the "contract" for all plugins. It requires two main methods:
-        -   `get_type_name()`: Returns the string that links the plugin to the `type` key in the YAML config (e.g., `'crud'`).
-        -   `generate()`: The main entry point for the plugin. It receives the module configuration and API parsers and is responsible for returning a complete `GenerationContext` object.
+    -   **`BasePlugin`**: An abstract base class defining the contract for all plugins. It requires a `generate()` method that receives the module configuration, API parsers, and the current **collection context** (namespace/name) and returns a complete `GenerationContext`.
 
-3.  **Concrete Plugins (e.g., `plugins/crud/`)**:
-    -   Each plugin is a self-contained directory containing:
-        -   **`config.py`**: A Pydantic model for validating the plugin-specific sections of `generator_config.yaml`.
-        -   **`runner.py`**: The runtime logic for the generated Ansible module. This code is executed on the target host.
-        -   **`plugin.py`**: The implementation of `BasePlugin` (e.g., `CrudPlugin`). This class orchestrates the plugin-specific logic for generating the module's documentation, parameters, and runner context.
+3.  **Runtime Components (`interfaces/runner.py`, `interfaces/resolver.py`)**:
+    -   **`BaseRunner`**: A concrete base class that provides shared runtime utilities for all runners, such as the `_send_request` helper for making API calls.
+    -   **`ParameterResolver`**: A reusable class that encapsulates all logic for converting user inputs (names/UUIDs) into API-ready data. It is instantiated by runners.
+
+4.  **Concrete Plugins and Runners (e.g., `plugins/crud/`)**:
+    -   Each plugin is a self-contained directory with:
+        -   **`config.py`**: Pydantic models for validating its specific YAML configuration.
+        -   **`plugin.py`**: The generation-time logic. It implements `BasePlugin` and is responsible for creating the module's documentation, parameters, and runner context.
+        -   **`runner.py`**: The runtime logic. It inherits from `BaseRunner`, uses the `ParameterResolver`, and executes the module's core state management tasks (e.g., creating a resource if it doesn't exist).
 
 
 ### How to Add a New Plugin
