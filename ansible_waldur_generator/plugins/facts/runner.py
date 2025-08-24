@@ -92,8 +92,8 @@ class FactsRunner(BaseRunner):
             query_params["name_exact"] = value
 
         # Resolve all configured context parameters (e.g., 'project', 'tenant').
-        context_resolvers = self.context.get("context_resolvers", {})
-        for param_name, resolver_info in context_resolvers.items():
+        resolvers_config = self.context.get("resolvers", {})
+        for param_name, resolver_info in resolvers_config.items():
             # Check if the user included this context parameter in their playbook.
             if self.module.params.get(param_name):
                 # Delegate the resolution of the context parameter's name/UUID to our

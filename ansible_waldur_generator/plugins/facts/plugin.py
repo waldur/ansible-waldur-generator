@@ -219,16 +219,16 @@ class FactsPlugin(BasePlugin):
         # Build the resolver configurations that the runner will use to translate
         # user-provided names/UUIDs for context parameters into the filter keys
         # required by the API.
-        context_resolvers = {}
+        resolvers = {}
         for p_conf in conf.context_params:
-            if p_conf.name not in context_resolvers:
+            if p_conf.name not in resolvers:
                 # The resolver for a context param needs the list URL of the parent
                 # resource and the query parameter key to use for filtering.
                 resolver_base_id = p_conf.resolver
                 list_op_id = f"{resolver_base_id}_list"
                 list_op = api_parser.get_operation(list_op_id)
                 if list_op:
-                    context_resolvers[p_conf.name] = {
+                    resolvers[p_conf.name] = {
                         "url": list_op.path,
                         "error_message": f"{p_conf.name.capitalize()} '{{value}}' not found.",
                         "filter_key": p_conf.filter_key,
@@ -244,6 +244,6 @@ class FactsPlugin(BasePlugin):
             # Tell the runner which parameter holds the main identifier.
             "identifier_param": conf.identifier_param,
             # Pass the fully constructed resolver map.
-            "context_resolvers": context_resolvers,
+            "resolvers": resolvers,
             "many": conf.many,
         }

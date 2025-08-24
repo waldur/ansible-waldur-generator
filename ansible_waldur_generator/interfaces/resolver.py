@@ -93,7 +93,7 @@ class ParameterResolver:
             The fully qualified URL of the resolved resource.
         """
         # Retrieve the specific resolver configuration for this parameter from the context.
-        resolver_conf = self.context["resolvers"].get(param_name)
+        resolver_conf = self.context.get("resolvers", {}).get(param_name)
         if not resolver_conf:
             self.module.fail_json(
                 msg=f"Configuration error: No resolver found for parameter '{param_name}'."
@@ -308,7 +308,7 @@ class ParameterResolver:
 
         # For name-based lookups, combine the name filter with any dependency filters.
         final_query = query_params.copy() if query_params else {}
-        final_query["name"] = value
+        final_query["name_exact"] = value
 
         # The `_send_request` helper is designed to return an empty list for 204 or empty
         # JSON array responses, which simplifies handling here.

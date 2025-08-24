@@ -16,7 +16,6 @@ def mock_ansible_module():
     ) as mock_class:
         mock_module = mock_class.return_value
         mock_module.params = {}
-        # `FactsRunner` does not use check_mode, but it's good practice to have it.
         mock_module.check_mode = False
 
         # Mock the exit methods to prevent sys.exit and to capture their arguments.
@@ -34,9 +33,9 @@ def mock_facts_runner_context():
         "module_type": "facts",
         "resource_type": "security_group",
         "list_url": "/api/security-groups/",
-        "retrieve_url": "/api/security-groups/",
+        "retrieve_url": "/api/security-groups/{uuid}/",
         "identifier_param": "name",
-        "context_resolvers": {
+        "resolvers": {
             "project": {
                 "url": "/api/projects/",
                 "error_message": "Project '{value}' not found.",
@@ -48,6 +47,7 @@ def mock_facts_runner_context():
                 "filter_key": "tenant_uuid",
             },
         },
+        "many": False,  # Explicitly set the default for clarity in tests
     }
     return context
 
@@ -85,7 +85,7 @@ class TestFactsRunner:
             "GET", "/api/security-groups/", query_params={"name_exact": "default-sg"}
         )
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=False, resource=found_resource
+            changed=False, resources=[found_resource]
         )
         mock_ansible_module.fail_json.assert_not_called()
 
@@ -112,10 +112,10 @@ class TestFactsRunner:
 
         # Assert
         mock_send_request.assert_called_once_with(
-            "GET", "/api/security-groups/", path_params={"uuid": test_uuid}
+            "GET", "/api/security-groups/{uuid}/", path_params={"uuid": test_uuid}
         )
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=False, resource=found_resource
+            changed=False, resources=[found_resource]
         )
         mock_ansible_module.fail_json.assert_not_called()
 
@@ -126,7 +126,7 @@ class TestFactsRunner:
     ):
         # Arrange
         mock_ansible_module.params = {
-            "api_url": "http://api.com",
+            "api_url": "http://api.com/",
             "access_token": "test-token",
             "name": "web-sg",
             "project": "Cloud Project",
@@ -136,8 +136,8 @@ class TestFactsRunner:
         # Simulate the resolver and the final resource fetch.
         found_resource = {"name": "web-sg", "uuid": "web-sg-uuid"}
         mock_send_request.side_effect = [
-            [{"url": "http://api.com/projects/proj-uuid/"}],  # project resolver
-            [{"url": "http://api.com/tenants/tenant-uuid/"}],  # tenant resolver
+            [{"url": "http://api.com/api/projects/proj-uuid/"}],  # project resolver
+            [{"url": "http://api.com/api/tenants/tenant-uuid/"}],  # tenant resolver
             [found_resource],  # final resource fetch
         ]
 
@@ -156,13 +156,13 @@ class TestFactsRunner:
             },
         )
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=False, resource=found_resource
+            changed=False, resources=[found_resource]
         )
         mock_ansible_module.fail_json.assert_not_called()
 
     # --- Scenario 4: Resource not found ---
     @patch("ansible_waldur_generator.plugins.facts.runner.FactsRunner._send_request")
-    def test_resource_not_found(
+    def test_resource_not_found_fails_when_many_is_false(
         self, mock_send_request, mock_ansible_module, mock_facts_runner_context
     ):
         # Arrange
@@ -185,9 +185,34 @@ class TestFactsRunner:
         assert "not found" in call_kwargs["msg"]
         mock_ansible_module.exit_json.assert_not_called()
 
-    # --- Scenario 5: Multiple resources found, should warn and return the first ---
     @patch("ansible_waldur_generator.plugins.facts.runner.FactsRunner._send_request")
-    def test_multiple_resources_found(
+    def test_resource_not_found_succeeds_when_many_is_true(
+        self, mock_send_request, mock_ansible_module, mock_facts_runner_context
+    ):
+        # Arrange
+        mock_facts_runner_context["many"] = True
+        mock_ansible_module.params = {
+            "api_url": "http://api.com",
+            "access_token": "test-token",
+            "name": "non-existent-sg",
+        }
+
+        # Simulate `_send_request` returning an empty list.
+        mock_send_request.return_value = []
+
+        # Act
+        runner = FactsRunner(mock_ansible_module, mock_facts_runner_context)
+        runner.run()
+
+        # Assert
+        mock_ansible_module.exit_json.assert_called_once_with(
+            changed=False, resources=[]
+        )
+        mock_ansible_module.fail_json.assert_not_called()
+
+    # --- Scenario 5: Multiple resources found ---
+    @patch("ansible_waldur_generator.plugins.facts.runner.FactsRunner._send_request")
+    def test_multiple_resources_found_fails_when_many_is_false(
         self, mock_send_request, mock_ansible_module, mock_facts_runner_context
     ):
         # Arrange
@@ -207,8 +232,36 @@ class TestFactsRunner:
         runner.run()
 
         # Assert
-        mock_ansible_module.warn.assert_called_once()
+        mock_ansible_module.fail_json.assert_called_once()
+        call_args, call_kwargs = mock_ansible_module.fail_json.call_args
+        assert "Multiple security_groups found" in call_kwargs["msg"]
+        mock_ansible_module.warn.assert_not_called()
+        mock_ansible_module.exit_json.assert_not_called()
+
+    @patch("ansible_waldur_generator.plugins.facts.runner.FactsRunner._send_request")
+    def test_multiple_resources_found_succeeds_when_many_is_true(
+        self, mock_send_request, mock_ansible_module, mock_facts_runner_context
+    ):
+        # Arrange
+        mock_facts_runner_context["many"] = True
+        mock_ansible_module.params = {
+            "api_url": "http://api.com",
+            "access_token": "test-token",
+            "name": "ambiguous-name",
+        }
+
+        # Simulate `_send_request` returning multiple resources.
+        resource1 = {"name": "ambiguous-name", "uuid": "uuid1"}
+        resource2 = {"name": "ambiguous-name", "uuid": "uuid2"}
+        mock_send_request.return_value = [resource1, resource2]
+
+        # Act
+        runner = FactsRunner(mock_ansible_module, mock_facts_runner_context)
+        runner.run()
+
+        # Assert
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=False, resource=resource1
+            changed=False, resources=[resource1, resource2]
         )
         mock_ansible_module.fail_json.assert_not_called()
+        mock_ansible_module.warn.assert_not_called()
