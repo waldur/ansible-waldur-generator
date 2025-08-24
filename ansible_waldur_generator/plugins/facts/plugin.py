@@ -137,7 +137,7 @@ class FactsPlugin(BasePlugin):
                 "type": "list",
                 "returned": "on success",
                 "elements": "dict",
-                "contains": return_content,  # Describes the structure of a single item in the list.
+                "suboptions": return_content,  # Describes the structure of a single item in the list.
             }
         }
 
