@@ -23,28 +23,28 @@ class TestApiSpecParser:
                             {
                                 "name": "name",
                                 "in": "query",
-                                "schema": {"type": "string"}
+                                "schema": {"type": "string"},
                             },
                             {
                                 "name": "name_exact",
                                 "in": "query",
-                                "schema": {"type": "string"}
+                                "schema": {"type": "string"},
                             },
                             {
                                 "name": "abbreviation",
                                 "in": "query",
-                                "schema": {"type": "string"}
+                                "schema": {"type": "string"},
                             },
                             {
                                 "name": "archived",
                                 "in": "query",
-                                "schema": {"type": "boolean"}
+                                "schema": {"type": "boolean"},
                             },
                             {
                                 "name": "backend_id",
                                 "in": "query",
-                                "schema": {"type": "string"}
-                            }
+                                "schema": {"type": "string"},
+                            },
                         ],
                         "tags": ["customers"],
                         "responses": {
@@ -54,12 +54,14 @@ class TestApiSpecParser:
                                     "application/json": {
                                         "schema": {
                                             "type": "array",
-                                            "items": {"$ref": "#/components/schemas/Customer"}
+                                            "items": {
+                                                "$ref": "#/components/schemas/Customer"
+                                            },
                                         }
                                     }
-                                }
+                                },
                             }
-                        }
+                        },
                     },
                     "post": {
                         "operationId": "customers_create",
@@ -68,33 +70,37 @@ class TestApiSpecParser:
                         "requestBody": {
                             "content": {
                                 "application/json": {
-                                    "schema": {"$ref": "#/components/schemas/CustomerRequest"},
+                                    "schema": {
+                                        "$ref": "#/components/schemas/CustomerRequest"
+                                    },
                                     "examples": {
                                         "CreateCustomer": {
                                             "value": {
                                                 "name": "Customer A",
                                                 "native_name": "Customer A",
                                                 "abbreviation": "CA",
-                                                "contact_details": "Luhamaa 28, 10128 Tallinn"
+                                                "contact_details": "Luhamaa 28, 10128 Tallinn",
                                             },
-                                            "summary": "Create customer"
+                                            "summary": "Create customer",
                                         }
-                                    }
+                                    },
                                 }
                             },
-                            "required": True
+                            "required": True,
                         },
                         "responses": {
                             "201": {
                                 "content": {
                                     "application/json": {
-                                        "schema": {"$ref": "#/components/schemas/Customer"}
+                                        "schema": {
+                                            "$ref": "#/components/schemas/Customer"
+                                        }
                                     }
                                 },
-                                "description": ""
+                                "description": "",
                             }
-                        }
-                    }
+                        },
+                    },
                 },
                 "/api/customers/{uuid}/": {
                     "get": {
@@ -104,7 +110,7 @@ class TestApiSpecParser:
                                 "name": "uuid",
                                 "in": "path",
                                 "required": True,
-                                "schema": {"type": "string", "format": "uuid"}
+                                "schema": {"type": "string", "format": "uuid"},
                             }
                         ],
                         "tags": ["customers"],
@@ -112,12 +118,14 @@ class TestApiSpecParser:
                             "200": {
                                 "content": {
                                     "application/json": {
-                                        "schema": {"$ref": "#/components/schemas/Customer"}
+                                        "schema": {
+                                            "$ref": "#/components/schemas/Customer"
+                                        }
                                     }
                                 },
-                                "description": ""
+                                "description": "",
                             }
-                        }
+                        },
                     },
                     "patch": {
                         "operationId": "customers_partial_update",
@@ -126,14 +134,16 @@ class TestApiSpecParser:
                                 "name": "uuid",
                                 "in": "path",
                                 "required": True,
-                                "schema": {"type": "string", "format": "uuid"}
+                                "schema": {"type": "string", "format": "uuid"},
                             }
                         ],
                         "tags": ["customers"],
                         "requestBody": {
                             "content": {
                                 "application/json": {
-                                    "schema": {"$ref": "#/components/schemas/CustomerRequest"}
+                                    "schema": {
+                                        "$ref": "#/components/schemas/CustomerRequest"
+                                    }
                                 }
                             }
                         },
@@ -141,12 +151,14 @@ class TestApiSpecParser:
                             "200": {
                                 "content": {
                                     "application/json": {
-                                        "schema": {"$ref": "#/components/schemas/Customer"}
+                                        "schema": {
+                                            "$ref": "#/components/schemas/Customer"
+                                        }
                                     }
                                 },
-                                "description": ""
+                                "description": "",
                             }
-                        }
+                        },
                     },
                     "delete": {
                         "operationId": "customers_destroy",
@@ -155,12 +167,12 @@ class TestApiSpecParser:
                                 "name": "uuid",
                                 "in": "path",
                                 "required": True,
-                                "schema": {"type": "string", "format": "uuid"}
+                                "schema": {"type": "string", "format": "uuid"},
                             }
                         ],
                         "tags": ["customers"],
-                        "responses": {"204": {"description": "No response body"}}
-                    }
+                        "responses": {"204": {"description": "No response body"}},
+                    },
                 },
                 "/api/projects/": {
                     "get": {
@@ -170,18 +182,18 @@ class TestApiSpecParser:
                             {
                                 "name": "backend_id",
                                 "in": "query",
-                                "schema": {"type": "string"}
+                                "schema": {"type": "string"},
                             },
                             {
                                 "name": "customer",
                                 "in": "query",
-                                "schema": {"type": "string", "format": "uri"}
+                                "schema": {"type": "string", "format": "uri"},
                             },
                             {
                                 "name": "customer_uuid",
                                 "in": "query",
-                                "schema": {"type": "string", "format": "uuid"}
-                            }
+                                "schema": {"type": "string", "format": "uuid"},
+                            },
                         ],
                         "tags": ["projects"],
                         "responses": {
@@ -190,13 +202,15 @@ class TestApiSpecParser:
                                     "application/json": {
                                         "schema": {
                                             "type": "array",
-                                            "items": {"$ref": "#/components/schemas/Project"}
+                                            "items": {
+                                                "$ref": "#/components/schemas/Project"
+                                            },
                                         }
                                     }
                                 },
-                                "description": ""
+                                "description": "",
                             }
-                        }
+                        },
                     },
                     "post": {
                         "operationId": "projects_create",
@@ -205,22 +219,26 @@ class TestApiSpecParser:
                         "requestBody": {
                             "content": {
                                 "application/json": {
-                                    "schema": {"$ref": "#/components/schemas/ProjectRequest"}
+                                    "schema": {
+                                        "$ref": "#/components/schemas/ProjectRequest"
+                                    }
                                 }
                             },
-                            "required": True
+                            "required": True,
                         },
                         "responses": {
                             "201": {
                                 "content": {
                                     "application/json": {
-                                        "schema": {"$ref": "#/components/schemas/Project"}
+                                        "schema": {
+                                            "$ref": "#/components/schemas/Project"
+                                        }
                                     }
                                 },
-                                "description": ""
+                                "description": "",
                             }
-                        }
-                    }
+                        },
+                    },
                 },
                 "/api/projects/{uuid}/": {
                     "get": {
@@ -230,7 +248,7 @@ class TestApiSpecParser:
                                 "name": "uuid",
                                 "in": "path",
                                 "required": True,
-                                "schema": {"type": "string", "format": "uuid"}
+                                "schema": {"type": "string", "format": "uuid"},
                             }
                         ],
                         "tags": ["projects"],
@@ -238,12 +256,14 @@ class TestApiSpecParser:
                             "200": {
                                 "content": {
                                     "application/json": {
-                                        "schema": {"$ref": "#/components/schemas/Project"}
+                                        "schema": {
+                                            "$ref": "#/components/schemas/Project"
+                                        }
                                     }
                                 },
-                                "description": ""
+                                "description": "",
                             }
-                        }
+                        },
                     },
                     "patch": {
                         "operationId": "projects_partial_update",
@@ -252,14 +272,16 @@ class TestApiSpecParser:
                                 "name": "uuid",
                                 "in": "path",
                                 "required": True,
-                                "schema": {"type": "string", "format": "uuid"}
+                                "schema": {"type": "string", "format": "uuid"},
                             }
                         ],
                         "tags": ["projects"],
                         "requestBody": {
                             "content": {
                                 "application/json": {
-                                    "schema": {"$ref": "#/components/schemas/ProjectRequest"}
+                                    "schema": {
+                                        "$ref": "#/components/schemas/ProjectRequest"
+                                    }
                                 }
                             }
                         },
@@ -267,12 +289,14 @@ class TestApiSpecParser:
                             "200": {
                                 "content": {
                                     "application/json": {
-                                        "schema": {"$ref": "#/components/schemas/Project"}
+                                        "schema": {
+                                            "$ref": "#/components/schemas/Project"
+                                        }
                                     }
                                 },
-                                "description": ""
+                                "description": "",
                             }
-                        }
+                        },
                     },
                     "delete": {
                         "operationId": "projects_destroy",
@@ -282,13 +306,13 @@ class TestApiSpecParser:
                                 "name": "uuid",
                                 "in": "path",
                                 "required": True,
-                                "schema": {"type": "string", "format": "uuid"}
+                                "schema": {"type": "string", "format": "uuid"},
                             }
                         ],
                         "tags": ["projects"],
-                        "responses": {"204": {"description": "No response body"}}
-                    }
-                }
+                        "responses": {"204": {"description": "No response body"}},
+                    },
+                },
             },
             "components": {
                 "schemas": {
@@ -299,60 +323,34 @@ class TestApiSpecParser:
                             "url": {
                                 "type": "string",
                                 "format": "uri",
-                                "readOnly": True
+                                "readOnly": True,
                             },
                             "uuid": {
                                 "type": "string",
                                 "format": "uuid",
-                                "readOnly": True
+                                "readOnly": True,
                             },
                             "created": {
                                 "type": "string",
                                 "format": "date-time",
-                                "readOnly": True
+                                "readOnly": True,
                             },
-                            "display_name": {
-                                "type": "string",
-                                "readOnly": True
-                            },
+                            "display_name": {"type": "string", "readOnly": True},
                             "backend_id": {
                                 "type": "string",
                                 "description": "Organization identifier in another application.",
-                                "maxLength": 255
+                                "maxLength": 255,
                             },
-                            "blocked": {
-                                "type": "boolean",
-                                "readOnly": True
-                            },
-                            "archived": {
-                                "type": "boolean",
-                                "readOnly": True
-                            },
-                            "name": {
-                                "type": "string",
-                                "maxLength": 150
-                            },
-                            "native_name": {
-                                "type": "string",
-                                "maxLength": 500
-                            },
-                            "abbreviation": {
-                                "type": "string",
-                                "maxLength": 12
-                            },
-                            "contact_details": {
-                                "type": "string"
-                            },
-                            "projects_count": {
-                                "type": "integer",
-                                "readOnly": True
-                            },
-                            "users_count": {
-                                "type": "integer",
-                                "readOnly": True
-                            }
+                            "blocked": {"type": "boolean", "readOnly": True},
+                            "archived": {"type": "boolean", "readOnly": True},
+                            "name": {"type": "string", "maxLength": 150},
+                            "native_name": {"type": "string", "maxLength": 500},
+                            "abbreviation": {"type": "string", "maxLength": 12},
+                            "contact_details": {"type": "string"},
+                            "projects_count": {"type": "integer", "readOnly": True},
+                            "users_count": {"type": "integer", "readOnly": True},
                         },
-                        "required": ["name"]
+                        "required": ["name"],
                     },
                     "CustomerRequest": {
                         "type": "object",
@@ -360,25 +358,14 @@ class TestApiSpecParser:
                             "backend_id": {
                                 "type": "string",
                                 "description": "Organization identifier in another application.",
-                                "maxLength": 255
+                                "maxLength": 255,
                             },
-                            "name": {
-                                "type": "string",
-                                "maxLength": 150
-                            },
-                            "native_name": {
-                                "type": "string",
-                                "maxLength": 500
-                            },
-                            "abbreviation": {
-                                "type": "string",
-                                "maxLength": 12
-                            },
-                            "contact_details": {
-                                "type": "string"
-                            }
+                            "name": {"type": "string", "maxLength": 150},
+                            "native_name": {"type": "string", "maxLength": 500},
+                            "abbreviation": {"type": "string", "maxLength": 12},
+                            "contact_details": {"type": "string"},
                         },
-                        "required": ["name"]
+                        "required": ["name"],
                     },
                     "Project": {
                         "type": "object",
@@ -387,82 +374,63 @@ class TestApiSpecParser:
                             "url": {
                                 "type": "string",
                                 "format": "uri",
-                                "readOnly": True
+                                "readOnly": True,
                             },
                             "uuid": {
                                 "type": "string",
                                 "format": "uuid",
-                                "readOnly": True
+                                "readOnly": True,
                             },
-                            "name": {
-                                "type": "string",
-                                "maxLength": 500
-                            },
+                            "name": {"type": "string", "maxLength": 500},
                             "customer": {
                                 "type": "string",
                                 "format": "uri",
-                                "title": "Organization"
+                                "title": "Organization",
                             },
                             "customer_uuid": {
                                 "type": "string",
                                 "format": "uuid",
-                                "readOnly": True
+                                "readOnly": True,
                             },
-                            "customer_name": {
-                                "type": "string",
-                                "readOnly": True
-                            },
-                            "description": {
-                                "type": "string"
-                            },
+                            "customer_name": {"type": "string", "readOnly": True},
+                            "description": {"type": "string"},
                             "created": {
                                 "type": "string",
                                 "format": "date-time",
-                                "readOnly": True
+                                "readOnly": True,
                             },
                             "type": {
                                 "type": "string",
                                 "format": "uri",
                                 "nullable": True,
-                                "title": "Project type"
+                                "title": "Project type",
                             },
-                            "backend_id": {
-                                "type": "string",
-                                "maxLength": 255
-                            }
+                            "backend_id": {"type": "string", "maxLength": 255},
                         },
-                        "required": ["name", "customer"]
+                        "required": ["name", "customer"],
                     },
                     "ProjectRequest": {
                         "type": "object",
                         "properties": {
-                            "name": {
-                                "type": "string",
-                                "maxLength": 500
-                            },
+                            "name": {"type": "string", "maxLength": 500},
                             "customer": {
                                 "type": "string",
                                 "format": "uri",
-                                "title": "Organization"
+                                "title": "Organization",
                             },
-                            "description": {
-                                "type": "string"
-                            },
+                            "description": {"type": "string"},
                             "type": {
                                 "type": "string",
                                 "format": "uri",
                                 "nullable": True,
-                                "title": "Project type"
+                                "title": "Project type",
                             },
-                            "backend_id": {
-                                "type": "string",
-                                "maxLength": 255
-                            }
+                            "backend_id": {"type": "string", "maxLength": 255},
                         },
-                        "required": ["name", "customer"]
-                    }
+                        "required": ["name", "customer"],
+                    },
                 }
-            }
+            },
         }
 
     @pytest.fixture
@@ -486,14 +454,14 @@ class TestApiSpecParser:
         assert customers_list.path == "/api/customers/"
         assert customers_list.method == "GET"
         assert customers_list.operation_id == "customers_list"
-        
+
         customers_create = parser.get_operation("customers_create")
         assert customers_create is not None
         assert customers_create.path == "/api/customers/"
         assert customers_create.method == "POST"
         assert customers_create.operation_id == "customers_create"
         assert customers_create.model_schema is not None
-        
+
         # Test projects operations
         projects_list = parser.get_operation("projects_list")
         assert projects_list is not None
@@ -505,7 +473,7 @@ class TestApiSpecParser:
         """Test reference resolution."""
         ref = "#/components/schemas/Customer"
         resolved = parser.get_schema_by_ref(ref)
-        
+
         assert resolved is not None
         assert resolved["type"] == "object"
         assert "properties" in resolved
@@ -520,7 +488,7 @@ class TestApiSpecParser:
     def test_get_query_parameters_for_operation(self, parser):
         """Test extracting query parameters for operation."""
         params = parser.get_query_parameters_for_operation("customers_list")
-        
+
         assert isinstance(params, set)
         assert "name" in params
         assert "name_exact" in params
@@ -531,7 +499,7 @@ class TestApiSpecParser:
     def test_get_query_parameters_for_operation_no_params(self, parser):
         """Test operation without query parameters."""
         params = parser.get_query_parameters_for_operation("customers_retrieve")
-        
+
         assert isinstance(params, set)
         assert len(params) == 0
 
@@ -543,7 +511,7 @@ class TestApiSpecParser:
     def test_operation_with_request_body(self, parser):
         """Test operation with request body schema."""
         operation = parser.get_operation("customers_create")
-        
+
         assert operation is not None
         assert operation.model_schema is not None
         assert "type" in operation.model_schema
@@ -552,7 +520,7 @@ class TestApiSpecParser:
     def test_operation_without_request_body(self, parser):
         """Test operation without request body."""
         operation = parser.get_operation("customers_list")
-        
+
         assert operation is not None
         assert operation.model_schema is None
 
@@ -561,7 +529,7 @@ class TestApiSpecParser:
         empty_spec = {"openapi": "3.0.0", "paths": {}}
         collector = ValidationErrorCollector()
         parser = ApiSpecParser(empty_spec, collector)
-        
+
         operation = parser.get_operation("any_operation")
         assert operation is None
 
@@ -575,14 +543,14 @@ class TestApiSpecParser:
                     "post": {"operationId": "resource_post"},
                     "put": {"operationId": "resource_put"},
                     "patch": {"operationId": "resource_patch"},
-                    "delete": {"operationId": "resource_delete"}
+                    "delete": {"operationId": "resource_delete"},
                 }
-            }
+            },
         }
-        
+
         collector = ValidationErrorCollector()
         parser = ApiSpecParser(spec, collector)
-        
+
         assert parser.get_operation("resource_get") is not None
         assert parser.get_operation("resource_post") is not None
         assert parser.get_operation("resource_put") is not None
