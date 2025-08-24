@@ -1,29 +1,9 @@
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 import uuid
 
 # The class we are testing
 from ansible_waldur_generator.plugins.facts.runner import FactsRunner
-
-# --- Mock Data Fixtures ---
-
-
-@pytest.fixture
-def mock_ansible_module():
-    """A pytest fixture that provides a mocked AnsibleModule instance."""
-    with patch(
-        "ansible_waldur_generator.interfaces.runner.AnsibleModule"
-    ) as mock_class:
-        mock_module = mock_class.return_value
-        mock_module.params = {}
-        mock_module.check_mode = False
-
-        # Mock the exit methods to prevent sys.exit and to capture their arguments.
-        mock_module.exit_json = MagicMock()
-        mock_module.fail_json = MagicMock()
-        mock_module.warn = MagicMock()
-
-        yield mock_module
 
 
 @pytest.fixture
