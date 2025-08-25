@@ -52,6 +52,8 @@ collections:
         plugin: order
         offering_type: OpenStack.Volume
         base_operation_id: "openstack_volumes"
+        transformations:
+          size: 'gb_to_mb'
         operations:
           update:
             fields: ["description"]
