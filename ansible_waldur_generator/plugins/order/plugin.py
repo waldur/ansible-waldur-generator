@@ -208,17 +208,7 @@ class OrderPlugin(BasePlugin):
 
         return params
 
-    def _build_runner_context(
-        self, module_config: OrderModuleConfig, api_parser
-    ) -> Dict[str, Any]:
-        """
-        Creates the context dictionary that will be passed to the module's runner.
-
-        This is a critical step that pre-processes all necessary information,
-        including detailed resolver configurations. It detects list-based resolvers
-        and provides the runner with the necessary metadata to correctly format the
-        final API payload.
-        """
+    def _build_resolvers(self, module_config: OrderModuleConfig):
         resolvers_data = {}
         params_map = {p.name: p for p in module_config.attribute_params}
 
@@ -233,7 +223,8 @@ class OrderPlugin(BasePlugin):
                 # 1. Determine the key for the 'create' context (marketplace order)
                 if param_config.items.properties:
                     # Infer the key from the nested object's properties (e.g., 'url')
-                    list_item_keys["create"] = param_config.items.properties[0].name
+                    if param_config.items.properties:
+                        list_item_keys["create"] = param_config.items.properties[0].name
 
                 # 2. Determine the key for the 'update_action' context
                 # Find the update action that uses this parameter.
@@ -247,19 +238,18 @@ class OrderPlugin(BasePlugin):
                     action_schema = matching_action.operation.model_schema
                     if action_schema and name in action_schema.get("properties", {}):
                         param_schema_in_action = action_schema["properties"][name]
-                        # Check if the items in the update action are simple strings
+                        items_schema = param_schema_in_action.get("items", {})
+                        # **THE CRITICAL CHECK**: If the items are simple strings...
                         if (
-                            param_schema_in_action.get("items", {}).get("type")
-                            == "string"
+                            items_schema.get("type") == "string"
+                            and "properties" not in items_schema
                         ):
                             list_item_keys["update_action"] = (
                                 None  # None signifies a raw list of strings
                             )
                         else:
                             # Handle cases where update also expects objects (less common)
-                            item_props = param_schema_in_action.get("items", {}).get(
-                                "properties"
-                            )
+                            item_props = items_schema.get("properties")
                             if item_props:
                                 list_item_keys["update_action"] = list(
                                     item_props.keys()
@@ -272,6 +262,50 @@ class OrderPlugin(BasePlugin):
                 "is_list": is_list_resolver,
                 "list_item_keys": list_item_keys,
             }
+        return resolvers_data
+
+    def _build_update_action_context(self, module_config: OrderModuleConfig):
+        # Build the update_actions context with the new idempotency key inference
+        update_actions_context = {}
+        if module_config.update_actions:
+            for name, action in module_config.update_actions.items():
+                idempotency_keys = []
+                action_schema = action.operation.model_schema
+
+                # Analyze the schema to find the keys that define an item's identity.
+                if action_schema:
+                    # Find the schema for the parameter that holds the data (e.g., 'ports', 'security_groups').
+                    param_schema = action_schema.get("properties", {}).get(action.param)
+                    # Check if it's an array of objects.
+                    if param_schema and param_schema.get("type") == "array":
+                        item_schema = param_schema.get("items", {})
+                        if (
+                            item_schema.get("type") == "object"
+                            and "properties" in item_schema
+                        ):
+                            # The keys of the item's properties are what we need.
+                            idempotency_keys = list(
+                                item_schema.get("properties", {}).keys()
+                            )
+
+                update_actions_context[name] = {
+                    "path": action.operation.path,
+                    "param": action.param,
+                    "compare_key": action.compare_key,
+                    "idempotency_keys": sorted(
+                        idempotency_keys
+                    ),  # Sort for deterministic output
+                }
+        return update_actions_context
+
+    def _build_runner_context(
+        self, module_config: OrderModuleConfig, api_parser
+    ) -> Dict[str, Any]:
+        """
+        Creates the context dictionary that will be passed to the module's runner.
+        """
+        resolvers = self._build_resolvers(module_config)
+        update_actions = self._build_update_action_context(module_config)
 
         # Consolidate and sort lists for stable, deterministic output.
         attribute_param_names = [p.name for p in module_config.attribute_params]
@@ -299,20 +333,20 @@ class OrderPlugin(BasePlugin):
             "update_check_fields": stable_update_check_fields,
             "attribute_param_names": stable_attribute_param_names,
             "termination_attributes_map": termination_attributes_map,
-            "resolvers": resolvers_data,
-            # Pass the update actions context to the runner
-            "update_actions": {
-                name: {
-                    "path": action.operation.path,
-                    "param": action.param,
-                    "compare_key": action.compare_key,
-                }
-                for name, action in module_config.update_actions.items()
-            },
-            # Add the generic polling path. The update path is the detail view.
-            "resource_detail_path": module_config.update_op.path
-            if module_config.update_op
-            else None,
+            "resolvers": resolvers,
+            "update_actions": update_actions,
+            # Determine the generic polling path for waiting.
+            # Priority 1: The update path IS the detail view.
+            # Priority 2: Fall back to the inferred retrieve path.
+            "resource_detail_path": (
+                module_config.update_op.path
+                if module_config.update_op
+                else (
+                    module_config.retrieve_op.path
+                    if module_config.retrieve_op
+                    else None
+                )
+            ),
             "transformations": module_config.transformations,
         }
 
@@ -629,39 +663,72 @@ class OrderPlugin(BasePlugin):
         base_id = raw_config.get("base_operation_id", "")
         operations_config = raw_config.get("operations", {})
 
-        # Infer 'check' operation by default unless explicitly overridden.
+        # --- Step 1: Parse 'check' operation ---
         check_op_conf = operations_config.get("check")
         if check_op_conf is None:
             raw_config["check_op"] = f"{base_id}_list"
         elif isinstance(check_op_conf, str):
             raw_config["check_op"] = check_op_conf
 
-        # Handle the opt-in 'update' operation and its nested configuration.
+        # Infer retrieve operation, which is used for polling resource state.
+        retrieve_op_id = None
+        if base_id:
+            retrieve_op_id = f"{base_id}_retrieve"
+
+        if retrieve_op_id:
+            raw_config["retrieve_op"] = api_parser.get_operation(retrieve_op_id)
+
+        # --- Step 2: Handle the 'update' operation with standardized inference ---
         update_op_conf = operations_config.get("update")
-        if update_op_conf:
+        if update_op_conf is not False:
             update_id = None
-            if update_op_conf is True:
-                # Infer with the new default suffix.
-                update_id = f"{base_id}_partial_update"
-            elif isinstance(update_op_conf, str):
-                # Handle explicit ID override.
+            # Priority 1: Explicit ID
+            if isinstance(update_op_conf, str):
                 update_id = update_op_conf
             elif isinstance(update_op_conf, dict):
-                # Handle nested config, inferring ID if not provided.
-                update_id = update_op_conf.get("id", f"{base_id}_partial_update")
-                if "fields" in update_op_conf:
-                    raw_config["update_check_fields"] = update_op_conf["fields"]
-                # Parse update actions configuration
-                if "actions" in update_op_conf:
-                    parsed_actions = {}
-                    for name, action_conf in update_op_conf["actions"].items():
-                        action_conf["operation"] = api_parser.get_operation(
-                            action_conf["operation"]
-                        )
-                        parsed_actions[name] = UpdateActionConfig(**action_conf)
-                    raw_config["update_actions"] = parsed_actions
+                update_id = update_op_conf.get("id")
+
+            # Priority 2: Standard inference
+            if not update_id and base_id:
+                potential_id = f"{base_id}_partial_update"
+                if api_parser.get_operation(potential_id):
+                    update_id = potential_id
+                else:
+                    potential_id = f"{base_id}_update"
+                    if api_parser.get_operation(potential_id):
+                        update_id = potential_id
+
             if update_id:
-                raw_config["update_op"] = update_id
+                update_operation = api_parser.get_operation(update_id)
+                if update_operation:
+                    raw_config["update_op"] = update_operation
+
+                    # Infer fields if not explicitly provided
+                    update_fields = None
+                    if isinstance(update_op_conf, dict):
+                        update_fields = update_op_conf.get("fields")
+
+                    if update_fields is None and update_operation.model_schema:
+                        schema = update_operation.model_schema
+                        inferred_fields = [
+                            name
+                            for name, prop in schema.get("properties", {}).items()
+                            if not prop.get("readOnly", False)
+                            and not prop.get("writeOnly", False)
+                        ]
+                        raw_config["update_check_fields"] = inferred_fields
+                    elif update_fields is not None:
+                        raw_config["update_check_fields"] = update_fields
+
+        # Parse actions from dict config
+        if isinstance(update_op_conf, dict) and "actions" in update_op_conf:
+            parsed_actions = {}
+            for name, action_conf in update_op_conf["actions"].items():
+                action_conf["operation"] = api_parser.get_operation(
+                    action_conf["operation"]
+                )
+                parsed_actions[name] = UpdateActionConfig(**action_conf)
+            raw_config["update_actions"] = parsed_actions
 
         # Handle termination attributes from the 'delete' operation config
         delete_op_conf = operations_config.get("delete")
@@ -681,8 +748,24 @@ class OrderPlugin(BasePlugin):
         raw_config["existence_check_op"] = api_parser.get_operation(
             raw_config["check_op"]
         )
+        update_operation = None
         if "update_op" in raw_config:
-            raw_config["update_op"] = api_parser.get_operation(raw_config["update_op"])
+            update_operation = api_parser.get_operation(raw_config["update_op"])
+            raw_config["update_op"] = update_operation
+
+        # Inference Logic for Update Fields
+        if update_operation:
+            # ...and the update operation has a request body schema...
+            if update_operation.model_schema:
+                schema = update_operation.model_schema
+                # ...infer them from the schema, excluding read-only properties.
+                inferred_fields = [
+                    name
+                    for name, prop in schema.get("properties", {}).items()
+                    if not prop.get("readOnly", False)
+                    and not prop.get("writeOnly", False)
+                ]
+                raw_config["update_check_fields"] = inferred_fields
 
         # Parse the resolver configurations, expanding shorthand where needed
         parsed_resolvers = {}

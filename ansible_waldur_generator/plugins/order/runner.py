@@ -1,3 +1,4 @@
+import json
 import time
 
 from ansible_waldur_generator.interfaces.resolver import ParameterResolver
@@ -197,14 +198,82 @@ class OrderRunner(BaseRunner):
 
         self.has_changed = True
 
-    def update(self):
+    def _normalize_for_comparison(self, value: any, idempotency_keys: list[str]) -> any:
         """
-        Updates an existing resource if its configuration has changed. This method
-        only handles simple, direct attribute updates (e.g., via PATCH).
+        Normalizes complex values into a simple, comparable format using schema-inferred keys.
+
+        This method is critical for correctly comparing a list of complex objects (like ports
+        or security groups) for idempotency. It transforms a list of dictionaries into a
+        canonical, order-insensitive representation (a set of JSON strings).
+
+        - If `idempotency_keys` are provided (e.g., ['subnet', 'fixed_ips']), it will
+          filter each dictionary in the `value` list to contain only those keys and then
+          convert the filtered dictionary into a sorted JSON string.
+        - The final result is a set of these strings, which can be safely compared.
+        - If `idempotency_keys` is empty or the value is not a list, the original value
+          is returned.
+
+        Args:
+            value: The value to normalize (e.g., a list of port dictionaries).
+            idempotency_keys: A list of keys that define the identity of an object
+                              in the list, inferred from the OpenAPI spec.
+
+        Returns:
+            A set of canonical strings for list-of-dict comparisons, or the original value.
         """
-        # Do nothing if no update endpoint is configured for this resource.
-        if not self.context.get("update_url"):
-            return
+        # If no keys are specified or the value isn't a list, perform no normalization.
+        if not idempotency_keys or not isinstance(value, list):
+            return value
+
+        canonical_forms = set()
+        for item in value:
+            if not isinstance(item, dict):
+                # If the list contains non-dict items, we cannot normalize.
+                return value
+
+            # Create a new dictionary containing only the keys relevant for comparison.
+            filtered_item = {key: item.get(key) for key in idempotency_keys}
+
+            # Create a canonical (sorted, compact) JSON string representation of the filtered item.
+            # This is a robust way to make a complex, nested dictionary hashable and comparable.
+            canonical_string = json.dumps(
+                filtered_item, sort_keys=True, separators=(",", ":")
+            )
+            canonical_forms.add(canonical_string)
+
+        return canonical_forms
+
+    def _handle_simple_updates(self):
+        """
+        Handle simple, direct attribute updates (e.g., via PATCH).
+        """
+        if self.context.get("update_url"):
+            update_payload = {}
+            # Iterate through the fields that are configured as updatable.
+            for field in self.context.get("update_check_fields", []):
+                param_value = self.module.params.get(field)
+                if self.resource:
+                    resource_value = self.resource.get(field)
+                    # If the user-provided value is different from the existing value,
+                    # add it to the update payload.
+                    if param_value is not None and param_value != resource_value:
+                        update_payload[field] = param_value
+
+            # If there are changes to apply, send the PATCH request.
+            if update_payload and self.resource:
+                path = self.context["update_url"]
+                self.resource, _ = self._send_request(
+                    "PATCH",
+                    path,
+                    data=update_payload,
+                    path_params={"uuid": self.resource["uuid"]},
+                )
+                self.has_changed = True
+
+    def _handle_complex_update(self):
+        """
+        Handle complex, idempotent, action-based updates (e.g., updating ports).
+        """
 
         # --- Dependency Cache Priming ---
         # Instead of manually fetching dependencies, we now use a dedicated method on the
@@ -226,49 +295,51 @@ class OrderRunner(BaseRunner):
         # Use a flag to perform the re-fetch only once at the end.
         needs_refetch = False
 
-        update_payload = {}
-        # Iterate through the fields that are configured as updatable.
-        for field in self.context["update_check_fields"]:
-            param_value = self.module.params.get(field)
-            if self.resource:
-                resource_value = self.resource.get(field)
-                # If the user-provided value is different from the existing value,
-                # add it to the update payload.
-                if param_value is not None and param_value != resource_value:
-                    update_payload[field] = param_value
-
-        # If there are changes to apply, send the PATCH request.
-        if update_payload and self.resource:
-            path = self.context["update_url"]
-            self.resource, _ = self._send_request(
-                "PATCH",
-                path,
-                data=update_payload,
-                path_params={"uuid": self.resource["uuid"]},
-            )
-            self.has_changed = True
-
-        # 2. Handle complex, idempotent, action-based updates (e.g., updating ports).
         update_actions = self.context.get("update_actions", {})
         for _, action_info in update_actions.items():
             param_name = action_info["param"]
             compare_key = action_info["compare_key"]
+            idempotency_keys = action_info.get(
+                "idempotency_keys", []
+            )  # Get the keys from context
             param_value = self.module.params.get(param_name)
 
-            # Perform the idempotency check ONLY if the user provided the parameter.
             if param_value is not None:
-                # The idempotency check must compare like with like.
-                # We use the resolver to get the fully resolved, API-ready version
-                # of the user's input *before*
-                # comparing them to the current state of the resource.
-                # Provide the 'update_action' hint when resolving for idempotency checks and payloads.
                 resolved_payload_for_comparison = self.resolver.resolve(
                     param_name, param_value, output_format="update_action"
                 )
 
-                if resolved_payload_for_comparison != self.resource.get(compare_key):
-                    # The payload for the API must be wrapped in a dictionary
+                resource_value = self.resource.get(compare_key)
+
+                # --- Advanced Normalization Logic ---
+                # Scenario 1: The API expects a list of simple strings (e.g., URLs).
+                # We detect this by checking the type of the resolved user value.
+                if (
+                    isinstance(resolved_payload_for_comparison, list)
+                    and resolved_payload_for_comparison
+                    and isinstance(resolved_payload_for_comparison[0], str)
+                ):
+                    # Normalize the existing resource's list of objects into a set of URLs.
+                    normalized_old = (
+                        {item.get("url") for item in resource_value if item.get("url")}
+                        if isinstance(resource_value, list)
+                        else set()
+                    )
+                    # Normalize the user's desired state into a simple set of strings.
+                    normalized_new = set(resolved_payload_for_comparison)
+                else:
+                    # Scenario 2: The API expects a list of objects. Use the
+                    # schema-inferred keys for a canonical object comparison.
+                    normalized_old = self._normalize_for_comparison(
+                        resource_value, idempotency_keys
+                    )
+                    normalized_new = self._normalize_for_comparison(
+                        resolved_payload_for_comparison, idempotency_keys
+                    )
+
+                if normalized_new != normalized_old:
                     final_api_payload = {param_name: resolved_payload_for_comparison}
+
                     _, status_code = self._send_request(
                         "POST",
                         action_info["path"],
@@ -292,6 +363,14 @@ class OrderRunner(BaseRunner):
         # After all actions are processed, re-fetch the state if necessary.
         if needs_refetch:
             self.resource = self.check_existence()
+
+    def update(self):
+        """
+        Updates an existing resource if its configuration has changed.
+        """
+
+        self._handle_simple_updates()
+        self._handle_complex_update()
 
     def delete(self):
         """

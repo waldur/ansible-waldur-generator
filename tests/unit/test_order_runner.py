@@ -349,7 +349,7 @@ class TestOrderRunner:
             changed=True, resource=updated_resource, order=None
         )
         # Verify the PATCH call was made correctly.
-        mock_send_request.assert_called_with(
+        mock_send_request.assert_any_call(
             "PATCH",
             "/api/openstack-instances/{uuid}/",
             data={"description": "a new description"},

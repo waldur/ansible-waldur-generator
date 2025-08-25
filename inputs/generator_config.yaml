@@ -84,10 +84,6 @@ collections:
         base_operation_id: "openstack_volumes"
         transformations:
           size: 'gb_to_mb'
-        operations:
-          update:
-            fields:
-              - "description"
         resolvers:
           type: *volume_type_resolver
           image: *image_resolver
@@ -104,9 +100,6 @@ collections:
           system_volume_size: 'gb_to_mb'
         operations:
           update:
-            fields:
-              - "name"
-              - "description"
             actions:
               update_ports:
                 operation: "openstack_instances_update_ports"
@@ -163,9 +156,6 @@ collections:
         base_operation_id: "openstack_security_groups"
         operations:
           update:
-            fields:
-              - "name"
-              - "description"
             actions:
               set_rules:
                 operation: "openstack_security_groups_set_rules"
@@ -188,9 +178,6 @@ collections:
         base_operation_id: "openstack_networks"
         operations:
           update:
-            fields:
-              - "name"
-              - "description"
             actions:
               set_mtu:
                 operation: "openstack_networks_set_mtu"
@@ -209,10 +196,6 @@ collections:
         description: "Manage OpenStack Server Groups (Affinity Groups) in Waldur."
         base_operation_id: "openstack_server_groups"
         operations:
-          update:
-            fields:
-              - "name"
-              - "description"
           create:
             id: "openstack_tenants_create_server_group"
             path_params:
@@ -228,8 +211,10 @@ collections:
         base_operation_id: "openstack_floating_ips"
         operations:
           update:
-            fields:
-              - "description"
+            actions:
+              update_description:
+                operation: "openstack_floating_ips_update_description"
+                param: "description"
           create:
             id: "openstack_tenants_create_floating_ip"
             path_params:

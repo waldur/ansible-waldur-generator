@@ -97,7 +97,7 @@ class CrudPlugin(BasePlugin):
                 }
 
         update_fields = []
-        if module_config.update_config:
+        if module_config.update_config and module_config.update_config.fields:
             update_fields = sorted(
                 list(dict.fromkeys(module_config.update_config.fields))
             )
@@ -272,48 +272,84 @@ class CrudPlugin(BasePlugin):
         operations_config = raw_config.get("operations", {})
         path_param_maps = {}
 
+        # --- Step 1: Parse mandatory and simply-inferred operations ---
         op_map = {
             "check": ("check_operation", "_list"),
             "create": ("create_operation", "_create"),
             "delete": ("destroy_operation", "_destroy"),
-            "update": ("update_operation", "_partial_update"),
         }
 
         for op_key, (field_name, op_suffix) in op_map.items():
             op_conf = operations_config.get(op_key, None)
-
-            # If the user explicitly disables this op, skip it.
             if op_conf is False:
                 continue
-
             op_id = None
-            # Case 1: Handle explicit overrides (str or dict)
             if isinstance(op_conf, (str, dict)):
-                if isinstance(op_conf, str):
-                    op_id = op_conf
-                else:  # dict
-                    op_id = op_conf.get("id")
-                    if "path_params" in op_conf:
-                        path_param_maps[op_key] = op_conf["path_params"]
-                    if op_key == "update":
-                        if "fields" in op_conf:
-                            raw_config.setdefault("update_config", {})["fields"] = (
-                                op_conf["fields"]
-                            )
-                        if "actions" in op_conf:
-                            raw_config.setdefault("update_config", {})["actions"] = (
-                                op_conf["actions"]
-                            )
-            # Case 2: Infer the operation if it's not disabled, not overridden, and not 'false'.
+                op_id = op_conf if isinstance(op_conf, str) else op_conf.get("id")
+                if isinstance(op_conf, dict) and "path_params" in op_conf:
+                    path_param_maps[op_key] = op_conf["path_params"]
             elif op_conf is not False:
                 if not base_id:
                     raise ValueError(
-                        f"Cannot infer operation '{op_key}' because `base_operation_id` is not defined."
+                        f"Cannot infer '{op_key}' without `base_operation_id`."
                     )
                 op_id = f"{base_id}{op_suffix}"
-
             if op_id:
                 raw_config[field_name] = api_parser.get_operation(op_id)
+
+        # --- Step 2: Handle the 'update' operation with standardized inference ---
+        update_op_conf = operations_config.get("update")
+        if update_op_conf is not False:
+            update_op_id = None
+            # Priority 1: Explicit ID from user config
+            if isinstance(update_op_conf, str):
+                update_op_id = update_op_conf
+            elif isinstance(update_op_conf, dict):
+                update_op_id = update_op_conf.get("id")
+
+            # Priority 2: Infer with standard suffixes
+            if not update_op_id and base_id:
+                # Try '_partial_update' first, as it's the preferred method for PATCH.
+                potential_id = f"{base_id}_partial_update"
+                if api_parser.get_operation(potential_id):
+                    update_op_id = potential_id
+                else:
+                    # Fall back to '_update'.
+                    potential_id = f"{base_id}_update"
+                    if api_parser.get_operation(potential_id):
+                        update_op_id = potential_id
+
+            if update_op_id:
+                update_operation = api_parser.get_operation(update_op_id)
+                if update_operation:
+                    raw_config["update_operation"] = update_operation
+
+                    # Handle fields: explicit config takes precedence over inference
+                    update_fields = None
+                    if isinstance(update_op_conf, dict):
+                        update_fields = update_op_conf.get("fields")
+
+                    if update_fields is None and update_operation.model_schema:
+                        schema = update_operation.model_schema
+                        update_fields = [
+                            name
+                            for name, prop in schema.get("properties", {}).items()
+                            if not prop.get("readOnly", False)
+                        ]
+
+                    if update_fields:
+                        raw_config.setdefault("update_config", {})["fields"] = (
+                            update_fields
+                        )
+
+                    # Handle actions and path_params from dict config
+                    if isinstance(update_op_conf, dict):
+                        if "actions" in update_op_conf:
+                            raw_config.setdefault("update_config", {})["actions"] = (
+                                update_op_conf["actions"]
+                            )
+                        if "path_params" in update_op_conf:
+                            path_param_maps["update"] = update_op_conf["path_params"]
 
         raw_config["path_param_maps"] = path_param_maps
 

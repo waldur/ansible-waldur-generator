@@ -74,6 +74,7 @@ class OrderModuleConfig(BaseModel):
     resource_type: str
     description: str = ""
     existence_check_op: ApiOperation
+    retrieve_op: ApiOperation | None = None
     update_op: ApiOperation | None = None
     update_check_fields: List[str] = Field(default_factory=list)
     update_actions: Dict[str, UpdateActionConfig] = Field(default_factory=dict)
