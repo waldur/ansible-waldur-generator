@@ -128,16 +128,13 @@ class FactsPlugin(BasePlugin):
         if not return_content:
             return {}
 
-        # The key for the returned data is pluralized to indicate it's a list.
-        resource_key = module_config.resource_type.replace(" ", "_") + "s"
-
         return {
-            resource_key: {
+            "resource": {
                 "description": f"A list of dictionaries, where each dictionary represents a {module_config.resource_type}.",
                 "type": "list",
-                "returned": "on success",
+                "returned": "always",
                 "elements": "dict",
-                "suboptions": return_content,  # Describes the structure of a single item in the list.
+                "contains": return_content,  # Describes the structure of a single item in the list.
             }
         }
 
