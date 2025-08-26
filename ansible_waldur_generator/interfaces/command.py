@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import time
 from typing import Any, Dict
 
 
@@ -258,4 +259,91 @@ class ActionCommand(BaseCommand):
             "action": self.param_name,
             "old": self.old_value,
             "new": self.new_value,
+        }
+
+
+class MarketplaceOrderCommand(BaseCommand):
+    """
+    A specialized command that fully encapsulates the entire marketplace order workflow.
+
+    This command is a self-contained unit of work that handles:
+    1. Submitting the initial POST request to create the order.
+    2. Polling the order's status until it reaches a terminal state (if `wait` is enabled).
+    3. Triggering a final check for the provisioned resource upon completion.
+    """
+
+    def __init__(self, runner, order_payload: Dict[str, Any]):
+        """
+        Initializes the marketplace order command.
+        """
+        super().__init__(
+            runner, f"Create {runner.context['resource_type']} via marketplace order"
+        )
+        self.order_payload = order_payload
+        self.order = None
+
+    def execute(self) -> Any:
+        """
+        Executes the full order-and-wait workflow.
+
+        Returns:
+            The dictionary representation of the final, provisioned resource.
+        """
+        # --- Step 1: Submit the Order ---
+        order, _ = self.runner.send_request(
+            "POST", "/api/marketplace-orders/", data=self.order_payload
+        )
+        self.order = order
+        self.runner.order = order
+
+        # --- Step 2: Wait for Completion (if configured) ---
+        if self.runner.module.params.get("wait", True) and order:
+            # The waiting logic is now encapsulated within the command.
+            self._wait_for_order(order["uuid"])
+
+        # --- Step 3: Return the Final Resource ---
+        # If waiting was disabled, the resource doesn't exist yet, so we return None.
+        # If waiting was enabled, `_wait_for_order` will have updated `self.runner.resource`.
+        return self.runner.resource
+
+    def _wait_for_order(self, order_uuid: str):
+        """
+        Polls a marketplace order's status until it reaches a terminal state.
+        This is a private helper method for the command's execution logic.
+        """
+        timeout = self.runner.module.params.get("timeout", 600)
+        interval = self.runner.module.params.get("interval", 20)
+        start_time = time.time()
+
+        while time.time() - start_time < timeout:
+            # Use the runner's send_request method to poll the API.
+            order, _ = self.runner.send_request(
+                "GET", f"/api/marketplace-orders/{order_uuid}/"
+            )
+
+            if order and order["state"] == "done":
+                # Upon completion, use the runner's check_existence method to fetch
+                # the final state of the newly provisioned resource. This updates
+                # self.runner.resource, which will be the return value of execute().
+                self.runner.check_existence()
+                return
+            if order and order["state"] in ["erred", "rejected", "canceled"]:
+                self.runner.module.fail_json(
+                    msg=f"Order finished with status '{order['state']}'. Error message: {order.get('error_message')}"
+                )
+                return  # Unreachable
+
+            time.sleep(interval)
+
+        self.runner.module.fail_json(
+            msg=f"Timeout waiting for order {order_uuid} to complete."
+        )
+
+    def to_diff(self) -> Dict[str, Any]:
+        """
+        Generates a diff showing the order that will be submitted.
+        """
+        return {
+            "state": "Resource will be created via a new marketplace order.",
+            "order_attributes": self.order_payload.get("attributes", {}),
         }

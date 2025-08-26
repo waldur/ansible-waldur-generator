@@ -261,8 +261,27 @@ class TestOrderRunner:
 
         expected_diff = [
             {
-                "state": "Resource created.",
-                "order_details": {"uuid": "order-xyz-789"},
+                "state": "Resource will be created via a new marketplace order.",
+                "order_attributes": {
+                    "name": "prod-web-vm-01",
+                    "flavor": "http://api.com/api/flavors/flavor-large-uuid/",
+                    "image": "http://api.com/api/images/img-ubuntu-uuid/",
+                    "security_groups": [
+                        {"url": "http://api.com/api/security-groups/sg-web-uuid/"},
+                        {"url": "http://api.com/api/security-groups/sg-ssh-uuid/"},
+                    ],
+                    "system_volume_size": 100,
+                    "ports": [
+                        {
+                            "subnet": "http://api.com/api/subnets/subnet-private-uuid/",
+                            "fixed_ips": [{"ip_address": "10.0.1.50"}],
+                        }
+                    ],
+                    "floating_ips": [
+                        {"subnet": "http://api.com/api/subnets/subnet-public-uuid/"}
+                    ],
+                    "ssh_public_key": "http://api.com/api/ssh-keys/key-admin-uuid/",
+                },
             }
         ]
 

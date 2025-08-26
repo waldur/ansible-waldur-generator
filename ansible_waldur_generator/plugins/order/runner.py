@@ -1,8 +1,9 @@
-import time
-
 from ansible_waldur_generator.interfaces.resolver import ParameterResolver
 from ansible_waldur_generator.interfaces.runner import BaseRunner
-from ansible_waldur_generator.interfaces.command import DeleteCommand
+from ansible_waldur_generator.interfaces.command import (
+    DeleteCommand,
+    MarketplaceOrderCommand,
+)
 
 # A map of transformation functions, allowing the generator to configure
 # data conversions (e.g., from user-friendly GiB to API-required MiB).
@@ -66,13 +67,31 @@ class OrderRunner(BaseRunner):
             self.has_changed = True
             return []  # Return an empty plan.
 
-        # If not in check mode, execute the full creation workflow directly.
-        self._execute_create_order()
+        project_url = self.resolver.resolve("project", self.module.params["project"])
+        offering_url = self.resolver.resolve("offering", self.module.params["offering"])
 
-        # Return an empty plan to the `run()` orchestrator. This signals that
-        # the creation phase has been fully handled here and no further commands
-        # need to be executed for this scenario.
-        return []
+        attributes = {"name": self.module.params["name"]}
+        for key in self.context["attribute_param_names"]:
+            if key in self.module.params and self.module.params[key] is not None:
+                attributes[key] = self.resolver.resolve(
+                    key, self.module.params[key], output_format="create"
+                )
+
+        transformed_attributes = self._apply_transformations(attributes)
+
+        # --- 2. Assemble and submit the order ---
+        order_payload = {
+            "project": project_url,
+            "offering": offering_url,
+            "attributes": transformed_attributes,
+            "accepting_terms_of_service": True,
+        }
+        if self.module.params.get("plan"):
+            order_payload["plan"] = self.module.params["plan"]
+        if self.module.params.get("limits"):
+            order_payload["limits"] = self.module.params["limits"]
+
+        return [MarketplaceOrderCommand(self, order_payload)]
 
     def plan_update(self) -> list:
         """
@@ -143,77 +162,6 @@ class OrderRunner(BaseRunner):
                 self, path, self.resource, data=termination_payload, method="POST"
             )
         ]
-
-    def _execute_create_order(self):
-        """
-        A helper method that contains the direct-execution logic for creating a
-        new resource via a marketplace order.
-        """
-        # --- 1. Resolve all parameters for the order payload ---
-        project_url = self.resolver.resolve("project", self.module.params["project"])
-        offering_url = self.resolver.resolve("offering", self.module.params["offering"])
-
-        attributes = {"name": self.module.params["name"]}
-        for key in self.context["attribute_param_names"]:
-            if key in self.module.params and self.module.params[key] is not None:
-                attributes[key] = self.resolver.resolve(
-                    key, self.module.params[key], output_format="create"
-                )
-
-        transformed_attributes = self._apply_transformations(attributes)
-
-        # --- 2. Assemble and submit the order ---
-        order_payload = {
-            "project": project_url,
-            "offering": offering_url,
-            "attributes": transformed_attributes,
-            "accepting_terms_of_service": True,
-        }
-        if self.module.params.get("plan"):
-            order_payload["plan"] = self.module.params["plan"]
-        if self.module.params.get("limits"):
-            order_payload["limits"] = self.module.params["limits"]
-
-        order, _ = self.send_request(
-            "POST", "/api/marketplace-orders/", data=order_payload
-        )
-        self.order = order
-        self.has_changed = True
-
-        # --- 3. Wait for order completion ---
-        if self.module.params.get("wait", True) and order:
-            self._wait_for_order(order["uuid"])
-
-    def _wait_for_order(self, order_uuid):
-        """
-        Polls a marketplace order's status until it reaches a terminal state.
-        """
-        timeout = self.module.params.get("timeout", 600)
-        interval = self.module.params.get("interval", 20)
-        start_time = time.time()
-
-        while time.time() - start_time < timeout:
-            order, _ = self.send_request(
-                "GET", f"/api/marketplace-orders/{order_uuid}/"
-            )
-
-            if order and order["state"] == "done":
-                # **CRITICAL**: After the order completes, the resource now exists.
-                # We must re-run `check_existence` to fetch its final, stable state
-                # to return accurate data to the user.
-                self.check_existence()
-                return
-            if order and order["state"] in ["erred", "rejected", "canceled"]:
-                self.module.fail_json(
-                    msg=f"Order finished with status '{order['state']}'. Error message: {order.get('error_message')}"
-                )
-                return
-
-            time.sleep(interval)
-
-        self.module.fail_json(
-            msg=f"Timeout waiting for order {order_uuid} to complete."
-        )
 
     def _apply_transformations(self, payload: dict) -> dict:
         """
