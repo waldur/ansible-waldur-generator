@@ -5391,8 +5391,6 @@ paths:
             - shared
             - slug
             - state
-            - terms_of_service
-            - terms_of_service_link
             - thumbnail
             - total_cost
             - total_cost_estimated
@@ -5499,8 +5497,6 @@ paths:
             - shared
             - slug
             - state
-            - terms_of_service
-            - terms_of_service_link
             - thumbnail
             - total_cost
             - total_cost_estimated
@@ -5672,7 +5668,6 @@ paths:
             - offering_plugin_options
             - offering_shared
             - offering_slug
-            - offering_terms_of_service
             - offering_thumbnail
             - offering_type
             - offering_uuid
@@ -5708,6 +5703,7 @@ paths:
             - slug
             - state
             - url
+            - user_requires_reconsent
             - username
             - uuid
       - in: query
@@ -6095,7 +6091,6 @@ paths:
             - offering_plugin_options
             - offering_shared
             - offering_slug
-            - offering_terms_of_service
             - offering_thumbnail
             - offering_type
             - offering_uuid
@@ -6131,6 +6126,7 @@ paths:
             - slug
             - state
             - url
+            - user_requires_reconsent
             - username
             - uuid
       - in: path
@@ -9017,6 +9013,7 @@ paths:
             - payment_profiles
             - phone_number
             - postal
+            - project_metadata_checklist
             - projects_count
             - registration_code
             - service_provider
@@ -9247,6 +9244,7 @@ paths:
             - payment_profiles
             - phone_number
             - postal
+            - project_metadata_checklist
             - projects_count
             - registration_code
             - service_provider
@@ -19091,6 +19089,251 @@ paths:
               schema:
                 $ref: '#/components/schemas/OfferingReferral'
           description: ''
+  /api/marketplace-offering-terms-of-service/:
+    get:
+      operationId: marketplace_offering_terms_of_service_list
+      description: Mixin to optimize HEAD requests for DRF views bypassing serializer
+        processing
+      parameters:
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - in: query
+        name: o
+        schema:
+          type: array
+          items:
+            type: string
+            enum:
+            - -created
+            - -modified
+            - -version
+            - created
+            - modified
+            - version
+        description: |+
+          Ordering
+
+        explode: false
+        style: form
+      - in: query
+        name: offering
+        schema:
+          type: string
+      - in: query
+        name: offering_uuid
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/PageSize'
+      - in: query
+        name: requires_reconsent
+        schema:
+          type: boolean
+      - in: query
+        name: version
+        schema:
+          type: string
+      tags:
+      - marketplace-offering-terms-of-service
+      security:
+      - tokenAuth: []
+      - waldurOIDCAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OfferingTermsOfService'
+                description: ''
+          description: ''
+          headers:
+            x-result-count:
+              $ref: '#/components/headers/XResultCount'
+    post:
+      operationId: marketplace_offering_terms_of_service_create
+      tags:
+      - marketplace-offering-terms-of-service
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OfferingTermsOfServiceCreateRequest'
+        required: true
+      security:
+      - tokenAuth: []
+      - waldurOIDCAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfferingTermsOfServiceCreate'
+          description: ''
+      x-permissions:
+      - permission: OFFERING.UPDATE
+        scopes:
+        - offering.customer
+    head:
+      operationId: marketplace_offering_terms_of_service_count
+      description: Get number of items in the collection matching the request parameters.
+      parameters:
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - in: query
+        name: o
+        schema:
+          type: array
+          items:
+            type: string
+            enum:
+            - -created
+            - -modified
+            - -version
+            - created
+            - modified
+            - version
+        description: |+
+          Ordering
+
+        explode: false
+        style: form
+      - in: query
+        name: offering
+        schema:
+          type: string
+      - in: query
+        name: offering_uuid
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/PageSize'
+      - in: query
+        name: requires_reconsent
+        schema:
+          type: boolean
+      - in: query
+        name: version
+        schema:
+          type: string
+      tags:
+      - marketplace-offering-terms-of-service
+      security:
+      - tokenAuth: []
+      - waldurOIDCAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/marketplace-offering-terms-of-service/{uuid}/:
+    get:
+      operationId: marketplace_offering_terms_of_service_retrieve
+      parameters:
+      - in: path
+        name: uuid
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - marketplace-offering-terms-of-service
+      security:
+      - tokenAuth: []
+      - waldurOIDCAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfferingTermsOfService'
+          description: ''
+    put:
+      operationId: marketplace_offering_terms_of_service_update
+      parameters:
+      - in: path
+        name: uuid
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - marketplace-offering-terms-of-service
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OfferingTermsOfServiceRequest'
+      security:
+      - tokenAuth: []
+      - waldurOIDCAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfferingTermsOfService'
+          description: ''
+      x-permissions:
+      - permission: OFFERING.UPDATE
+        scopes:
+        - offering.customer
+    patch:
+      operationId: marketplace_offering_terms_of_service_partial_update
+      parameters:
+      - in: path
+        name: uuid
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - marketplace-offering-terms-of-service
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedOfferingTermsOfServiceRequest'
+      security:
+      - tokenAuth: []
+      - waldurOIDCAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfferingTermsOfService'
+          description: ''
+      x-permissions:
+      - permission: OFFERING.UPDATE
+        scopes:
+        - offering.customer
+    delete:
+      operationId: marketplace_offering_terms_of_service_destroy
+      parameters:
+      - in: path
+        name: uuid
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - marketplace-offering-terms-of-service
+      security:
+      - tokenAuth: []
+      - waldurOIDCAuth: []
+      responses:
+        '204':
+          description: No response body
+      x-permissions:
+      - permission: OFFERING.UPDATE
+        scopes:
+        - offering.customer
   /api/marketplace-offering-usage-policies/:
     get:
       operationId: marketplace_offering_usage_policies_list
@@ -20395,7 +20638,6 @@ paths:
             - offering_name
             - offering_plugin_options
             - offering_shared
-            - offering_terms_of_service
             - offering_thumbnail
             - offering_type
             - offering_uuid
@@ -20764,7 +21006,6 @@ paths:
             - offering_name
             - offering_plugin_options
             - offering_shared
-            - offering_terms_of_service
             - offering_thumbnail
             - offering_type
             - offering_uuid
@@ -22326,8 +22567,6 @@ paths:
             - shared
             - slug
             - state
-            - terms_of_service
-            - terms_of_service_link
             - thumbnail
             - total_cost
             - total_cost_estimated
@@ -22742,8 +22981,6 @@ paths:
             - shared
             - slug
             - state
-            - terms_of_service
-            - terms_of_service_link
             - thumbnail
             - total_cost
             - total_cost_estimated
@@ -23867,8 +24104,6 @@ paths:
             - shared
             - slug
             - state
-            - terms_of_service
-            - terms_of_service_link
             - thumbnail
             - total_cost
             - total_cost_estimated
@@ -23993,8 +24228,6 @@ paths:
             - shared
             - slug
             - state
-            - terms_of_service
-            - terms_of_service_link
             - thumbnail
             - total_cost
             - total_cost_estimated
@@ -24409,8 +24642,6 @@ paths:
             - shared
             - slug
             - state
-            - terms_of_service
-            - terms_of_service_link
             - thumbnail
             - total_cost
             - total_cost_estimated
@@ -24898,8 +25129,6 @@ paths:
             - shared
             - slug
             - state
-            - terms_of_service
-            - terms_of_service_link
             - thumbnail
             - total_cost
             - total_cost_estimated
@@ -25382,7 +25611,6 @@ paths:
             - offering_plugin_options
             - offering_shared
             - offering_slug
-            - offering_terms_of_service
             - offering_thumbnail
             - offering_type
             - offering_uuid
@@ -25417,6 +25645,7 @@ paths:
             - slug
             - state
             - url
+            - user_requires_reconsent
             - username
             - uuid
       - in: query
@@ -25793,7 +26022,6 @@ paths:
             - offering_plugin_options
             - offering_shared
             - offering_slug
-            - offering_terms_of_service
             - offering_thumbnail
             - offering_type
             - offering_uuid
@@ -25828,6 +26056,7 @@ paths:
             - slug
             - state
             - url
+            - user_requires_reconsent
             - username
             - uuid
       - in: path
@@ -25950,7 +26179,6 @@ paths:
             - offering_plugin_options
             - offering_shared
             - offering_slug
-            - offering_terms_of_service
             - offering_thumbnail
             - offering_type
             - offering_uuid
@@ -25985,6 +26213,7 @@ paths:
             - slug
             - state
             - url
+            - user_requires_reconsent
             - username
             - uuid
       - in: path
@@ -26669,8 +26898,6 @@ paths:
             - shared
             - slug
             - state
-            - terms_of_service
-            - terms_of_service_link
             - thumbnail
             - total_cost
             - total_cost_estimated
@@ -27063,8 +27290,6 @@ paths:
             - shared
             - slug
             - state
-            - terms_of_service
-            - terms_of_service_link
             - thumbnail
             - total_cost
             - total_cost_estimated
@@ -27621,7 +27846,6 @@ paths:
             - offering_plugin_options
             - offering_shared
             - offering_slug
-            - offering_terms_of_service
             - offering_thumbnail
             - offering_type
             - offering_uuid
@@ -27656,6 +27880,7 @@ paths:
             - slug
             - state
             - url
+            - user_requires_reconsent
             - username
             - uuid
       - in: query
@@ -28032,7 +28257,6 @@ paths:
             - offering_plugin_options
             - offering_shared
             - offering_slug
-            - offering_terms_of_service
             - offering_thumbnail
             - offering_type
             - offering_uuid
@@ -28067,6 +28291,7 @@ paths:
             - slug
             - state
             - url
+            - user_requires_reconsent
             - username
             - uuid
       - in: path
@@ -28189,7 +28414,6 @@ paths:
             - offering_plugin_options
             - offering_shared
             - offering_slug
-            - offering_terms_of_service
             - offering_thumbnail
             - offering_type
             - offering_uuid
@@ -28224,6 +28448,7 @@ paths:
             - slug
             - state
             - url
+            - user_requires_reconsent
             - username
             - uuid
       - in: path
@@ -32478,6 +32703,280 @@ paths:
       responses:
         '200':
           description: No response body
+  /api/marketplace-user-offering-consents/:
+    get:
+      operationId: marketplace_user_offering_consents_list
+      description: Mixin to optimize HEAD requests for DRF views bypassing serializer
+        processing
+      parameters:
+      - in: query
+        name: has_consent
+        schema:
+          type: boolean
+      - in: query
+        name: o
+        schema:
+          type: array
+          items:
+            type: string
+            enum:
+            - -agreement_date
+            - -created
+            - -modified
+            - -revocation_date
+            - agreement_date
+            - created
+            - modified
+            - revocation_date
+        description: |+
+          Ordering
+
+        explode: false
+        style: form
+      - in: query
+        name: offering
+        schema:
+          type: string
+      - in: query
+        name: offering_uuid
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/PageSize'
+      - in: query
+        name: requires_reconsent
+        schema:
+          type: boolean
+      - in: query
+        name: user
+        schema:
+          type: string
+      - in: query
+        name: user_uuid
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: version
+        schema:
+          type: string
+      tags:
+      - marketplace-user-offering-consents
+      security:
+      - tokenAuth: []
+      - waldurOIDCAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserOfferingConsent'
+                description: ''
+          description: ''
+          headers:
+            x-result-count:
+              $ref: '#/components/headers/XResultCount'
+    post:
+      operationId: marketplace_user_offering_consents_create
+      tags:
+      - marketplace-user-offering-consents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserOfferingConsentCreateRequest'
+        required: true
+      security:
+      - tokenAuth: []
+      - waldurOIDCAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserOfferingConsentCreate'
+          description: ''
+    head:
+      operationId: marketplace_user_offering_consents_count
+      description: Get number of items in the collection matching the request parameters.
+      parameters:
+      - in: query
+        name: has_consent
+        schema:
+          type: boolean
+      - in: query
+        name: o
+        schema:
+          type: array
+          items:
+            type: string
+            enum:
+            - -agreement_date
+            - -created
+            - -modified
+            - -revocation_date
+            - agreement_date
+            - created
+            - modified
+            - revocation_date
+        description: |+
+          Ordering
+
+        explode: false
+        style: form
+      - in: query
+        name: offering
+        schema:
+          type: string
+      - in: query
+        name: offering_uuid
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/PageSize'
+      - in: query
+        name: requires_reconsent
+        schema:
+          type: boolean
+      - in: query
+        name: user
+        schema:
+          type: string
+      - in: query
+        name: user_uuid
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: version
+        schema:
+          type: string
+      tags:
+      - marketplace-user-offering-consents
+      security:
+      - tokenAuth: []
+      - waldurOIDCAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/marketplace-user-offering-consents/{uuid}/:
+    get:
+      operationId: marketplace_user_offering_consents_retrieve
+      parameters:
+      - in: path
+        name: uuid
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - marketplace-user-offering-consents
+      security:
+      - tokenAuth: []
+      - waldurOIDCAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserOfferingConsent'
+          description: ''
+    put:
+      operationId: marketplace_user_offering_consents_update
+      parameters:
+      - in: path
+        name: uuid
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - marketplace-user-offering-consents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserOfferingConsentRequest'
+      security:
+      - tokenAuth: []
+      - waldurOIDCAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserOfferingConsent'
+          description: ''
+    patch:
+      operationId: marketplace_user_offering_consents_partial_update
+      parameters:
+      - in: path
+        name: uuid
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - marketplace-user-offering-consents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUserOfferingConsentRequest'
+      security:
+      - tokenAuth: []
+      - waldurOIDCAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserOfferingConsent'
+          description: ''
+    delete:
+      operationId: marketplace_user_offering_consents_destroy
+      parameters:
+      - in: path
+        name: uuid
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - marketplace-user-offering-consents
+      security:
+      - tokenAuth: []
+      - waldurOIDCAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/marketplace-user-offering-consents/{uuid}/revoke/:
+    post:
+      operationId: marketplace_user_offering_consents_revoke
+      description: Revoke consent to Terms of Service for an offering.
+      parameters:
+      - in: path
+        name: uuid
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - marketplace-user-offering-consents
+      security:
+      - tokenAuth: []
+      - waldurOIDCAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserOfferingConsent'
+          description: ''
   /api/media/{uuid}/:
     get:
       operationId: media_retrieve
@@ -61871,9 +62370,6 @@ components:
         offering_type:
           type: string
           readOnly: true
-        offering_terms_of_service:
-          type: string
-          readOnly: true
         offering_shared:
           type: boolean
           description: Accessible to all customers.
@@ -62132,6 +62628,11 @@ components:
           readOnly: true
         customer_slug:
           type: string
+          readOnly: true
+        user_requires_reconsent:
+          type: boolean
+          description: Check if the current user needs to re-consent for this resource's
+            offering.
           readOnly: true
         created_by:
           type: string
@@ -64986,6 +65487,11 @@ components:
           readOnly: true
           nullable: true
           description: Maximum number of service accounts allowed
+        project_metadata_checklist:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
         name:
           type: string
           maxLength: 150
@@ -67295,6 +67801,10 @@ components:
         is_active:
           type: boolean
           readOnly: true
+        is_public:
+          type: boolean
+          description: Allow non-authenticated users to see and accept this invitation.
+            Only staff can create public invitations.
         auto_create_project:
           type: boolean
           description: Create project and grant project permissions instead of customer
@@ -67311,6 +67821,11 @@ components:
           nullable: true
         user_affiliations: {}
         user_email_patterns: {}
+        scope_image:
+          type: string
+          format: uri
+          nullable: true
+          readOnly: true
       required:
       - created
       - created_by_full_name
@@ -67322,6 +67837,7 @@ components:
       - role
       - role_description
       - role_name
+      - scope_image
       - scope_name
       - scope_type
       - scope_uuid
@@ -67337,6 +67853,10 @@ components:
         scope:
           type: string
           writeOnly: true
+        is_public:
+          type: boolean
+          description: Allow non-authenticated users to see and accept this invitation.
+            Only staff can create public invitations.
         auto_create_project:
           type: boolean
           description: Create project and grant project permissions instead of customer
@@ -69232,10 +69752,14 @@ components:
         service_provider_name:
           type: string
           readOnly: true
+        backend_id:
+          type: string
+          readOnly: true
       required:
       - actual_end
       - actual_start
       - affected_offerings
+      - backend_id
       - created_by
       - name
       - scheduled_end
@@ -71633,12 +72157,6 @@ components:
           maxLength: 2000
         full_description:
           type: string
-        terms_of_service:
-          type: string
-        terms_of_service_link:
-          type: string
-          format: uri
-          maxLength: 200
         privacy_policy_link:
           type: string
           format: uri
@@ -72122,12 +72640,6 @@ components:
           type: string
         full_description:
           type: string
-        terms_of_service:
-          type: string
-        terms_of_service_link:
-          type: string
-          format: uri
-          maxLength: 200
         privacy_policy_link:
           type: string
           format: uri
@@ -72387,12 +72899,6 @@ components:
           type: string
         full_description:
           type: string
-        terms_of_service:
-          type: string
-        terms_of_service_link:
-          type: string
-          format: uri
-          maxLength: 200
         privacy_policy_link:
           type: string
           format: uri
@@ -72737,12 +73243,6 @@ components:
           type: string
         full_description:
           type: string
-        terms_of_service:
-          type: string
-        terms_of_service_link:
-          type: string
-          format: uri
-          maxLength: 200
         privacy_policy_link:
           type: string
           format: uri
@@ -72968,6 +73468,117 @@ components:
       - service_provider_name
       - service_provider_uuid
       description: ''
+    OfferingTermsOfService:
+      type: object
+      description: ''
+      properties:
+        uuid:
+          type: string
+          format: uuid
+          readOnly: true
+        offering_uuid:
+          type: string
+          format: uuid
+          readOnly: true
+        offering_name:
+          type: string
+          readOnly: true
+        terms_of_service:
+          type: string
+        terms_of_service_link:
+          type: string
+          format: uri
+          maxLength: 200
+        version:
+          type: string
+          maxLength: 50
+        is_active:
+          type: boolean
+        requires_reconsent:
+          type: boolean
+          description: If True, user will be asked to re-consent to the terms of service
+            when the terms of service are updated.
+        created:
+          type: string
+          format: date-time
+          readOnly: true
+        modified:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created
+      - modified
+      - offering_name
+      - offering_uuid
+      - uuid
+    OfferingTermsOfServiceCreate:
+      type: object
+      description: ''
+      properties:
+        offering:
+          type: string
+          format: uri
+        terms_of_service:
+          type: string
+        terms_of_service_link:
+          type: string
+          format: uri
+          maxLength: 200
+        version:
+          type: string
+          maxLength: 50
+        is_active:
+          type: boolean
+        requires_reconsent:
+          type: boolean
+          description: If True, user will be asked to re-consent to the terms of service
+            when the terms of service are updated.
+      required:
+      - offering
+    OfferingTermsOfServiceCreateRequest:
+      type: object
+      description: ''
+      properties:
+        offering:
+          type: string
+          format: uri
+        terms_of_service:
+          type: string
+        terms_of_service_link:
+          type: string
+          format: uri
+          maxLength: 200
+        version:
+          type: string
+          maxLength: 50
+        is_active:
+          type: boolean
+        requires_reconsent:
+          type: boolean
+          description: If True, user will be asked to re-consent to the terms of service
+            when the terms of service are updated.
+      required:
+      - offering
+    OfferingTermsOfServiceRequest:
+      type: object
+      description: ''
+      properties:
+        terms_of_service:
+          type: string
+        terms_of_service_link:
+          type: string
+          format: uri
+          maxLength: 200
+        version:
+          type: string
+          maxLength: 50
+        is_active:
+          type: boolean
+        requires_reconsent:
+          type: boolean
+          description: If True, user will be asked to re-consent to the terms of service
+            when the terms of service are updated.
     OfferingThumbnailRequest:
       type: object
       properties:
@@ -75573,10 +76184,12 @@ components:
         ethertype:
           allOf:
           - $ref: '#/components/schemas/EthertypeEnum'
+          default: IPv4
           description: IP protocol version - either 'IPv4' or 'IPv6'
         direction:
           allOf:
           - $ref: '#/components/schemas/DirectionEnum'
+          default: ingress
           description: Traffic direction - either 'ingress' (incoming) or 'egress'
             (outgoing)
         protocol:
@@ -76953,9 +77566,6 @@ components:
         offering_type:
           type: string
           readOnly: true
-        offering_terms_of_service:
-          type: string
-          readOnly: true
         offering_shared:
           type: boolean
           description: Accessible to all customers.
@@ -77153,7 +77763,6 @@ components:
       - offering_name
       - offering_plugin_options
       - offering_shared
-      - offering_terms_of_service
       - offering_thumbnail
       - offering_type
       - offering_uuid
@@ -77245,9 +77854,6 @@ components:
           format: uri
           readOnly: true
         offering_type:
-          type: string
-          readOnly: true
-        offering_terms_of_service:
           type: string
           readOnly: true
         offering_shared:
@@ -78416,6 +79022,25 @@ components:
           items:
             type: string
             format: uri
+    PatchedOfferingTermsOfServiceRequest:
+      type: object
+      description: ''
+      properties:
+        terms_of_service:
+          type: string
+        terms_of_service_link:
+          type: string
+          format: uri
+          maxLength: 200
+        version:
+          type: string
+          maxLength: 50
+        is_active:
+          type: boolean
+        requires_reconsent:
+          type: boolean
+          description: If True, user will be asked to re-consent to the terms of service
+            when the terms of service are updated.
     PatchedOfferingUsagePolicyRequest:
       type: object
       description: ''
@@ -79601,6 +80226,13 @@ components:
         agreement_type:
           $ref: '#/components/schemas/AgreementTypeEnum'
       description: ''
+    PatchedUserOfferingConsentRequest:
+      type: object
+      description: ''
+      properties:
+        version:
+          type: string
+          maxLength: 50
     PatchedUserRequest:
       type: object
       description: ''
@@ -81850,12 +82482,6 @@ components:
           maxLength: 2000
         full_description:
           type: string
-        terms_of_service:
-          type: string
-        terms_of_service_link:
-          type: string
-          format: uri
-          maxLength: 200
         privacy_policy_link:
           type: string
           format: uri
@@ -82101,12 +82727,6 @@ components:
           maxLength: 2000
         full_description:
           type: string
-        terms_of_service:
-          type: string
-        terms_of_service_link:
-          type: string
-          format: uri
-          maxLength: 200
         privacy_policy_link:
           type: string
           format: uri
@@ -82724,12 +83344,6 @@ components:
           maxLength: 2000
         full_description:
           type: string
-        terms_of_service:
-          type: string
-        terms_of_service_link:
-          type: string
-          format: uri
-          maxLength: 200
         privacy_policy_link:
           type: string
           format: uri
@@ -86228,9 +86842,6 @@ components:
         offering_type:
           type: string
           readOnly: true
-        offering_terms_of_service:
-          type: string
-          readOnly: true
         offering_shared:
           type: boolean
           description: Accessible to all customers.
@@ -86489,6 +87100,11 @@ components:
           readOnly: true
         customer_slug:
           type: string
+          readOnly: true
+        user_requires_reconsent:
+          type: boolean
+          description: Check if the current user needs to re-consent for this resource's
+            offering.
           readOnly: true
       required: []
     ResourceBackendIDRequest:
@@ -89240,6 +89856,112 @@ components:
       required:
       - email
       description: ''
+    UserOfferingConsent:
+      type: object
+      description: ''
+      properties:
+        uuid:
+          type: string
+          format: uuid
+          readOnly: true
+        user_uuid:
+          type: string
+          format: uuid
+          readOnly: true
+        offering_uuid:
+          type: string
+          format: uuid
+          readOnly: true
+        agreement_date:
+          type: string
+          format: date-time
+          readOnly: true
+        version:
+          type: string
+          maxLength: 50
+        revocation_date:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created:
+          type: string
+          format: date-time
+          readOnly: true
+        user_username:
+          type: string
+          description: Required. 128 characters or fewer. Lowercase letters, numbers
+            and @/./+/-/_ characters
+          readOnly: true
+        user_full_name:
+          type: string
+          readOnly: true
+        user_email:
+          type: string
+          format: email
+          title: Email address
+          readOnly: true
+        offering_name:
+          type: string
+          readOnly: true
+        offering_slug:
+          type: string
+          readOnly: true
+        offering_url:
+          type: string
+          format: uri
+          readOnly: true
+        modified:
+          type: string
+          format: date-time
+          readOnly: true
+        has_consent:
+          type: boolean
+          readOnly: true
+        requires_reconsent:
+          type: boolean
+          readOnly: true
+      required:
+      - agreement_date
+      - created
+      - has_consent
+      - modified
+      - offering_name
+      - offering_slug
+      - offering_url
+      - offering_uuid
+      - requires_reconsent
+      - revocation_date
+      - user_email
+      - user_full_name
+      - user_username
+      - user_uuid
+      - uuid
+    UserOfferingConsentCreate:
+      type: object
+      properties:
+        offering:
+          type: string
+          format: uuid
+      required:
+      - offering
+      description: ''
+    UserOfferingConsentCreateRequest:
+      type: object
+      properties:
+        offering:
+          type: string
+          format: uuid
+      required:
+      - offering
+      description: ''
+    UserOfferingConsentRequest:
+      type: object
+      description: ''
+      properties:
+        version:
+          type: string
+          maxLength: 50
     UserRequest:
       type: object
       description: ''

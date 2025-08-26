@@ -490,10 +490,13 @@ class BasePlugin(ABC):
         for action_name, action in actions_config.items():
             # Get the full OpenAPI schema for the action's request body.
             # Default to an empty dict if no schema is defined.
-            action_schema = action.operation.model_schema or {}
+            # Get the raw, unresolved schema for the action's request body.
+            action_schema_raw = action.operation.model_schema or {}
 
             # This will hold the list of keys to be used for the idempotency check.
             idempotency_keys = []
+
+            defaults_map = {}  # Initialize a map for default values.
 
             # The name of the Ansible parameter that triggers this action.
             # We use `getattr` for safety, in case the action config object is malformed.
@@ -505,53 +508,59 @@ class BasePlugin(ABC):
             # This is the core intelligence of the method. We dive into the schema
             # to figure out how to compare lists of objects.
 
-            # Find the schema definition for the specific parameter within the action's body.
-            param_schema = action_schema.get("properties", {}).get(param_name)
+            payload_schema_raw = None
+            is_wrapped = False
 
-            # We only need to infer keys if the parameter is an array (a list).
-            if param_schema and param_schema.get("type") == "array":
-                # Get the schema for the items *within* the array. This might be a direct
-                # definition or, more commonly, a `$ref` to another schema component.
-                item_schema_raw = param_schema.get("items", {})
+            if action_schema_raw.get("type") == "array":
+                # Case 1: The entire request body is the array (e.g., `set_rules`).
+                payload_schema_raw = action_schema_raw
+                is_wrapped = False
+            elif action_schema_raw.get("type") == "object":
+                # Case 2: The request body is an object containing our parameter.
+                payload_schema_raw = action_schema_raw.get("properties", {}).get(
+                    param_name
+                )
+                is_wrapped = True
 
-                # Use our schema resolver to get the full, flattened schema for an item,
-                # correctly handling any `$ref` pointers.
-                item_schema_resolved = schema_resolver._resolve_schema(item_schema_raw)
+            if payload_schema_raw and payload_schema_raw.get("type") == "array":
+                # Get the schema for the items *within* the array.
+                item_schema_ref = payload_schema_raw.get("items", {})
 
-                # If the items in the array are themselves objects, we can extract their property keys.
-                if item_schema_resolved.get("type") == "object":
-                    properties = item_schema_resolved.get("properties", {})
-                    # The idempotency keys are the names of all properties of the item,
-                    # EXCEPT for any that are marked as `writeOnly`. `writeOnly` fields
-                    # (like a password or a reference to an existing resource by UUID) are
-                    # part of the *input* but not part of the final resource's identity,
-                    # so they must be excluded from the comparison.
-                    idempotency_keys = [
-                        key
-                        for key, prop in properties.items()
-                        if not prop.get("writeOnly")
-                    ]
+                # We must work with the UNRESOLVED schema here.
+                # We only resolve a single level of '$ref' if it exists, but we explicitly
+                # DO NOT resolve 'allOf'. This ensures we only get the properties
+                # that are defined for the *input* of the action.
+                item_schema = item_schema_ref
+                if "$ref" in item_schema_ref:
+                    item_schema = (
+                        schema_resolver._get_schema_by_ref(item_schema_ref["$ref"])
+                        or {}
+                    )
+
+                if item_schema.get("type") == "object":
+                    # The idempotency keys are the properties explicitly defined
+                    # in this input schema.
+                    properties = item_schema.get("properties", {})
+                    idempotency_keys = list(properties.keys())
+
+                    # Populate the defaults_map.
+                    for key, prop_schema in properties.items():
+                        if "default" in prop_schema:
+                            defaults_map[key] = prop_schema["default"]
+
             # --- End of Idempotency Key Inference ---
 
-            # Standardize the `compare_key`. The `OrderPlugin` uses 'compare_key' in its
-            # config, while the `CrudPlugin` uses 'check_field'. We handle both and
-            # default to the parameter name itself if neither is specified.
-            compare_key = (
-                getattr(action, "compare_key", None)
-                or getattr(action, "check_field", None)
-                or param_name
-            )
+            compare_key = getattr(action, "compare_key", None) or param_name
 
             # Build the final context dictionary for this specific action.
             update_actions_context[action_name] = {
                 "path": action.operation.path,
                 "param": param_name,
                 "compare_key": compare_key,
-                # Determine if the API expects the payload to be wrapped in an object.
-                # This is true if the top-level schema of the request body is of type 'object'.
-                "wrap_in_object": action_schema.get("type") == "object",
+                "wrap_in_object": is_wrapped,
                 # Provide the inferred keys, sorted for deterministic output.
                 "idempotency_keys": sorted(idempotency_keys),
+                "defaults_map": defaults_map,
             }
 
         return update_actions_context

@@ -37,7 +37,7 @@ class UpdateAction(BaseModel):
     # An optional field to specify which key on the existing resource
     # should be used for the idempotency check. If omitted, it defaults
     # to the value of 'param'.
-    check_field: str | None = None
+    compare_key: str | None = None
 
 
 class UpdateConfig(BaseModel):

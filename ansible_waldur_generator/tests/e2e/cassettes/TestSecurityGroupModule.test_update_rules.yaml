@@ -1,0 +1,140 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/openstack-security-groups/?name_exact=E2E-VCR-Test-SG
+  response:
+    body:
+      string: "[{\"url\":\"http://127.0.0.1:8000/api/openstack-security-groups/a84709e7607c4ce985d818455777b152/\",\"uuid\":\"a84709e7607c4ce985d818455777b152\",\"name\":\"E2E-VCR-Test-SG\",\"description\":\"Security
+        group created by an end-to-end VCR test.\",\"service_name\":\"Antelope\",\"service_settings\":\"http://127.0.0.1:8000/api/service-settings/81766dac4e1b416a9cf3c3b89b37c17b/\",\"service_settings_uuid\":\"81766dac4e1b416a9cf3c3b89b37c17b\",\"service_settings_state\":\"OK\",\"service_settings_error_message\":\"\",\"project\":\"http://127.0.0.1:8000/api/projects/5573c3487f3b456891409e3b3f906fa5/\",\"project_name\":\"Agnes
+        K\xFCtt (University of Tartu) / Naked azanide as an aminating agent and a
+        superbase / test-2025-06-12-04\",\"project_uuid\":\"5573c3487f3b456891409e3b3f906fa5\",\"customer\":\"http://127.0.0.1:8000/api/customers/1fb1f539aa6a4b38a33a5f121f4ac5b8/\",\"customer_name\":\"ETAIS\",\"customer_native_name\":\"\",\"customer_abbreviation\":\"\",\"error_message\":\"\",\"error_traceback\":\"\",\"resource_type\":\"OpenStack.SecurityGroup\",\"state\":\"OK\",\"created\":\"2025-08-26T16:52:25.767170+00:00\",\"modified\":\"2025-08-26T17:01:06.907930+00:00\",\"backend_id\":\"\",\"access_url\":null,\"tenant\":\"http://127.0.0.1:8000/api/openstack-tenants/fdc10baab4664b158a3fa338a4d8bf2b/\",\"tenant_name\":\"os-tenant-agnes-ku-12-antelope-1\",\"tenant_uuid\":\"fdc10baab4664b158a3fa338a4d8bf2b\",\"rules\":[{\"ethertype\":\"IPv4\",\"direction\":\"ingress\",\"protocol\":\"tcp\",\"from_port\":22,\"to_port\":22,\"cidr\":\"192.168.1.0/24\",\"description\":\"Allow
+        SSH from internal network.\",\"id\":85617,\"remote_group\":null},{\"ethertype\":\"IPv4\",\"direction\":\"ingress\",\"protocol\":\"tcp\",\"from_port\":443,\"to_port\":443,\"cidr\":\"0.0.0.0/0\",\"description\":\"Allow
+        HTTPS from anywhere.\",\"id\":85618,\"remote_group\":null}],\"marketplace_offering_uuid\":null,\"marketplace_offering_name\":null,\"marketplace_offering_plugin_options\":null,\"marketplace_category_uuid\":null,\"marketplace_category_name\":null,\"marketplace_resource_uuid\":null,\"marketplace_plan_uuid\":null,\"marketplace_resource_state\":null,\"is_usage_based\":null,\"is_limit_based\":null}]"
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '2003'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Tue, 26 Aug 2025 17:01:56 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/openstack-security-groups/?name_exact=E2E-VCR-Test-SG>;
+        rel="first", <http://127.0.0.1:8000/api/openstack-security-groups/?name_exact=E2E-VCR-Test-SG>;
+        rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '[{"protocol": "tcp", "from_port": 443, "to_port": 443, "cidr": "0.0.0.0/0",
+      "description": "Allow HTTPS from anywhere."}]'
+    headers:
+      Connection:
+      - close
+      Content-Length:
+      - '121'
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: POST
+    uri: http://127.0.0.1:8000/api/openstack-security-groups/a84709e7607c4ce985d818455777b152/set_rules/
+  response:
+    body:
+      string: '{"status":"Rules update was successfully scheduled."}'
+    headers:
+      Allow:
+      - POST, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '53'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Tue, 26 Aug 2025 17:01:56 GMT
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+    status:
+      code: 202
+      message: Accepted
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/openstack-security-groups/?name_exact=E2E-VCR-Test-SG
+  response:
+    body:
+      string: "[{\"url\":\"http://127.0.0.1:8000/api/openstack-security-groups/a84709e7607c4ce985d818455777b152/\",\"uuid\":\"a84709e7607c4ce985d818455777b152\",\"name\":\"E2E-VCR-Test-SG\",\"description\":\"Security
+        group created by an end-to-end VCR test.\",\"service_name\":\"Antelope\",\"service_settings\":\"http://127.0.0.1:8000/api/service-settings/81766dac4e1b416a9cf3c3b89b37c17b/\",\"service_settings_uuid\":\"81766dac4e1b416a9cf3c3b89b37c17b\",\"service_settings_state\":\"OK\",\"service_settings_error_message\":\"\",\"project\":\"http://127.0.0.1:8000/api/projects/5573c3487f3b456891409e3b3f906fa5/\",\"project_name\":\"Agnes
+        K\xFCtt (University of Tartu) / Naked azanide as an aminating agent and a
+        superbase / test-2025-06-12-04\",\"project_uuid\":\"5573c3487f3b456891409e3b3f906fa5\",\"customer\":\"http://127.0.0.1:8000/api/customers/1fb1f539aa6a4b38a33a5f121f4ac5b8/\",\"customer_name\":\"ETAIS\",\"customer_native_name\":\"\",\"customer_abbreviation\":\"\",\"error_message\":\"\",\"error_traceback\":\"\",\"resource_type\":\"OpenStack.SecurityGroup\",\"state\":\"UPDATE_SCHEDULED\",\"created\":\"2025-08-26T16:52:25.767170+00:00\",\"modified\":\"2025-08-26T17:01:56.265338+00:00\",\"backend_id\":\"\",\"access_url\":null,\"tenant\":\"http://127.0.0.1:8000/api/openstack-tenants/fdc10baab4664b158a3fa338a4d8bf2b/\",\"tenant_name\":\"os-tenant-agnes-ku-12-antelope-1\",\"tenant_uuid\":\"fdc10baab4664b158a3fa338a4d8bf2b\",\"rules\":[{\"ethertype\":\"IPv4\",\"direction\":\"ingress\",\"protocol\":\"tcp\",\"from_port\":443,\"to_port\":443,\"cidr\":\"0.0.0.0/0\",\"description\":\"Allow
+        HTTPS from anywhere.\",\"id\":85619,\"remote_group\":null}],\"marketplace_offering_uuid\":null,\"marketplace_offering_name\":null,\"marketplace_offering_plugin_options\":null,\"marketplace_category_uuid\":null,\"marketplace_category_name\":null,\"marketplace_resource_uuid\":null,\"marketplace_plan_uuid\":null,\"marketplace_resource_state\":null,\"is_usage_based\":null,\"is_limit_based\":null}]"
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '1825'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Tue, 26 Aug 2025 17:01:56 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/openstack-security-groups/?name_exact=E2E-VCR-Test-SG>;
+        rel="first", <http://127.0.0.1:8000/api/openstack-security-groups/?name_exact=E2E-VCR-Test-SG>;
+        rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '1'
+    status:
+      code: 200
+      message: OK
+version: 1

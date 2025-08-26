@@ -315,7 +315,9 @@ class BaseRunner:
             msg=f"Timeout waiting for resource {resource_uuid} to become stable."
         )
 
-    def _normalize_for_comparison(self, value: any, idempotency_keys: list[str]) -> any:
+    def _normalize_for_comparison(
+        self, value: any, idempotency_keys: list[str], defaults_map: dict | None = None
+    ) -> any:
         """
         Normalizes complex values (especially lists) into a canonical, order-insensitive,
         and comparable format. This method is the core of a robust idempotency check for
@@ -354,6 +356,8 @@ class BaseRunner:
             A comparable, order-insensitive representation (typically a set),
             or the original value if normalization is not possible or not applicable.
         """
+        defaults_map = defaults_map or {}
+
         # --- Guard Clause 1: Handle Non-List Values ---
         # This function is designed to normalize lists. If the input is anything else
         # (e.g., a string, integer, boolean, dict, or None), there is no concept of
@@ -388,11 +392,16 @@ class BaseRunner:
                 if not isinstance(item, dict):
                     return value
 
+                # Apply schema defaults if a schema is available.
+                # We apply this to every item to handle both user input and resource state consistently.
+                item_to_process = self._apply_defaults(item, defaults_map)
+
                 # This is the core of the complex normalization. We create a new, temporary
                 # dictionary containing ONLY the keys that define the object's identity.
                 # This ensures we ignore transient or server-generated fields (like 'uuid'
                 # or 'status') when comparing the user's desired state to the current state.
-                filtered_item = {key: item.get(key) for key in idempotency_keys}
+                keys_to_use = idempotency_keys or list(item_to_process.keys())
+                filtered_item = {key: item_to_process.get(key) for key in keys_to_use}
 
                 # We now convert this filtered dictionary into a canonical string. This string
                 # is both hashable (so it can be added to a set) and deterministic.
@@ -594,6 +603,9 @@ class BaseRunner:
                     and isinstance(resource_value[0], dict)
                 )
 
+                # Extract the defaults_map from the context.
+                defaults_map = action_info.get("defaults_map")
+
                 if is_simple_list_payload and is_complex_list_resource:
                     # A mismatch is detected. Transform the "rich" list from the
                     # resource into a simple list of URLs for a fair comparison.
@@ -604,18 +616,18 @@ class BaseRunner:
                     ]
                     # Now, normalize the newly transformed (simple) list.
                     normalized_old = self._normalize_for_comparison(
-                        transformed_resource_value, []
+                        transformed_resource_value, [], defaults_map
                     )
                 else:
                     # In all other cases (object-to-object, etc.), no pre-transformation
                     # is needed before normalization.
                     normalized_old = self._normalize_for_comparison(
-                        resource_value, idempotency_keys
+                        resource_value, idempotency_keys, defaults_map
                     )
 
                 # Normalize the user's desired state.
                 normalized_new = self._normalize_for_comparison(
-                    resolved_payload, idempotency_keys
+                    resolved_payload, idempotency_keys, defaults_map
                 )
 
                 # --- 2c. DETECT Change ---
@@ -702,3 +714,23 @@ class BaseRunner:
             self.resource = data[0] if data else None
         else:
             self.resource = data if isinstance(data, dict) else None
+
+    def _apply_defaults(self, item: dict, defaults_map: dict) -> dict:
+        """
+        Normalizes a single dictionary item by applying default values for any
+        keys that are missing from the item.
+        """
+        # Start with a copy to avoid modifying the original object.
+        normalized_item = item.copy()
+
+        # If no defaults are configured, return immediately.
+        if not defaults_map:
+            return normalized_item
+
+        # Iterate through the pre-processed defaults map.
+        for key, default_value in defaults_map.items():
+            # If a key is missing from the item...
+            if key not in normalized_item:
+                # ...add it with its default value.
+                normalized_item[key] = default_value
+        return normalized_item
