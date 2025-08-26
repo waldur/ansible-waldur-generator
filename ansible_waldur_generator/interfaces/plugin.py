@@ -1,6 +1,6 @@
-from abc import ABC, abstractmethod
 import os
 import sys
+from abc import ABC, abstractmethod
 from typing import Any
 
 from ansible_waldur_generator.api_parser import ApiSpecParser
@@ -432,3 +432,126 @@ class BasePlugin(ABC):
                     except (ValueError, KeyError):
                         pass  # Suppress errors if a ref can't be resolved
         return [c for c in choices if c is not None] or None
+
+    def _build_update_actions_context(
+        self,
+        actions_config: dict[str, Any],
+        api_parser: ApiSpecParser,
+    ) -> dict[str, Any]:
+        """
+        A shared utility to build the runner context for complex, action-based updates.
+
+        This method is a critical part of the generator's "intelligence." It acts as a
+        bridge between the user's high-level configuration and the low-level metadata
+        required by the `BaseRunner` to execute updates correctly and idempotently.
+
+        For each update action defined in the `generator_config.yaml`, this method
+        introspects the corresponding API operation's schema in `waldur_api.yaml`
+        to infer three key pieces of metadata:
+
+        1.  `idempotency_keys`: For actions that operate on a list of complex objects (e.g.,
+            updating a VM's network ports), this determines which fields within each
+            object define its unique identity. This is the cornerstone of the robust,
+            order-insensitive idempotency check in the runner. For a port, this might
+            be `['subnet', 'fixed_ips']`.
+
+        2.  `wrap_in_object`: It determines the expected format of the API request body.
+            - `True`: The API expects a JSON object with the parameter name as a key,
+              e.g., `{"rules": [...]}`.
+            - `False`: The API expects the raw value as the entire request body,
+              e.g., just `[...]`.
+
+        3.  `compare_key`: It standardizes the name of the field on the existing resource
+            that should be used for the idempotency comparison.
+
+        By centralizing this complex schema analysis here, we keep the plugin-specific
+        code clean and ensure that all generated modules, regardless of type, benefit
+        from the same robust logic.
+
+        Args:
+            actions_config: The dictionary of action configurations from the parsed
+                            module config (e.g., `module_config.update_config.actions`).
+            api_parser: The shared ApiSpecParser instance, used to access the OpenAPI spec.
+
+        Returns:
+            A dictionary formatted for the 'update_actions' key in the `runner_context`.
+            This dictionary contains all the pre-processed metadata the runner needs.
+        """
+        # This dictionary will be populated with the final, processed context for each action.
+        update_actions_context = {}
+
+        # We use a ReturnBlockGenerator instance here primarily for its powerful
+        # `_resolve_schema` helper method, which can flatten complex schemas by
+        # handling `$ref` and `allOf` constructs. This is essential for correctly
+        # introspecting the schema of an action's request body.
+        schema_resolver = ReturnBlockGenerator(api_parser.api_spec)
+
+        # Iterate through each action defined in the user's configuration.
+        for action_name, action in actions_config.items():
+            # Get the full OpenAPI schema for the action's request body.
+            # Default to an empty dict if no schema is defined.
+            action_schema = action.operation.model_schema or {}
+
+            # This will hold the list of keys to be used for the idempotency check.
+            idempotency_keys = []
+
+            # The name of the Ansible parameter that triggers this action.
+            # We use `getattr` for safety, in case the action config object is malformed.
+            param_name = getattr(action, "param", None)
+            if not param_name:
+                continue  # Skip actions that don't specify a parameter.
+
+            # --- Start of Idempotency Key Inference ---
+            # This is the core intelligence of the method. We dive into the schema
+            # to figure out how to compare lists of objects.
+
+            # Find the schema definition for the specific parameter within the action's body.
+            param_schema = action_schema.get("properties", {}).get(param_name)
+
+            # We only need to infer keys if the parameter is an array (a list).
+            if param_schema and param_schema.get("type") == "array":
+                # Get the schema for the items *within* the array. This might be a direct
+                # definition or, more commonly, a `$ref` to another schema component.
+                item_schema_raw = param_schema.get("items", {})
+
+                # Use our schema resolver to get the full, flattened schema for an item,
+                # correctly handling any `$ref` pointers.
+                item_schema_resolved = schema_resolver._resolve_schema(item_schema_raw)
+
+                # If the items in the array are themselves objects, we can extract their property keys.
+                if item_schema_resolved.get("type") == "object":
+                    properties = item_schema_resolved.get("properties", {})
+                    # The idempotency keys are the names of all properties of the item,
+                    # EXCEPT for any that are marked as `writeOnly`. `writeOnly` fields
+                    # (like a password or a reference to an existing resource by UUID) are
+                    # part of the *input* but not part of the final resource's identity,
+                    # so they must be excluded from the comparison.
+                    idempotency_keys = [
+                        key
+                        for key, prop in properties.items()
+                        if not prop.get("writeOnly")
+                    ]
+            # --- End of Idempotency Key Inference ---
+
+            # Standardize the `compare_key`. The `OrderPlugin` uses 'compare_key' in its
+            # config, while the `CrudPlugin` uses 'check_field'. We handle both and
+            # default to the parameter name itself if neither is specified.
+            compare_key = (
+                getattr(action, "compare_key", None)
+                or getattr(action, "check_field", None)
+                or param_name
+            )
+
+            # Build the final context dictionary for this specific action.
+            update_actions_context[action_name] = {
+                "path": action.operation.path,
+                "param": param_name,
+                "compare_key": compare_key,
+                # Determine if the API expects the payload to be wrapped in an object.
+                # This is true if the top-level schema of the request body is of type 'object'.
+                "wrap_in_object": action_schema.get("type") == "object",
+                # Provide the inferred keys, sorted for deterministic output.
+                "idempotency_keys": sorted(idempotency_keys),
+            }
+
+        return update_actions_context

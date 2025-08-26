@@ -116,72 +116,63 @@ class CrudRunner(BaseRunner):
 
     def update(self):
         """
-        Updates an existing resource if its configuration has changed. This method
-        intelligently handles both simple field updates and complex action-based updates.
+        Orchestrates the update process for an existing resource when `state: present`.
+
+        This method's primary role is to ensure that an existing resource's configuration
+        matches the state desired by the user in the Ansible playbook. It handles both
+        simple field updates (e.g., changing a 'description') and complex, action-based
+        updates (e.g., setting firewall rules for a security group).
+
+        By leveraging the powerful, generic handler methods inherited from `BaseRunner`,
+        this implementation is clean, concise, and follows a clear, logical flow:
+        1.  First, it handles any simple, direct attribute changes via `PATCH`.
+        2.  Second, it processes any complex, idempotent actions via `POST`.
+
+        This separation ensures that simple updates are processed efficiently, while
+        complex updates benefit from the robust "resolve -> normalize -> compare -> execute"
+        workflow provided by the base class. The `CrudRunner` itself doesn't need to
+        contain any complex update logic; it simply delegates to the shared toolkit.
         """
+        # --- Guard Clause: Ensure a Resource Exists ---
+        # The update method is only meaningful if a resource was found during the
+        # initial `check_existence()` call. If `self.resource` is `None`, it means
+        # the resource doesn't exist, and the `create()` method will be called
+        # by the main `run()` logic instead. We can safely exit here.
         if not self.resource:
             return
 
-        # 1. Handle simple field updates (e.g., name, description).
-        update_path = self.context.get("update_path")
-        update_fields = self.context.get("update_fields", [])
-        if update_path and update_fields:
-            update_payload = {}
-            for field in update_fields:
-                param_value = self.module.params.get(field)
-                # Check if the user-provided value is different from the existing resource's value.
-                if param_value is not None and param_value != self.resource.get(field):
-                    update_payload[field] = param_value
-            # If there are changes, send a PATCH request.
-            if update_payload:
-                updated_resource, _ = self._send_request(
-                    "PATCH",
-                    update_path,
-                    data=update_payload,
-                    path_params={"uuid": self.resource["uuid"]},
-                )
-                # Merge the update response back into our local resource state.
-                self.resource.update(updated_resource)
-                self.has_changed = True
+        # --- Step 1: Handle Simple Field Updates ---
+        # Delegate the entire process of handling simple updates to the `_handle_simple_updates`
+        # method inherited from `BaseRunner`. This shared method will:
+        #   - Compare all fields listed in `context['update_fields']`.
+        #   - Build a `PATCH` payload with only the changed values.
+        #   - Send the request if and only if changes are detected.
+        #   - Update `self.resource` and `self.has_changed` accordingly.
+        # This keeps the `CrudRunner` clean and free of duplicated logic.
+        self._handle_simple_updates()
 
-        # 2. Handle action-based updates (e.g., setting security group rules).
-        update_actions = self.context.get("update_actions", {})
-        for _, action_info in update_actions.items():
-            param_name = action_info["param"]
-            param_value = self.module.params.get(param_name)
+        # --- Step 2: Handle Complex, Action-Based Updates ---
+        # After handling simple updates, we delegate to the `_handle_action_updates`
+        # method, also inherited from `BaseRunner`. This powerful, generic engine will:
+        #   - Iterate through all actions defined in `context['update_actions']`.
+        #   - For each action, it will:
+        #       a) Resolve the user-provided parameters (e.g., converting a subnet
+        #          name into a full API URL).
+        #       b) Perform a robust, order-insensitive idempotency check using the
+        #          `_normalize_for_comparison` utility.
+        #       c) Execute a `POST` request to the action's endpoint only if a change
+        #          is needed.
+        #       d) Handle any asynchronous (HTTP 202) responses by waiting.
+        #       e) Re-fetch the resource state at the end if necessary.
+        #
+        # For the `CrudRunner`, no special setup is required before calling this method.
+        # We use the default `resolve_output_format` because CRUD modules typically
+        # don't have the dual-context complexity of `OrderRunner`.
+        self._handle_action_updates()
 
-            # Perform idempotency check before executing the action.
-            # Compare the user-provided value with the corresponding field on the resource.
-            check_field = action_info["check_field"]
-            if param_value is not None and param_value != self.resource.get(
-                check_field
-            ):
-                # Construct the request body based on the schema analysis
-                # done by the plugin.
-                if action_info.get("wrap_in_object"):
-                    data_to_send = {param_name: param_value}
-                else:
-                    data_to_send = param_value
-
-                _, status_code = self._send_request(
-                    "POST",
-                    action_info["path"],
-                    data=data_to_send,
-                    path_params={"uuid": self.resource["uuid"]},
-                )
-
-                # If the API accepted the task for async processing, wait for it.
-                if (
-                    status_code == 202
-                    and self.module.params.get("wait", True)
-                    and self.context.get("wait_config")
-                ):
-                    self._wait_for_resource_state(self.resource["uuid"])
-                else:
-                    # For synchronous actions (200, 201, 204), re-fetch immediately.
-                    self.check_existence()
-
-                self.has_changed = True
+        # The `update` method is now complete. The `self.resource` and `self.has_changed`
+        # attributes have been correctly modified by the base class methods, and are
+        # ready for the final `exit()` call in the main `run()` loop.
 
     def delete(self):
         """

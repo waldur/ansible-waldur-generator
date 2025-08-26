@@ -1,4 +1,3 @@
-import json
 import time
 
 from ansible_waldur_generator.interfaces.resolver import ParameterResolver
@@ -198,179 +197,83 @@ class OrderRunner(BaseRunner):
 
         self.has_changed = True
 
-    def _normalize_for_comparison(self, value: any, idempotency_keys: list[str]) -> any:
-        """
-        Normalizes complex values into a simple, comparable format using schema-inferred keys.
-
-        This method is critical for correctly comparing a list of complex objects (like ports
-        or security groups) for idempotency. It transforms a list of dictionaries into a
-        canonical, order-insensitive representation (a set of JSON strings).
-
-        - If `idempotency_keys` are provided (e.g., ['subnet', 'fixed_ips']), it will
-          filter each dictionary in the `value` list to contain only those keys and then
-          convert the filtered dictionary into a sorted JSON string.
-        - The final result is a set of these strings, which can be safely compared.
-        - If `idempotency_keys` is empty or the value is not a list, the original value
-          is returned.
-
-        Args:
-            value: The value to normalize (e.g., a list of port dictionaries).
-            idempotency_keys: A list of keys that define the identity of an object
-                              in the list, inferred from the OpenAPI spec.
-
-        Returns:
-            A set of canonical strings for list-of-dict comparisons, or the original value.
-        """
-        # If no keys are specified or the value isn't a list, perform no normalization.
-        if not idempotency_keys or not isinstance(value, list):
-            return value
-
-        canonical_forms = set()
-        for item in value:
-            if not isinstance(item, dict):
-                # If the list contains non-dict items, we cannot normalize.
-                return value
-
-            # Create a new dictionary containing only the keys relevant for comparison.
-            filtered_item = {key: item.get(key) for key in idempotency_keys}
-
-            # Create a canonical (sorted, compact) JSON string representation of the filtered item.
-            # This is a robust way to make a complex, nested dictionary hashable and comparable.
-            canonical_string = json.dumps(
-                filtered_item, sort_keys=True, separators=(",", ":")
-            )
-            canonical_forms.add(canonical_string)
-
-        return canonical_forms
-
-    def _handle_simple_updates(self):
-        """
-        Handle simple, direct attribute updates (e.g., via PATCH).
-        """
-        if self.context.get("update_url"):
-            update_payload = {}
-            # Iterate through the fields that are configured as updatable.
-            for field in self.context.get("update_check_fields", []):
-                param_value = self.module.params.get(field)
-                if self.resource:
-                    resource_value = self.resource.get(field)
-                    # If the user-provided value is different from the existing value,
-                    # add it to the update payload.
-                    if param_value is not None and param_value != resource_value:
-                        update_payload[field] = param_value
-
-            # If there are changes to apply, send the PATCH request.
-            if update_payload and self.resource:
-                path = self.context["update_url"]
-                self.resource, _ = self._send_request(
-                    "PATCH",
-                    path,
-                    data=update_payload,
-                    path_params={"uuid": self.resource["uuid"]},
-                )
-                self.has_changed = True
-
-    def _handle_complex_update(self):
-        """
-        Handle complex, idempotent, action-based updates (e.g., updating ports).
-        """
-
-        # --- Dependency Cache Priming ---
-        # Instead of manually fetching dependencies, we now use a dedicated method on the
-        # resolver to "prime" its cache. It fetches the full objects for the resource's
-        # 'offering' and 'project' from their URLs, making them available for filtering.
-        if self.resource:
-            self.resolver.prime_cache_from_resource(
-                self.resource, ["offering", "project"]
-            )
-
-        # If the user provides an 'offering' or 'project' parameter, their choice
-        # should override the existing one. We explicitly resolve it here to
-        # update the cache with the user-provided value.
-        if self.module.params.get("offering"):
-            self.resolver.resolve("offering", self.module.params["offering"])
-        if self.module.params.get("project"):
-            self.resolver.resolve("project", self.module.params["project"])
-
-        # Use a flag to perform the re-fetch only once at the end.
-        needs_refetch = False
-
-        update_actions = self.context.get("update_actions", {})
-        for _, action_info in update_actions.items():
-            param_name = action_info["param"]
-            compare_key = action_info["compare_key"]
-            idempotency_keys = action_info.get(
-                "idempotency_keys", []
-            )  # Get the keys from context
-            param_value = self.module.params.get(param_name)
-
-            if param_value is not None:
-                resolved_payload_for_comparison = self.resolver.resolve(
-                    param_name, param_value, output_format="update_action"
-                )
-
-                resource_value = self.resource.get(compare_key)
-
-                # --- Advanced Normalization Logic ---
-                # Scenario 1: The API expects a list of simple strings (e.g., URLs).
-                # We detect this by checking the type of the resolved user value.
-                if (
-                    isinstance(resolved_payload_for_comparison, list)
-                    and resolved_payload_for_comparison
-                    and isinstance(resolved_payload_for_comparison[0], str)
-                ):
-                    # Normalize the existing resource's list of objects into a set of URLs.
-                    normalized_old = (
-                        {item.get("url") for item in resource_value if item.get("url")}
-                        if isinstance(resource_value, list)
-                        else set()
-                    )
-                    # Normalize the user's desired state into a simple set of strings.
-                    normalized_new = set(resolved_payload_for_comparison)
-                else:
-                    # Scenario 2: The API expects a list of objects. Use the
-                    # schema-inferred keys for a canonical object comparison.
-                    normalized_old = self._normalize_for_comparison(
-                        resource_value, idempotency_keys
-                    )
-                    normalized_new = self._normalize_for_comparison(
-                        resolved_payload_for_comparison, idempotency_keys
-                    )
-
-                if normalized_new != normalized_old:
-                    final_api_payload = {param_name: resolved_payload_for_comparison}
-
-                    _, status_code = self._send_request(
-                        "POST",
-                        action_info["path"],
-                        data=final_api_payload,
-                        path_params={"uuid": self.resource["uuid"]},
-                    )
-                    self.has_changed = True
-
-                    # If the API accepted the task for async processing, wait for it.
-                    if (
-                        status_code == 202
-                        and self.module.params.get("wait", True)
-                        and self.context.get("wait_config")
-                    ):
-                        self._wait_for_resource_state(self.resource["uuid"])
-                        # After waiting, self.resource is updated, so no re-fetch is needed for this action.
-                    else:
-                        # For synchronous actions or wait=False, mark for a single re-fetch at the end.
-                        needs_refetch = True
-
-        # After all actions are processed, re-fetch the state if necessary.
-        if needs_refetch:
-            self.resource = self.check_existence()
-
     def update(self):
         """
-        Updates an existing resource if its configuration has changed.
-        """
+        Orchestrates the update process for an existing marketplace resource.
 
+        This method is the specialized entry point for handling `state: present` when
+        a resource already exists. Its design follows a clear pattern of performing
+        context-specific setup before delegating the core execution logic to the
+        generic, shared "engine" methods inherited from `BaseRunner`.
+
+        Its specialized responsibilities are crucial for handling the complex
+        dependencies inherent in marketplace resources:
+
+        1.  **Cache Priming for Dependency Resolution:** It proactively loads the
+            resource's core dependencies (like its `offering` and `project`) into
+            the resolver's cache. This is essential for correctly resolving any
+            *new* nested parameters the user wants to update (e.g., resolving a new
+            `subnet` name requires knowing which tenant to search in, which is
+            determined by the `offering`).
+
+        2.  **Cache Overriding for Context Changes:** It allows the user to override
+            the primed cache by providing a new `offering` or `project`, ensuring that
+            all subsequent parameter resolutions happen within the correct new context.
+
+        After this critical setup is complete, it delegates the actual update
+        execution to the generic `_handle_simple_updates` and `_handle_action_updates`
+        methods from `BaseRunner`, providing a special hint (`resolve_output_format`)
+        to the action handler to ensure API payloads are formatted correctly for
+        direct update actions.
+        """
+        # --- Guard Clause: Ensure a Resource Exists ---
+        # The update method is only meaningful if a resource was found during the
+        # initial `check_existence()` call. If `self.resource` is `None`, it means
+        # the resource doesn't exist, and the `create()` method will be called
+        # by the main `run()` logic instead. We can safely exit here.
+        if not self.resource:
+            return
+
+        # --- Step 1: Handle Simple Field Updates (Delegation) ---
+        # First, delegate the entire process of handling simple updates (e.g., 'description')
+        # to the generic `_handle_simple_updates` method from `BaseRunner`. This shared
+        # method handles the change detection, payload building, and PATCH request.
         self._handle_simple_updates()
-        self._handle_complex_update()
+
+        # --- Step 2: Specialized Setup for Marketplace Context ---
+        # This block contains the logic that is unique to the OrderRunner and justifies
+        # its existence as a specialized class.
+
+        # 2a. Proactively prime the resolver's cache with the resource's key dependencies.
+        # We fetch the full API objects for the existing `offering` and `project` using
+        # their URLs. This populates the cache, making their attributes (like the offering's
+        # `scope_uuid`) available for filtering dependent lookups later on.
+        self.resolver.prime_cache_from_resource(self.resource, ["offering", "project"])
+
+        # 2b. Allow user-provided parameters to override the primed cache.
+        # If the user specifies a new `offering` in their playbook, we must resolve it
+        # immediately. This action overwrites the cached `offering` from the existing
+        # resource, ensuring that any subsequent resolutions (e.g., for a new `flavor`
+        # or `subnet`) are correctly filtered against the *new* offering's context.
+        if self.module.params.get("offering"):
+            self.resolver.resolve("offering", self.module.params["offering"])
+        # (The same logic could be applied to `project` if needed).
+
+        # --- Step 3: Handle Complex, Action-Based Updates (Delegation) ---
+        # With the cache now correctly primed and/or overridden, we can safely delegate
+        # the execution of complex updates to the generic `_handle_action_updates` engine.
+
+        # We provide a crucial hint, `resolve_output_format="update_action"`. This tells
+        # the ParameterResolver to format the data according to the needs of the direct
+        # "update action" API endpoint, which may differ from the format required by the
+        # "create order" endpoint. For example, an update action for security groups might
+        # expect a raw list of UUIDs, while the create order expects a list of objects.
+        # This parameter makes that distinction possible.
+        self._handle_action_updates(resolve_output_format="update_action")
+
+        # The `update` method is now complete. The `self.resource` and `self.has_changed`
+        # attributes have been correctly modified by the base class methods, and are
+        # ready for the final `exit()` call in the main `run()` loop.
 
     def delete(self):
         """
@@ -441,7 +344,7 @@ class OrderRunner(BaseRunner):
             self.has_changed = True  # Predicts deletion.
         elif state == "present" and self.resource and self.context.get("update_url"):
             # Predicts if any updatable fields have changed.
-            for field in self.context["update_check_fields"]:
+            for field in self.context["update_fields"]:
                 param_value = self.module.params.get(field)
                 if self.resource:
                     resource_value = self.resource.get(field)

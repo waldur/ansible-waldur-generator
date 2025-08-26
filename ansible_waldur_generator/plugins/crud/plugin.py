@@ -64,12 +64,19 @@ class CrudPlugin(BasePlugin):
         self, module_config: CrudModuleConfig, api_parser
     ) -> Dict[str, Any]:
         """
-
-        Assembles the 'runner_context' dictionary. This context is serialized into
-        the generated module and provides the runner with all the necessary
-        API details and logic mappings to perform its tasks.
+        Assembles the 'runner_context' dictionary.
         """
         conf = module_config
+        update_actions_context = {}
+        update_fields = []
+
+        if conf.update_config and conf.update_config.actions:
+            update_actions_context = self._build_update_actions_context(
+                conf.update_config.actions, api_parser
+            )
+
+        if conf.update_config and conf.update_config.fields:
+            update_fields = sorted(list(dict.fromkeys(conf.update_config.fields)))
 
         # Prepare resolver configurations for the runner.
         resolvers_data = {}
@@ -78,29 +85,6 @@ class CrudPlugin(BasePlugin):
                 "url": resolver.list_operation.path if resolver.list_operation else "",
                 "error_message": resolver.error_message,
             }
-
-        # Prepare update action configurations for the runner.
-        update_actions_context = {}
-        if conf.update_config and conf.update_config.actions:
-            for key, action in conf.update_config.actions.items():
-                request_body_schema = action.operation.model_schema or {}
-                # If the schema is a direct array, we pass the data directly.
-                # Otherwise, we wrap it in an object with the parameter name as the key.
-                body_format_is_object = request_body_schema.get("type") == "object"
-
-                update_actions_context[key] = {
-                    "path": action.operation.path,
-                    "param": action.param,
-                    "check_field": action.check_field
-                    or action.param,  # Default check_field to param name
-                    "wrap_in_object": body_format_is_object,
-                }
-
-        update_fields = []
-        if module_config.update_config and module_config.update_config.fields:
-            update_fields = sorted(
-                list(dict.fromkeys(module_config.update_config.fields))
-            )
 
         # The final context dictionary passed to the runner.
         runner_context = {

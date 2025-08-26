@@ -2,7 +2,6 @@ import pytest
 from unittest.mock import patch, ANY
 
 # The class we are testing
-from ansible_waldur_generator.plugins import order
 from ansible_waldur_generator.plugins.order.runner import OrderRunner
 
 
@@ -16,8 +15,8 @@ def mock_instance_runner_context():
         "resource_type": "OpenStack instance",
         "existence_check_url": "/api/openstack-instances/",
         "existence_check_filter_keys": {"project": "project_uuid"},
-        "update_url": "/api/openstack-instances/{uuid}/",
-        "update_check_fields": ["description", "name"],
+        "update_path": "/api/openstack-instances/{uuid}/",
+        "update_fields": ["description", "name"],
         "attribute_param_names": [
             "flavor",
             "image",
@@ -34,11 +33,17 @@ def mock_instance_runner_context():
                 "path": "/api/openstack-instances/{uuid}/update_ports/",
                 "param": "ports",
                 "compare_key": "ports",
+                # This metadata would be inferred by the plugin
+                "idempotency_keys": ["subnet", "fixed_ips"],
+                "wrap_in_object": True,
             },
             "update_security_groups": {
                 "path": "/api/openstack-instances/{uuid}/update_security_groups/",
                 "param": "security_groups",
                 "compare_key": "security_groups",
+                # This metadata would be inferred by the plugin
+                "idempotency_keys": [],  # For a simple list of strings
+                "wrap_in_object": True,
             },
         },
         "resolvers": {
@@ -509,14 +514,25 @@ class TestOrderRunner:
         # Define the sequence of API responses that the mock `_send_request` will return.
         # This list must precisely match the order of API calls made by the runner.
         def mock_send_request_side_effect(method, path, **kwargs):
+            query_params = kwargs.get("query_params", {})
             # Map common paths to expected responses based on request details
             if method == "GET":
                 if "/api/projects/" in path:
                     return ([{"url": "http://api.com/api/projects/proj-uuid/"}], 200)
-                elif "/api/openstack-instances/" in path:
-                    if "uuid" in path:  # Re-fetch of specific instance
-                        return ([updated_resource_state], 200)
-                    return ([existing_resource], 200)  # Initial existence check
+                elif "/api/openstack-instances/" in path and query_params:
+                    # This is the initial or final existence check call by name
+                    if "vm-to-reconfigure" in query_params.get("name_exact", ""):
+                        # If we have already made POST calls, it means this is the re-fetch.
+                        # Return the updated state. Otherwise, return the initial state.
+                        post_calls = [
+                            c
+                            for c in mock_send_request.call_args_list
+                            if c.args[0] == "POST"
+                        ]
+                        if len(post_calls) > 0:
+                            return ([updated_resource_state], 200)
+                        else:
+                            return ([existing_resource], 200)
                 elif "/api/projects/proj-uuid/" in path:
                     return ({}, 200)
                 elif "/api/offerings/off-prem-uuid/" in path:
@@ -527,7 +543,7 @@ class TestOrderRunner:
                         200,
                     )
                 elif "/api/openstack-security-groups/" in path:
-                    if "web-sg" in kwargs.get("query_params", {}).get("name_exact", ""):
+                    if "web-sg" in query_params.get("name_exact", ""):
                         return (
                             [
                                 {
@@ -536,9 +552,7 @@ class TestOrderRunner:
                             ],
                             200,
                         )
-                    elif "ssh-sg" in kwargs.get("query_params", {}).get(
-                        "name_exact", ""
-                    ):
+                    elif "ssh-sg" in query_params.get("name_exact", ""):
                         return (
                             [
                                 {
@@ -567,16 +581,18 @@ class TestOrderRunner:
             changed=True, resource=ANY, order=None
         )
 
-        # Assert that the update_security_groups action was called at the correct index with the resolved payload.
-        update_sg_call = mock_send_request.call_args_list[9]
-        assert update_sg_call.args == (
+        # Assert that the update_security_groups action was called with the resolved payload.
+        mock_send_request.assert_any_call(
             "POST",
             "/api/openstack-instances/{uuid}/update_security_groups/",
+            data={
+                "security_groups": [
+                    "http://api.com/api/security-groups/sg-web-uuid/",
+                    "http://api.com/api/security-groups/sg-ssh-uuid/",
+                ]
+            },
+            path_params={"uuid": "vm-uuid-789"},
         )
-        assert update_sg_call.kwargs["data"]["security_groups"] == [
-            "http://api.com/api/security-groups/sg-web-uuid/",
-            "http://api.com/api/security-groups/sg-ssh-uuid/",
-        ]
 
     @patch("ansible_waldur_generator.plugins.order.runner.OrderRunner._send_request")
     def test_delete_resource_with_all_termination_attributes(

@@ -264,40 +264,6 @@ class OrderPlugin(BasePlugin):
             }
         return resolvers_data
 
-    def _build_update_action_context(self, module_config: OrderModuleConfig):
-        # Build the update_actions context with the new idempotency key inference
-        update_actions_context = {}
-        if module_config.update_actions:
-            for name, action in module_config.update_actions.items():
-                idempotency_keys = []
-                action_schema = action.operation.model_schema
-
-                # Analyze the schema to find the keys that define an item's identity.
-                if action_schema:
-                    # Find the schema for the parameter that holds the data (e.g., 'ports', 'security_groups').
-                    param_schema = action_schema.get("properties", {}).get(action.param)
-                    # Check if it's an array of objects.
-                    if param_schema and param_schema.get("type") == "array":
-                        item_schema = param_schema.get("items", {})
-                        if (
-                            item_schema.get("type") == "object"
-                            and "properties" in item_schema
-                        ):
-                            # The keys of the item's properties are what we need.
-                            idempotency_keys = list(
-                                item_schema.get("properties", {}).keys()
-                            )
-
-                update_actions_context[name] = {
-                    "path": action.operation.path,
-                    "param": action.param,
-                    "compare_key": action.compare_key,
-                    "idempotency_keys": sorted(
-                        idempotency_keys
-                    ),  # Sort for deterministic output
-                }
-        return update_actions_context
-
     def _build_runner_context(
         self, module_config: OrderModuleConfig, api_parser
     ) -> Dict[str, Any]:
@@ -305,7 +271,13 @@ class OrderPlugin(BasePlugin):
         Creates the context dictionary that will be passed to the module's runner.
         """
         resolvers = self._build_resolvers(module_config)
-        update_actions = self._build_update_action_context(module_config)
+        update_actions = {}
+
+        # Use the new shared helper to build the context for update actions.
+        if module_config.update_actions:
+            update_actions = self._build_update_actions_context(
+                module_config.update_actions, api_parser
+            )
 
         # Consolidate and sort lists for stable, deterministic output.
         attribute_param_names = [p.name for p in module_config.attribute_params]
@@ -313,9 +285,7 @@ class OrderPlugin(BasePlugin):
         stable_attribute_param_names = sorted(
             list(dict.fromkeys(attribute_param_names))
         )
-        stable_update_check_fields = sorted(
-            list(dict.fromkeys(module_config.update_check_fields))
-        )
+        stable_update_fields = sorted(list(dict.fromkeys(module_config.update_fields)))
 
         termination_attributes_map = {
             p.name: p.maps_to or p.name for p in module_config.termination_attributes
@@ -330,7 +300,7 @@ class OrderPlugin(BasePlugin):
             "update_url": module_config.update_op.path
             if module_config.update_op
             else None,
-            "update_check_fields": stable_update_check_fields,
+            "update_fields": stable_update_fields,
             "attribute_param_names": stable_attribute_param_names,
             "termination_attributes_map": termination_attributes_map,
             "resolvers": resolvers,
@@ -435,7 +405,7 @@ class OrderPlugin(BasePlugin):
                 )
 
         # Step 3: Add an 'update' example if the module supports it.
-        if module_config.update_op and module_config.update_check_fields:
+        if module_config.update_op and module_config.update_fields:
             update_example_params = {
                 "state": "present",
                 "name": schema_parser._generate_sample_value(
@@ -446,7 +416,7 @@ class OrderPlugin(BasePlugin):
                 "api_url": "https://waldur.example.com",
             }
             # Add the first updatable field to the example for demonstration.
-            field_to_update = module_config.update_check_fields[0]
+            field_to_update = module_config.update_fields[0]
             update_example_params[field_to_update] = f"An updated {field_to_update}"
 
             fqcn = f"{collection_namespace}.{collection_name}.{module_name}"
@@ -716,9 +686,9 @@ class OrderPlugin(BasePlugin):
                             if not prop.get("readOnly", False)
                             and not prop.get("writeOnly", False)
                         ]
-                        raw_config["update_check_fields"] = inferred_fields
+                        raw_config["update_fields"] = inferred_fields
                     elif update_fields is not None:
-                        raw_config["update_check_fields"] = update_fields
+                        raw_config["update_fields"] = update_fields
 
         # Parse actions from dict config
         if isinstance(update_op_conf, dict) and "actions" in update_op_conf:
@@ -765,7 +735,7 @@ class OrderPlugin(BasePlugin):
                     if not prop.get("readOnly", False)
                     and not prop.get("writeOnly", False)
                 ]
-                raw_config["update_check_fields"] = inferred_fields
+                raw_config["update_fields"] = inferred_fields
 
         # Parse the resolver configurations, expanding shorthand where needed
         parsed_resolvers = {}

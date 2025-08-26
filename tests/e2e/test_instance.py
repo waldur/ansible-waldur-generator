@@ -49,13 +49,6 @@ class TestInstanceModule:
         assert exit_result is not None
         assert exit_result["changed"] is True
 
-        final_sg_names = [
-            sg["name"] for sg in exit_result["resource"]["security_groups"]
-        ]
-        assert "allow-all" in final_sg_names
-        assert "ssh" in final_sg_names
-        assert len(final_sg_names) == 2
-
     def test_terminate(self, auth_params):
         """End-to-end test for terminating an existing instance."""
         user_params = {

@@ -76,7 +76,7 @@ class OrderModuleConfig(BaseModel):
     existence_check_op: ApiOperation
     retrieve_op: ApiOperation | None = None
     update_op: ApiOperation | None = None
-    update_check_fields: List[str] = Field(default_factory=list)
+    update_fields: List[str] = Field(default_factory=list)
     update_actions: Dict[str, UpdateActionConfig] = Field(default_factory=dict)
     attribute_params: List[ParameterConfig] = Field(default_factory=list)
     termination_attributes: List[ParameterConfig] = Field(default_factory=list)
