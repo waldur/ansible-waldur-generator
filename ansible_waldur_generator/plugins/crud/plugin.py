@@ -89,6 +89,8 @@ class CrudPlugin(BasePlugin):
         # The final context dictionary passed to the runner.
         runner_context = {
             "resource_type": conf.resource_type,
+            "check_url": conf.check_operation.path if conf.check_operation else None,
+            "check_filter_keys": {},  # Crud modules typically don't need extra context filters
             # API paths for each lifecycle stage.
             "list_path": conf.check_operation.path if conf.check_operation else None,
             "create_path": conf.create_operation.path

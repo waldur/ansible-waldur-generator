@@ -38,7 +38,7 @@ class ParameterResolver:
         Args:
             runner: The runner instance (e.g., OrderRunner, CrudRunner) that owns this resolver.
                     This provides access to the Ansible module for error reporting, the context
-                    for resolver configuration, and the `_send_request` helper for API calls.
+                    for resolver configuration, and the `send_request` helper for API calls.
         """
         self.runner = runner
         self.module = runner.module
@@ -74,7 +74,7 @@ class ParameterResolver:
             if resource.get(key) and key not in self.cache:
                 # The value (e.g., resource['offering']) is a URL.
                 # We make a GET request to that URL to fetch the full object.
-                obj_data, _ = self.runner._send_request("GET", resource[key])
+                obj_data, _ = self.runner.send_request("GET", resource[key])
                 if obj_data:
                     self.cache[key] = obj_data
 
@@ -108,7 +108,7 @@ class ParameterResolver:
             return f"{api_url}/{list_path}/{value}/"
 
         # If it's a name, perform a search using the configured list endpoint.
-        response, _ = self.runner._send_request(
+        response, _ = self.runner.send_request(
             "GET", resolver_conf["url"], query_params={"name_exact": value}
         )
 
@@ -122,8 +122,8 @@ class ParameterResolver:
             return ""  # Unreachable
 
         if len(response) > 1:
-            self.module.warn(
-                f"Multiple resources found for '{value}' for parameter '{param_name}'. Using the first one."
+            self.module.fail_json(
+                msg=f"Multiple resources found for '{value}' for parameter '{param_name}'. Using the first one."
             )
 
         # Return the 'url' field from the first matching resource.
@@ -244,8 +244,8 @@ class ParameterResolver:
                 self.module.fail_json(msg=error_template.format(value=value))
                 return None  # Unreachable
             if len(resource_list) > 1:
-                self.module.warn(
-                    f"Multiple resources found for '{value}' for parameter '{param_name}'. Using the first one."
+                self.module.fail_json(
+                    msg=f"Multiple resources found for '{value}' for parameter '{param_name}'. Using the first one."
                 )
 
             resolved_object = resource_list[0]
@@ -331,7 +331,7 @@ class ParameterResolver:
         if self.runner._is_uuid(value):
             # A GET to a specific resource returns a dict, not a list. We must
             # normalize this into a list to fulfill this method's contract.
-            resource, _ = self.runner._send_request(
+            resource, _ = self.runner.send_request(
                 "GET", f"{path.rstrip('/')}/{value}/"
             )
             return [resource] if resource else []
@@ -340,9 +340,9 @@ class ParameterResolver:
         final_query = query_params.copy() if query_params else {}
         final_query["name_exact"] = value
 
-        # The `_send_request` helper is designed to return an empty list for 204 or empty
+        # The `send_request` helper is designed to return an empty list for 204 or empty
         # JSON array responses, which simplifies handling here.
-        result, _ = self.runner._send_request("GET", path, query_params=final_query)
+        result, _ = self.runner.send_request("GET", path, query_params=final_query)
 
         # Ensure we always return a list.
         return result if result is not None else []

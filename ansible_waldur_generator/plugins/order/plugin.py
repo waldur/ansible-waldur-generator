@@ -293,10 +293,12 @@ class OrderPlugin(BasePlugin):
 
         runner_context = {
             "resource_type": module_config.resource_type,
-            "existence_check_url": module_config.existence_check_op.path
+            "check_url": module_config.existence_check_op.path
             if module_config.existence_check_op
             else "",
-            "existence_check_filter_keys": {"project": "project_uuid"},
+            "check_filter_keys": {
+                "project": "project_uuid"
+            },  # Order modules require project context
             "update_url": module_config.update_op.path
             if module_config.update_op
             else None,

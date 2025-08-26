@@ -13,8 +13,8 @@ def mock_instance_runner_context():
     """
     context = {
         "resource_type": "OpenStack instance",
-        "existence_check_url": "/api/openstack-instances/",
-        "existence_check_filter_keys": {"project": "project_uuid"},
+        "check_url": "/api/openstack-instances/",
+        "check_filter_keys": {"project": "project_uuid"},
         "update_path": "/api/openstack-instances/{uuid}/",
         "update_fields": ["description", "name"],
         "attribute_param_names": [
@@ -135,9 +135,9 @@ class TestOrderRunner:
     """
 
     # --- Scenario 1: Create a new comprehensive resource ---
-    @patch("ansible_waldur_generator.plugins.order.runner.OrderRunner._send_request")
+    @patch("ansible_waldur_generator.plugins.order.runner.OrderRunner.send_request")
     def test_create_instance_with_full_payload(
-        self, mock_send_request, mock_ansible_module, mock_instance_runner_context
+        self, mocksend_request, mock_ansible_module, mock_instance_runner_context
     ):
         """
         Tests the full payload creation for a complex instance, validating that all
@@ -171,8 +171,14 @@ class TestOrderRunner:
             "ssh_public_key": "admin-ssh-key",
         }
 
+        final_resource_state = {
+            "name": "prod-web-vm-01",
+            "state": "OK",
+            "uuid": "final-vm-uuid-123",
+        }
+
         # Arrange: Mock the sequence of all required API calls.
-        mock_send_request.side_effect = [
+        mocksend_request.side_effect = [
             # 1. Existence Check Phase
             ([{"url": "http://api.com/api/projects/proj-prod-uuid/"}], 200),
             ([], 200),  # Instance does not exist
@@ -217,7 +223,7 @@ class TestOrderRunner:
                 [{"url": "http://api.com/api/projects/proj-prod-uuid/"}],
                 200,
             ),  # Final project resolve
-            ([{"name": "prod-web-vm-01", "state": "OK"}], 200),  # Final existence check
+            ([final_resource_state], 200),  # Final existence check
         ]
 
         # Arrange: Define the exact payload the runner is expected to build.
@@ -253,22 +259,34 @@ class TestOrderRunner:
         runner = OrderRunner(mock_ansible_module, mock_instance_runner_context)
         runner.run()
 
+        expected_diff = [
+            {
+                "state": "Resource created.",
+                "order_details": {"uuid": "order-xyz-789"},
+            }
+        ]
+
         # Assert: Final state is correct
         mock_ansible_module.exit_json.assert_called_once_with(
             changed=True,
-            resource={"name": "prod-web-vm-01", "state": "OK"},
+            diff=expected_diff,
+            resource={
+                "name": "prod-web-vm-01",
+                "state": "OK",
+                "uuid": "final-vm-uuid-123",
+            },
             order={"uuid": "order-xyz-789"},
         )
 
         # Assert: The order creation call was made with the exact expected payload
-        order_creation_call = mock_send_request.call_args_list[11]
+        order_creation_call = mocksend_request.call_args_list[11]
         assert order_creation_call.args == ("POST", "/api/marketplace-orders/")
         assert order_creation_call.kwargs["data"] == expected_payload
 
     # --- Scenario 2: Resource already exists, no changes needed ---
-    @patch("ansible_waldur_generator.plugins.order.runner.OrderRunner._send_request")
+    @patch("ansible_waldur_generator.plugins.order.runner.OrderRunner.send_request")
     def test_resource_exists_no_change(
-        self, mock_send_request, mock_ansible_module, mock_instance_runner_context
+        self, mocksend_request, mock_ansible_module, mock_instance_runner_context
     ):
         """
         Tests idempotency: if the resource exists and its updatable fields match,
@@ -286,7 +304,7 @@ class TestOrderRunner:
             "description": "current description",
             "state": "OK",
         }
-        mock_send_request.side_effect = [
+        mocksend_request.side_effect = [
             # 1. Existence Check
             (
                 [{"url": "http://api.com/api/projects/proj-uuid/"}],
@@ -308,13 +326,13 @@ class TestOrderRunner:
 
         # Assert
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=False, resource=existing_resource, order=None
+            changed=False, diff=[], resource=existing_resource, order=None
         )
 
     # --- Scenario 3: Update an existing resource ---
-    @patch("ansible_waldur_generator.plugins.order.runner.OrderRunner._send_request")
+    @patch("ansible_waldur_generator.plugins.order.runner.OrderRunner.send_request")
     def test_update_existing_resource(
-        self, mock_send_request, mock_ansible_module, mock_instance_runner_context
+        self, mocksend_request, mock_ansible_module, mock_instance_runner_context
     ):
         """
         Tests that a change to an updatable field (like 'description')
@@ -343,18 +361,30 @@ class TestOrderRunner:
                 return (updated_resource, 200)
             return None
 
-        mock_send_request.side_effect = side_effect
+        mocksend_request.side_effect = side_effect
 
         # Act
         runner = OrderRunner(mock_ansible_module, mock_instance_runner_context)
         runner.run()
 
+        expected_diff = [
+            {
+                "updated_attributes": [
+                    {
+                        "param": "description",
+                        "old": "old description",
+                        "new": "a new description",
+                    }
+                ]
+            }
+        ]
+
         # Assert
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=True, resource=updated_resource, order=None
+            changed=True, diff=expected_diff, resource=updated_resource, order=None
         )
         # Verify the PATCH call was made correctly.
-        mock_send_request.assert_any_call(
+        mocksend_request.assert_any_call(
             "PATCH",
             "/api/openstack-instances/{uuid}/",
             data={"description": "a new description"},
@@ -362,9 +392,9 @@ class TestOrderRunner:
         )
 
     # --- Scenario 4: Delete an existing resource ---
-    @patch("ansible_waldur_generator.plugins.order.runner.OrderRunner._send_request")
+    @patch("ansible_waldur_generator.plugins.order.runner.OrderRunner.send_request")
     def test_delete_existing_resource(
-        self, mock_send_request, mock_ansible_module, mock_instance_runner_context
+        self, mocksend_request, mock_ansible_module, mock_instance_runner_context
     ):
         """
         Tests that `state: absent` correctly triggers a termination call
@@ -380,7 +410,7 @@ class TestOrderRunner:
             "name": "vm-to-delete",
             "marketplace_resource_uuid": "mkt-res-uuid-789",
         }
-        mock_send_request.side_effect = [
+        mocksend_request.side_effect = [
             (
                 [{"url": "http://api.com/api/projects/proj-uuid/"}],
                 200,
@@ -393,21 +423,29 @@ class TestOrderRunner:
         runner = OrderRunner(mock_ansible_module, mock_instance_runner_context)
         runner.run()
 
+        expected_diff = [
+            {
+                "state": "Resource will be deleted.",
+                "old_attributes": existing_resource,
+            }
+        ]
+
         # Assert
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=True, resource=None, order=None
+            changed=True, diff=expected_diff, resource=None, order=None
         )
         # Verify the termination call was made to the correct endpoint.
-        mock_send_request.assert_called_with(
+        mocksend_request.assert_called_with(
             "POST",
             "/api/marketplace-resources/mkt-res-uuid-789/terminate/",
             data={},
+            path_params=None,
         )
 
     # --- Scenario 5: Check mode ---
-    @patch("ansible_waldur_generator.plugins.order.runner.OrderRunner._send_request")
+    @patch("ansible_waldur_generator.plugins.order.runner.OrderRunner.send_request")
     def test_check_mode_predicts_creation(
-        self, mock_send_request, mock_ansible_module, mock_instance_runner_context
+        self, mocksend_request, mock_ansible_module, mock_instance_runner_context
     ):
         """
         Tests that check mode correctly predicts that a resource will be created
@@ -421,7 +459,7 @@ class TestOrderRunner:
             "project": "Cloud Project",
         }
         # Simulate that the resource does not exist.
-        mock_send_request.side_effect = [
+        mocksend_request.side_effect = [
             ([{"url": "http://api.com/api/projects/proj-uuid/"}], 200),
             ([], 200),
         ]
@@ -432,14 +470,17 @@ class TestOrderRunner:
 
         # Assert
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=True, resource=None, order=None
+            changed=True,
+            diff=[],
+            resource=None,
+            order=None,
         )
         # Only two calls should be made: project resolve and existence check
-        assert mock_send_request.call_count == 2
+        assert mocksend_request.call_count == 2
 
-    @patch("ansible_waldur_generator.plugins.order.runner.OrderRunner._send_request")
+    @patch("ansible_waldur_generator.plugins.order.runner.OrderRunner.send_request")
     def test_idempotent_complex_update_with_resolution(
-        self, mock_send_request, mock_ansible_module, mock_instance_runner_context
+        self, mocksend_request, mock_ansible_module, mock_instance_runner_context
     ):
         """
         Tests the most complex update scenario to ensure the runner's logic for
@@ -511,9 +552,9 @@ class TestOrderRunner:
             ],
         }
 
-        # Define the sequence of API responses that the mock `_send_request` will return.
+        # Define the sequence of API responses that the mock `send_request` will return.
         # This list must precisely match the order of API calls made by the runner.
-        def mock_send_request_side_effect(method, path, **kwargs):
+        def mocksend_request_side_effect(method, path, **kwargs):
             query_params = kwargs.get("query_params", {})
             # Map common paths to expected responses based on request details
             if method == "GET":
@@ -526,7 +567,7 @@ class TestOrderRunner:
                         # Return the updated state. Otherwise, return the initial state.
                         post_calls = [
                             c
-                            for c in mock_send_request.call_args_list
+                            for c in mocksend_request.call_args_list
                             if c.args[0] == "POST"
                         ]
                         if len(post_calls) > 0:
@@ -569,7 +610,7 @@ class TestOrderRunner:
 
             raise Exception(f"Unexpected request: {method} {path} {kwargs}")
 
-        mock_send_request.side_effect = mock_send_request_side_effect
+        mocksend_request.side_effect = mocksend_request_side_effect
 
         # ACT
         runner = OrderRunner(mock_ansible_module, mock_instance_runner_context)
@@ -577,12 +618,37 @@ class TestOrderRunner:
 
         # ASSERT
         # Check that the module exited with 'changed: true' and the final resource state.
+        expected_diff = [
+            {
+                "action": "ports",
+                "old": [
+                    {
+                        "subnet": "http://api.com/api/subnets/subnet-old-uuid/",
+                        "fixed_ips": [{"ip_address": "10.0.0.5"}],
+                    }
+                ],
+                "new": [
+                    {
+                        "subnet": "http://api.com/api/subnets/subnet-new-uuid/",
+                        "fixed_ips": [{"ip_address": "10.1.1.10"}],
+                    }
+                ],
+            },
+            {
+                "action": "security_groups",
+                "old": [{"url": "http://api.com/api/security-groups/sg-default-uuid/"}],
+                "new": [
+                    "http://api.com/api/security-groups/sg-web-uuid/",
+                    "http://api.com/api/security-groups/sg-ssh-uuid/",
+                ],
+            },
+        ]
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=True, resource=ANY, order=None
+            changed=True, diff=expected_diff, resource=ANY, order=None
         )
 
         # Assert that the update_security_groups action was called with the resolved payload.
-        mock_send_request.assert_any_call(
+        mocksend_request.assert_any_call(
             "POST",
             "/api/openstack-instances/{uuid}/update_security_groups/",
             data={
@@ -594,9 +660,9 @@ class TestOrderRunner:
             path_params={"uuid": "vm-uuid-789"},
         )
 
-    @patch("ansible_waldur_generator.plugins.order.runner.OrderRunner._send_request")
+    @patch("ansible_waldur_generator.plugins.order.runner.OrderRunner.send_request")
     def test_delete_resource_with_all_termination_attributes(
-        self, mock_send_request, mock_ansible_module, mock_instance_runner_context
+        self, mocksend_request, mock_ansible_module, mock_instance_runner_context
     ):
         """
         Tests that `state: absent` correctly includes all provided termination
@@ -616,7 +682,7 @@ class TestOrderRunner:
             "name": "vm-to-force-delete",
             "marketplace_resource_uuid": "mkt-res-uuid-123",
         }
-        mock_send_request.side_effect = [
+        mocksend_request.side_effect = [
             ([{"url": "p-uuid"}], 200),
             ([existing_resource], 200),
             (None, 204),
@@ -626,9 +692,25 @@ class TestOrderRunner:
         runner = OrderRunner(mock_ansible_module, mock_instance_runner_context)
         runner.run()
 
+        expected_diff = [
+            {
+                "old_attributes": {
+                    "marketplace_resource_uuid": "mkt-res-uuid-123",
+                    "name": "vm-to-force-delete",
+                },
+                "state": "Resource will be deleted.",
+                "termination_options": {
+                    "attributes": {
+                        "action": "force_destroy",
+                        "delete_volumes": True,
+                        "release_floating_ips": True,
+                    }
+                },
+            }
+        ]
         # ASSERT
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=True, resource=None, order=ANY
+            changed=True, diff=expected_diff, resource=None, order=ANY
         )
         # Verify the payload contains the mapped attributes.
         expected_payload = {
@@ -638,8 +720,9 @@ class TestOrderRunner:
                 "release_floating_ips": True,
             }
         }
-        mock_send_request.assert_any_call(
+        mocksend_request.assert_any_call(
             "POST",
             "/api/marketplace-resources/mkt-res-uuid-123/terminate/",
             data=expected_payload,
+            path_params=None,
         )

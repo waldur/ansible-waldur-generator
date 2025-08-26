@@ -4,14 +4,12 @@ import os
 import tempfile
 import shutil
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 import pytest
 import yaml
 
 from ansible_waldur_generator.generator import Generator
 from ansible_waldur_generator.models import GenerationContext
-from ansible_waldur_generator.api_parser import ApiSpecParser
-from ansible_waldur_generator.schema_parser import ReturnBlockGenerator
 
 
 class TestGenerator:

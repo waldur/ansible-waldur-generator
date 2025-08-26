@@ -64,7 +64,7 @@ class TestCachePriming:
         mock_runner = Mock()
         mock_runner.module = Mock()
         mock_runner.context = {"resolvers": {}}
-        mock_runner._send_request = Mock(
+        mock_runner.send_request = Mock(
             return_value=({"uuid": "offering-123", "name": "test-offering"}, 200)
         )
 
@@ -77,7 +77,7 @@ class TestCachePriming:
         resolver.prime_cache_from_resource(resource, ["offering"])
 
         # Assert
-        mock_runner._send_request.assert_called_once_with(
+        mock_runner.send_request.assert_called_once_with(
             "GET", "https://api.waldur.com/api/marketplace-offerings/offering-123/"
         )
         assert "offering" in resolver.cache
@@ -91,7 +91,7 @@ class TestCachePriming:
         mock_runner.context = {"resolvers": {}}
 
         # Mock different responses for different URLs
-        def mock_send_request(method, url):
+        def mocksend_request(method, url):
             if "offerings" in url:
                 return (
                     {
@@ -105,7 +105,7 @@ class TestCachePriming:
                 return ({"uuid": "project-789", "name": "test-project"}, 200)
             return None
 
-        mock_runner._send_request = Mock(side_effect=mock_send_request)
+        mock_runner.send_request = Mock(side_effect=mocksend_request)
 
         resolver = ParameterResolver(mock_runner)
         resource = {
@@ -117,7 +117,7 @@ class TestCachePriming:
         resolver.prime_cache_from_resource(resource, ["offering", "project"])
 
         # Assert
-        assert mock_runner._send_request.call_count == 2
+        assert mock_runner.send_request.call_count == 2
         assert "offering" in resolver.cache
         assert "project" in resolver.cache
         assert resolver.cache["offering"]["uuid"] == "offering-123"
@@ -129,7 +129,7 @@ class TestCachePriming:
         mock_runner = Mock()
         mock_runner.module = Mock()
         mock_runner.context = {"resolvers": {}}
-        mock_runner._send_request = Mock(return_value=({"uuid": "new-data"}, 200))
+        mock_runner.send_request = Mock(return_value=({"uuid": "new-data"}, 200))
 
         resolver = ParameterResolver(mock_runner)
         resolver.cache["offering"] = {"uuid": "cached-data"}
@@ -142,7 +142,7 @@ class TestCachePriming:
 
         # Assert
         # Should not make any API calls since the key is already cached
-        mock_runner._send_request.assert_not_called()
+        mock_runner.send_request.assert_not_called()
         assert resolver.cache["offering"]["uuid"] == "cached-data"
 
 
@@ -178,7 +178,7 @@ class TestSimpleResolution:
         )
         assert result == expected
         # Should not make any API calls for UUID resolution
-        mock_runner._send_request.assert_not_called()
+        mock_runner.send_request.assert_not_called()
 
     def test_resolve_to_url_with_name_single_result(self):
         """Test resolving a name to URL with single API result."""
@@ -194,7 +194,7 @@ class TestSimpleResolution:
             }
         }
         mock_runner._is_uuid = Mock(return_value=False)
-        mock_runner._send_request = Mock(
+        mock_runner.send_request = Mock(
             return_value=(
                 [
                     {
@@ -212,7 +212,7 @@ class TestSimpleResolution:
         result = resolver.resolve_to_url("customer", "test-customer")
 
         # Assert
-        mock_runner._send_request.assert_called_once_with(
+        mock_runner.send_request.assert_called_once_with(
             "GET", "/api/customers/", query_params={"name_exact": "test-customer"}
         )
         assert result == "https://api.waldur.com/api/customers/customer-123/"
@@ -231,7 +231,7 @@ class TestSimpleResolution:
             }
         }
         mock_runner._is_uuid = Mock(return_value=False)
-        mock_runner._send_request = Mock(
+        mock_runner.send_request = Mock(
             return_value=(
                 [
                     {
@@ -250,13 +250,12 @@ class TestSimpleResolution:
         resolver = ParameterResolver(mock_runner)
 
         # Act
-        result = resolver.resolve_to_url("project", "test-project")
+        resolver.resolve_to_url("project", "test-project")
 
         # Assert
-        mock_runner.module.warn.assert_called_once_with(
-            "Multiple resources found for 'test-project' for parameter 'project'. Using the first one."
+        mock_runner.module.fail_json.assert_called_once_with(
+            msg="Multiple resources found for 'test-project' for parameter 'project'. Using the first one."
         )
-        assert result == "https://api.waldur.com/api/projects/project-123/"
 
     def test_resolve_to_url_no_results_fails(self):
         """Test that resolution fails when no results are found."""
@@ -272,7 +271,7 @@ class TestSimpleResolution:
             }
         }
         mock_runner._is_uuid = Mock(return_value=False)
-        mock_runner._send_request = Mock(return_value=([], 200))
+        mock_runner.send_request = Mock(return_value=([], 200))
 
         resolver = ParameterResolver(mock_runner)
 
@@ -720,12 +719,11 @@ class TestSingleValueResolution:
         }
 
         # Act
-        result = resolver._resolve_single_value("subnet", "test-subnet", resolver_conf)
+        resolver._resolve_single_value("subnet", "test-subnet", resolver_conf)
 
         # Assert
-        assert result == "https://api.waldur.com/api/subnets/subnet-123/"
-        mock_runner.module.warn.assert_called_once_with(
-            "Multiple resources found for 'test-subnet' for parameter 'subnet'. Using the first one."
+        mock_runner.module.fail_json.assert_called_once_with(
+            msg="Multiple resources found for 'test-subnet' for parameter 'subnet'. Using the first one."
         )
 
     def test_resolve_single_value_caches_result(self):
@@ -807,7 +805,7 @@ class TestResolveToList:
         mock_runner.module = Mock()
         mock_runner.context = {"resolvers": {}}
         mock_runner._is_uuid = Mock(return_value=True)
-        mock_runner._send_request = Mock(
+        mock_runner.send_request = Mock(
             return_value=(
                 {
                     "uuid": "subnet-123",
@@ -828,7 +826,7 @@ class TestResolveToList:
         )
 
         # Assert
-        mock_runner._send_request.assert_called_once_with(
+        mock_runner.send_request.assert_called_once_with(
             "GET", "/api/subnets/123e4567-e89b-12d3-a456-426614174000/"
         )
         expected = [
@@ -847,7 +845,7 @@ class TestResolveToList:
         mock_runner.module = Mock()
         mock_runner.context = {"resolvers": {}}
         mock_runner._is_uuid = Mock(return_value=True)
-        mock_runner._send_request = Mock(return_value=(None, 200))
+        mock_runner.send_request = Mock(return_value=(None, 200))
 
         resolver = ParameterResolver(mock_runner)
 
@@ -866,7 +864,7 @@ class TestResolveToList:
         mock_runner.module = Mock()
         mock_runner.context = {"resolvers": {}}
         mock_runner._is_uuid = Mock(return_value=False)
-        mock_runner._send_request = Mock(
+        mock_runner.send_request = Mock(
             return_value=([{"uuid": "subnet-123", "name": "test-subnet"}], 200)
         )
 
@@ -879,7 +877,7 @@ class TestResolveToList:
 
         # Assert
         expected_query = {"name_exact": "test-subnet", "tenant_uuid": "tenant-456"}
-        mock_runner._send_request.assert_called_once_with(
+        mock_runner.send_request.assert_called_once_with(
             "GET", "/api/subnets/", query_params=expected_query
         )
         assert result == [{"uuid": "subnet-123", "name": "test-subnet"}]
@@ -891,7 +889,7 @@ class TestResolveToList:
         mock_runner.module = Mock()
         mock_runner.context = {"resolvers": {}}
         mock_runner._is_uuid = Mock(return_value=False)
-        mock_runner._send_request = Mock(
+        mock_runner.send_request = Mock(
             return_value=([{"uuid": "project-123", "name": "test-project"}], 200)
         )
 
@@ -902,7 +900,7 @@ class TestResolveToList:
 
         # Assert
         expected_query = {"name_exact": "test-project"}
-        mock_runner._send_request.assert_called_once_with(
+        mock_runner.send_request.assert_called_once_with(
             "GET", "/api/projects/", query_params=expected_query
         )
         assert result == [{"uuid": "project-123", "name": "test-project"}]
@@ -914,7 +912,7 @@ class TestResolveToList:
         mock_runner.module = Mock()
         mock_runner.context = {"resolvers": {}}
         mock_runner._is_uuid = Mock(return_value=False)
-        mock_runner._send_request = Mock(return_value=(None, 200))
+        mock_runner.send_request = Mock(return_value=(None, 200))
 
         resolver = ParameterResolver(mock_runner)
 
@@ -1071,7 +1069,7 @@ class TestComplexIntegrationScenarios:
         }
 
         # Mock API responses
-        def mock_send_request(method, url, data=None):
+        def mocksend_request(method, url, data=None):
             if "offerings" in url:
                 return (
                     {
@@ -1090,7 +1088,7 @@ class TestComplexIntegrationScenarios:
                     return [{"uuid": "subnet-new", "url": "/api/subnets/subnet-new/"}]
             return []
 
-        mock_runner._send_request = Mock(side_effect=mock_send_request)
+        mock_runner.send_request = Mock(side_effect=mocksend_request)
         mock_runner._is_uuid = Mock(return_value=False)
 
         resolver = ParameterResolver(mock_runner)
@@ -1383,7 +1381,7 @@ class TestPerformanceAndOptimization:
             }
         }
         mock_runner._is_uuid = Mock(return_value=True)
-        mock_runner._send_request = Mock()  # Should not be called
+        mock_runner.send_request = Mock()  # Should not be called
 
         resolver = ParameterResolver(mock_runner)
 
@@ -1398,7 +1396,7 @@ class TestPerformanceAndOptimization:
         )
         assert result == expected
         # No API calls should have been made
-        mock_runner._send_request.assert_not_called()
+        mock_runner.send_request.assert_not_called()
 
     def test_cache_hit_avoids_api_call(self):
         """Test that cache hits avoid redundant API calls."""

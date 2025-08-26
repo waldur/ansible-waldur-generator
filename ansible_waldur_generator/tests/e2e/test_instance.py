@@ -2,7 +2,7 @@ import pytest
 from ansible_collections.waldur.openstack.plugins.modules import (
     instance as instance_module,
 )
-from tests.e2e.conftest import run_module_harness
+from ansible_waldur_generator.tests.e2e.conftest import run_module_harness
 
 
 @pytest.mark.vcr

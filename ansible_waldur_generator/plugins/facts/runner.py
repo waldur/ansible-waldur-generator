@@ -43,7 +43,7 @@ class FactsRunner(BaseRunner):
         """
         super().__init__(module, context)
         # Instantiate the resolver, passing this runner instance to it. This gives the
-        # resolver access to the runner's _send_request method, context, and module.
+        # resolver access to the runner's send_request method, context, and module.
         self.resolver = ParameterResolver(self)
 
     def run(self):
@@ -76,7 +76,7 @@ class FactsRunner(BaseRunner):
         # If the user provides a valid UUID as the main identifier, we can fetch the
         # resource directly from its specific endpoint, bypassing the need for a search.
         if self._is_uuid(value):
-            resource, _ = self._send_request(
+            resource, _ = self.send_request(
                 "GET", self.context["retrieve_url"], path_params={"uuid": value}
             )
             # We wrap the single result in a list to maintain a consistent return type.
@@ -111,7 +111,7 @@ class FactsRunner(BaseRunner):
                     query_params[resolver_info["filter_key"]] = resolved_uuid
 
         # Perform the final API call with the combined dictionary of filters.
-        data, _ = self._send_request(
+        data, _ = self.send_request(
             "GET", self.context["list_url"], query_params=query_params
         )
 

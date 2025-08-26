@@ -1,7 +1,7 @@
 """Tests for the PluginManager class."""
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from ansible_waldur_generator.plugin_manager import PluginManager
 from ansible_waldur_generator.interfaces.plugin import BasePlugin
 
@@ -228,7 +228,7 @@ class TestPluginManager:
 
             mock_ep.return_value = [mock_bad_ep]
 
-            manager = PluginManager()
+            PluginManager()
 
             # Check that error was logged
             mock_logger.assert_called()

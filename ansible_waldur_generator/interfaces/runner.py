@@ -1,3 +1,4 @@
+from abc import abstractmethod
 import json
 import time
 import uuid
@@ -6,12 +7,19 @@ from urllib.parse import urlencode
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.urls import fetch_url
 
+from ansible_waldur_generator.interfaces.command import (
+    ActionCommand,
+    CreateCommand,
+    DeleteCommand,
+    UpdateCommand,
+)
+
 
 class BaseRunner:
     """
     Abstract base class for all module runners.
-    It handles common initialization tasks, such as setting up the API client
-    and preparing the execution environment.
+    It handles common initialization, API requests, and orchestrates a
+    two-phase "plan and execute" workflow using the Command pattern.
     """
 
     def __init__(self, module: AnsibleModule, context: dict):
@@ -26,15 +34,120 @@ class BaseRunner:
         self.context = context
         self.has_changed = False
         self.resource = None
+        self.plan = []
+
+    @abstractmethod
+    def plan_creation(self) -> list:
+        """
+        Abstract method for planning the creation of a resource.
+        Subclasses must implement this to return a list of CreateCommands or
+        handle special creation workflows.
+        """
+        pass
+
+    @abstractmethod
+    def plan_update(self) -> list:
+        """
+        Abstract method for planning the update of an existing resource.
+        Subclasses must implement this to perform any necessary setup (like
+        cache priming) and return a list of Update/ActionCommands.
+        """
+        pass
+
+    @abstractmethod
+    def plan_deletion(self) -> list:
+        """
+        Abstract method for planning the deletion of an existing resource.
+        Subclasses must implement this to return a list of DeleteCommands.
+        """
+        pass
 
     def run(self):
         """
-        The main execution method for the runner.
-        This method should be implemented by all subclasses.
-        """
-        raise NotImplementedError
+        The universal, final `run` method for all runners.
 
-    def _send_request(
+        This orchestrator implements the complete, shared logic for module
+        execution. It determines the current state of the resource and then
+        delegates the "planning" of what to do to the specialized abstract
+        methods (`plan_creation`, `plan_update`, `plan_deletion`).
+
+        This completely removes the need for subclasses to implement their own
+        `run` method, ensuring a consistent, robust workflow across all module types.
+        """
+        # Step 1: Determine the initial state of the resource. This is crucial
+        # for all subsequent planning.
+        self.check_existence()
+
+        # Step 2: Delegate planning to the appropriate abstract method based on
+        # the desired state and the resource's current existence.
+        state = self.module.params["state"]
+        if self.resource:
+            if state == "present":
+                self.plan = self.plan_update()
+            elif state == "absent":
+                self.plan = self.plan_deletion()
+        elif state == "present":
+            self.plan = self.plan_creation()
+
+        # Step 3: Handle Check Mode.
+        if self.module.check_mode:
+            self.handle_check_mode(self.plan)
+            return
+
+        # Step 4: Execute the generated plan.
+        self.execute_change_plan(self.plan)
+
+        # Step 5: Exit with the final state and a diff generated from the plan.
+        self.exit(plan=self.plan)
+
+    def execute_change_plan(self, plan: list):
+        """
+        Executes a list of Command objects, making the actual API calls.
+        This is the "execution" phase.
+        """
+        if not plan:
+            return
+
+        self.has_changed = True
+        needs_refetch = False
+
+        for command in plan:
+            result = command.execute()
+
+            # Correctly update self.resource after command execution.
+            if isinstance(command, CreateCommand):
+                self.resource = result
+            elif isinstance(command, UpdateCommand):
+                # An update command can return a partial or full resource.
+                # Merge the result to ensure we have the most complete state.
+                if self.resource and result:
+                    self.resource.update(result)
+            elif isinstance(command, DeleteCommand):
+                self.resource = None  # The resource is now gone.
+            elif isinstance(command, ActionCommand):
+                # Handle async actions
+                if (
+                    result == 202
+                    and self.module.params.get("wait", True)
+                    and self.context.get("wait_config")
+                ):
+                    self._wait_for_resource_state(self.resource["uuid"])
+                else:
+                    needs_refetch = True
+
+        if needs_refetch:
+            self.check_existence()
+
+    def handle_check_mode(self, plan: list):
+        """
+        Generates a predictive diff from a change plan and exits.
+        """
+        if plan:
+            self.has_changed = True
+        # The specialized runner's exit method will handle the diff.
+        self.exit(diff=[cmd.to_diff() for cmd in plan])
+
+    def send_request(
         self, method, path, data=None, query_params=None, path_params=None
     ) -> tuple[any, int]:
         """
@@ -174,7 +287,7 @@ class BaseRunner:
         start_time = time.time()
 
         while time.time() - start_time < timeout:
-            resource_state, status_code = self._send_request(
+            resource_state, status_code = self.send_request(
                 "GET", polling_path, path_params={"uuid": resource_uuid}
             )
 
@@ -313,189 +426,163 @@ class BaseRunner:
                 # API call, which the API endpoint should handle gracefully.
                 return value
 
-    def _handle_simple_updates(self):
+    def _build_simple_update_command(self) -> list:
         """
-        A generic handler for simple, direct attribute updates via a PATCH request.
+        Analyzes simple, direct attribute changes and returns a single UpdateCommand
+        if and only if changes are detected.
 
-        This method is responsible for the most common type of update operation:
-        changing basic fields like 'name', 'description', 'ram', etc., that are
-        directly supported by the resource's primary update endpoint (usually
-        configured to accept a PATCH method).
+        This method is the "planning" engine for basic idempotency. It compares
+        each user-provided, updatable parameter against the current state of the
+        resource. If any discrepancies are found, it bundles them into a single,
+        atomic `UpdateCommand` that represents a PATCH request.
 
-        The core workflow is as follows:
-        1.  **Identify Updatable Fields:** It reads a list of field names from the
-            runner's context. This list is generated by the plugin and defines which
-            Ansible parameters correspond to mutable fields on the resource.
-        2.  **Detect Changes:** It iterates through this list and compares the value
-            provided by the user in the Ansible playbook with the current value on
-            the existing resource. This is the idempotency check.
-        3.  **Build a Payload:** It constructs a payload dictionary containing *only*
-            the fields that have actually changed. This is crucial for a clean
-            PATCH request and avoids sending unnecessary data.
-        4.  **Execute the Update:** If and only if the payload is non-empty (meaning
-            at least one change was detected), it sends a PATCH request to the
-            resource's update endpoint.
-        5.  **Update Local State:** After a successful update, it merges the response
-            from the API back into the runner's local representation of the resource
-            (`self.resource`) to ensure it reflects the new state.
+        Key Responsibilities:
+        1.  **Iterate and Compare**: Loop through every field designated as updatable
+            in the module's configuration (`update_fields`).
+        2.  **Detect Changes**: For each field, perform a direct comparison between the
+            user's desired value and the existing value on the resource.
+        3.  **Build Structured Diff**: When a change is found, create a detailed dictionary
+            containing the parameter name, the old value, and the new value. This
+            structure is essential for providing clear, predictive diffs to the user.
+        4.  **Aggregate Changes**: Collect all detected changes into a list.
+        5.  **Command Generation**: If—and only if—the list of changes is non-empty,
+            instantiate and return a single `UpdateCommand` containing all the
+            changes. This ensures no command is generated (and thus no API call is made)
+            if the resource is already in the desired state.
 
-        This method is designed to be called by specialized runners (`CrudRunner`,
-        `OrderRunner`) as part of their overall `update()` orchestration.
+        Returns:
+            A list containing a single `UpdateCommand` if changes are needed, or an
+            empty list if the resource is already up-to-date.
         """
-        # --- Step 0: Initial Setup and Guard Clauses ---
+        # --- Step 1: Initial Setup and Guard Clauses ---
 
         # Retrieve the necessary configuration from the runner's context.
-        # `update_path`: The URL template for the resource's update endpoint
-        #                (e.g., "/api/openstack-instances/{uuid}/").
-        # `update_fields`: A list of Ansible parameter names that are considered
-        #                  mutable for this resource (e.g., ["description", "name"]).
+        # `update_path`: The URL template for the resource's update endpoint (e.g., "/api/instances/{uuid}/").
+        # `update_fields`: A list of Ansible parameter names that are mutable (e.g., ["description", "name"]).
         update_path = self.context.get("update_path")
         update_fields = self.context.get("update_fields", [])
 
         # If there is no existing resource to update, no configured update endpoint,
-        # or no fields are defined as updatable, then there is nothing to do.
-        # This prevents errors and unnecessary processing.
+        # or no fields are defined as updatable, then planning is impossible.
+        # Return an empty list to signify that no action should be taken.
         if not (self.resource and update_path and update_fields):
-            return
+            return []
 
-        # --- Step 1: Detect Changes and Build the PATCH Payload ---
+        # --- Step 2: Detect Changes and Build the Diff List ---
 
-        # Initialize an empty dictionary to hold only the parameters that need to be changed.
-        update_payload = {}
+        # This list will store a structured record of every detected change.
+        # This is the data that will be used for both the API payload and the user-facing diff.
+        changes = []
 
         # Iterate through each field that the module configuration has marked as updatable.
         for field in update_fields:
             # Get the value for this field from the user's Ansible playbook parameters.
-            param_value = self.module.params.get(field)
+            new_value = self.module.params.get(field)
+            # Get the current value for this field from the existing resource data.
+            old_value = self.resource.get(field)
 
-            # The idempotency check happens here. We only consider a field for an update if:
-            #   a) The user has actually provided a value for it (`param_value is not None`).
-            #      This prevents the module from trying to set a field to `null` just because
-            #      the user omitted it from their playbook.
+            # The core idempotency check. A change is registered only if:
+            #   a) The user has actually provided a value for it (`new_value is not None`).
+            #      This is critical to prevent the module from trying to set a field to `null`
+            #      just because the user omitted it from their playbook.
             #   b) The user-provided value is different from the value currently on the
-            #      resource in Waldur.
-            if param_value is not None and param_value != self.resource.get(field):
-                # A change has been detected. Add the field and its new value to the payload.
-                update_payload[field] = param_value
+            #      resource in Waldur. This handles all simple types (str, int, bool, etc.).
+            if new_value is not None and new_value != old_value:
+                # A change has been detected. Record it in our structured list.
+                changes.append({"param": field, "old": old_value, "new": new_value})
 
-        # --- Step 2: Execute the Update Request (If Necessary) ---
+        # --- Step 3: Generate the Command ---
 
-        # Only proceed if the `update_payload` is not empty. If it's empty, it means
-        # all user-provided values matched the existing resource's state, and the
-        # module is perfectly idempotent. No API call is needed.
-        if update_payload:
-            # A change is required. Send the PATCH request to the API.
-            # The `path_params` argument will substitute the `{uuid}` placeholder in the
-            # `update_path` with the actual UUID of the resource we are updating.
-            updated_resource, _ = self._send_request(
-                "PATCH",
-                update_path,
-                data=update_payload,
-                path_params={"uuid": self.resource["uuid"]},
-            )
+        # If the `changes` list is not empty, it means at least one attribute needs to be updated.
+        if changes:
+            # Instantiate a single `UpdateCommand`. This object encapsulates everything
+            # needed for both execution (the API path and payload) and for generating a diff.
+            # The command is returned inside a list to maintain a consistent return type
+            # with `_build_action_update_commands`.
+            return [
+                UpdateCommand(
+                    self,
+                    update_path,
+                    changes,  # Pass the full list of changes for detailed diffing.
+                    path_params={"uuid": self.resource["uuid"]},
+                )
+            ]
 
-            # --- Step 3: Update Local State and Flag Change ---
+        # If the `changes` list is empty, the resource is already in the desired state.
+        # Return an empty list to signify that no `UpdateCommand` is necessary.
+        return []
 
-            # After a successful PATCH, the API typically returns the updated representation
-            # of the resource. We merge this new data into our local `self.resource` object.
-            # This is important so that if any subsequent actions in the same run need to
-            # check the resource's state, they see the most current version.
-            if updated_resource:
-                self.resource.update(updated_resource)
-
-            # Set the global `has_changed` flag to True. This tells Ansible that the module
-            # made a change to the system, which is crucial for playbook reporting.
-            self.has_changed = True
-
-    def _handle_action_updates(self, resolve_output_format="create"):
+    def _build_action_update_commands(self, resolve_output_format="create") -> list:
         """
-        A generic, powerful engine for executing complex, idempotent, action-based updates.
+        Analyzes complex, action-based changes and returns a list of ActionCommands,
+        one for each action that requires execution.
 
-        This method orchestrates the entire "resolve -> normalize -> compare -> execute"
-        workflow for all special update actions defined in a module's configuration.
-        It is designed to be called by specialized runners (`CrudRunner`, `OrderRunner`)
-        after they have performed any necessary context-specific setup (like cache priming).
+        This is the "planning" engine for advanced idempotency. It handles updates that
+        are not simple PATCH requests but instead require POSTing to special action
+        endpoints (e.g., updating security groups or network ports on a VM).
 
-        The core responsibilities of this engine are:
-        1.  **Iterate** through all configured update actions.
-        2.  **Resolve** user-friendly inputs (e.g., names) into the precise data structures
-            required by the API, handling nested values.
-        3.  **Perform a robust, order-insensitive idempotency check** by comparing the
-            normalized desired state with the normalized current state of the resource. This
-            includes handling tricky edge cases where the format of the desired state
-            (e.g., a list of strings) differs from the resource's state (e.g., a list of objects).
-        4.  **Execute** the API call (a POST to a special action endpoint) only if a
-            change is actually detected. This includes correctly formatting the request
-            body, which may need to be a raw list or a wrapped JSON object.
-        5.  **Handle asynchronous operations** by correctly identifying HTTP 202 status
-            codes and triggering a wait/polling mechanism.
-        6.  **Ensure data consistency** by triggering a final re-fetch of the resource's
-            state if any synchronous changes were made.
+        Key Responsibilities:
+        1.  **Iterate Actions**: Loop through every special update action defined in the
+            module's configuration (`update_actions`).
+        2.  **Resolve Desired State**: For each action, take the user's input (which can
+            be a complex structure of names and UUIDs) and use the `ParameterResolver`
+            to convert it into the precise data structure the API endpoint expects.
+        3.  **Normalize for Comparison**: Convert both the newly resolved desired state
+            and the current state from the resource into a canonical, order-insensitive
+            format using the `_normalize_for_comparison` helper. This is the cornerstone
+            of robustly comparing complex data like lists of objects.
+        4.  **Detect Change**: Compare the two normalized representations. If they differ,
+            a change is required.
+        5.  **Command Generation**: For each detected change, instantiate a distinct
+            `ActionCommand`. This command encapsulates the specific API path for the
+            action, the resolved payload, and the old/new values for a precise diff.
 
-        Args:
-            resolve_output_format (str):
-                A hint passed directly to the `ParameterResolver`. This is a crucial
-                parameter for flexibility, allowing the same user parameter (e.g.,
-                `security_groups`) to be formatted differently depending on the context.
-                For example, a 'create' order might need `[{'url': '...'}]`, while an
-                'update_action' might need a simple list of UUIDs `['uuid1', ...]`.
-                Defaults to "create".
+        Returns:
+            A list of `ActionCommand` objects, or an empty list if no actions need to be
+            triggered.
         """
-        # --- Step 0: Initial Setup and Guard Clauses ---
+        # --- Step 1: Initial Setup and Guard Clauses ---
 
         # Retrieve the dictionary of configured actions from the runner's context.
-        # This context is pre-processed by the generator's plugin.
         update_actions = self.context.get("update_actions", {})
 
         # If there's no existing resource to update or no actions are configured,
-        # there is nothing to do. Exit immediately.
+        # planning is impossible. Return an empty list.
         if not (self.resource and update_actions):
-            return
+            return []
 
-        # This flag tracks whether any synchronous (non-202) actions were performed.
-        # If true, it will trigger a single, efficient re-fetch of the resource's
-        # state at the very end to ensure the data returned to the user is up-to-date.
-        needs_refetch = False
+        # This list will hold all the `ActionCommand` objects we decide to create.
+        commands = []
 
-        # --- Step 1: Main Loop - Process Each Action ---
+        # --- Step 2: Main Loop - Plan Each Action ---
 
+        # Iterate through each action defined in the user's generator configuration.
         for _, action_info in update_actions.items():
-            # Extract the configuration for the current action.
             param_name = action_info["param"]
             param_value = self.module.params.get(param_name)
 
-            # An action is only triggered if the user has provided its corresponding parameter.
+            # An action is only planned if the user has provided its corresponding parameter.
             # If the parameter is `None`, we skip this action entirely.
             if param_value is not None:
-                # --- Step 2: RESOLVE - Convert User Input to API-Ready Data ---
-                # This is a critical step. We delegate to the powerful ParameterResolver,
-                # which recursively traverses the user's input (`param_value`) and converts
-                # all user-friendly names or UUIDs into the final API URLs or other required
-                # data structures. The `resolve_output_format` hint ensures the final
-                # structure is correct for this specific action's API endpoint.
+                # --- 2a. RESOLVE Desired State ---
+                # Delegate to the ParameterResolver to convert the user's input (e.g., `['sg-web']`)
+                # into the final, API-ready data structure (e.g., `[{'url': '...'}]`).
+                # The `resolve_output_format` hint is crucial for context-dependent formatting.
                 resolved_payload = self.resolver.resolve(
                     param_name, param_value, output_format=resolve_output_format
                 )
 
-                # --- Step 3: NORMALIZE & COMPARE - The Idempotency Check ---
-                # This is the heart of the idempotency logic, including critical edge case handling.
-
-                # Get the current value from the existing resource. The `compare_key` tells
-                # us which field on the resource corresponds to this action's parameter.
-                resource_value = self.resource.get(action_info["compare_key"])
-
-                # Get the list of keys that define an object's identity. This is essential
-                # for correctly comparing lists of complex objects.
+                # --- 2b. NORMALIZE Current and Desired States ---
+                # Get the current value from the existing resource.
+                compare_key = action_info.get("compare_key", param_name)
+                resource_value = self.resource.get(compare_key)
+                # Get the list of keys that define an object's identity for normalization.
                 idempotency_keys = action_info.get("idempotency_keys", [])
 
-                #
-                # Dual-mode normalization
-                #
-                # This block handles the difficult but common case where the existing resource
-                # represents a relationship with a "rich" list of objects (e.g., `[{'name': 'sg1', 'url': '...'}]`),
-                # but the user's desired state resolves to a "simple" list of strings (e.g., `['url1', 'url2']`).
-                # A direct normalization of both would lead to an incorrect comparison.
-                #
+                # **CRITICAL EDGE CASE**: Handle schema mismatch between user input and resource state.
+                # This occurs when the user provides a simple list of strings (e.g., security group URLs),
+                # but the API resource represents them as a rich list of objects. We must transform
+                # the resource's rich list into a simple one before normalization can work correctly.
                 is_simple_list_payload = (
                     isinstance(resolved_payload, list)
                     and resolved_payload
@@ -508,21 +595,20 @@ class BaseRunner:
                 )
 
                 if is_simple_list_payload and is_complex_list_resource:
-                    # A mismatch is detected. We must transform the "rich" list from the
-                    # resource into a simple list so it can be compared. By strong convention,
-                    # we assume the key to extract for this transformation is 'url'.
+                    # A mismatch is detected. Transform the "rich" list from the
+                    # resource into a simple list of URLs for a fair comparison.
                     transformed_resource_value = [
                         item.get("url")
                         for item in resource_value
                         if item.get("url") is not None
                     ]
-                    # Now, normalize the newly transformed list (which is simple).
+                    # Now, normalize the newly transformed (simple) list.
                     normalized_old = self._normalize_for_comparison(
                         transformed_resource_value, []
                     )
                 else:
-                    # In all other cases (object-to-object, string-to-string, etc.), no
-                    # pre-transformation is needed before normalization.
+                    # In all other cases (object-to-object, etc.), no pre-transformation
+                    # is needed before normalization.
                     normalized_old = self._normalize_for_comparison(
                         resource_value, idempotency_keys
                     )
@@ -532,58 +618,87 @@ class BaseRunner:
                     resolved_payload, idempotency_keys
                 )
 
+                # --- 2c. DETECT Change ---
                 # The actual idempotency check: a simple, reliable comparison of the two normalized values.
                 if normalized_new != normalized_old:
-                    # --- Step 4: EXECUTE - A Change Was Detected ---
-                    # The state is not what the user wants it to be, so we must act.
+                    # --- 2d. GENERATE Command ---
+                    # A change was detected. We must create an `ActionCommand` for it.
 
-                    #
-                    # Conditional payload wrapping
-                    #
-                    # Some API action endpoints expect a raw JSON body (e.g., just a list `[...]`),
-                    # while others expect the payload to be wrapped in a JSON object
-                    # (e.g., `{"param_name": [...]}`). The plugin analyzes the API schema and
-                    # provides the 'wrap_in_object' flag in the context. We must respect it here.
-                    #
+                    # **CRITICAL EDGE CASE**: Handle API payload wrapping.
+                    # Some action endpoints expect a raw JSON body (e.g., `[...]`), while
+                    # others expect it to be wrapped in an object (e.g., `{"rules": [...]}`).
+                    # The generator infers this and provides the 'wrap_in_object' flag.
                     if action_info.get("wrap_in_object"):
-                        # API expects: {"param_name": <resolved_payload>}
                         final_api_payload = {param_name: resolved_payload}
                     else:
-                        # API expects the raw payload (e.g., a list of strings).
                         final_api_payload = resolved_payload
 
-                    # Send the POST request to the action's specific API endpoint.
-                    _, status_code = self._send_request(
-                        "POST",
-                        action_info["path"],
-                        data=final_api_payload,
-                        path_params={"uuid": self.resource["uuid"]},
+                    # Instantiate the `ActionCommand` with all necessary information.
+                    commands.append(
+                        ActionCommand(
+                            self,
+                            action_info["path"],
+                            final_api_payload,
+                            param_name,
+                            old_value=resource_value,  # Store the original, un-normalized old value for the diff.
+                            new_value=resolved_payload,  # Store the resolved, un-normalized new value for the diff.
+                            path_params={"uuid": self.resource["uuid"]},
+                        )
                     )
+        # --- Step 3: Return the Plan ---
+        # Return the list of generated commands. This list will be empty if no
+        # actions needed to be triggered.
+        return commands
 
-                    # Mark that a change has occurred in the system.
-                    self.has_changed = True
+    def check_existence(self):
+        """
+        A generic, configurable method to check if a resource exists.
 
-                    # --- Step 5: WAIT - Handle Asynchronous Responses ---
-                    # Check if the API responded with HTTP 202 Accepted, which indicates
-                    # that the task was started but is not yet complete.
-                    if (
-                        status_code == 202
-                        and self.module.params.get("wait", True)
-                        and self.context.get("wait_config")
-                    ):
-                        # If waiting is enabled, block execution and poll the resource's
-                        # state until it becomes stable (e.g., 'OK' or 'Erred').
-                        # The `_wait_for_resource_state` method updates `self.resource` internally.
-                        self._wait_for_resource_state(self.resource["uuid"])
-                    else:
-                        # For synchronous actions (e.g., HTTP 200, 201, 204), the change
-                        # was immediate. We set the flag to perform a single re-fetch
-                        # after all actions are processed.
-                        needs_refetch = True
+        This method serves as the single source of truth for existence checks
+        for all runner types. It is driven by keys in the runner's context,
+        allowing for flexible configuration.
 
-        # --- Step 6: RE-FETCH - Ensure Final State Consistency ---
-        # After the loop has finished, if any synchronous actions were performed,
-        # `self.resource` is now out of date. We call `check_existence()` one last
-        # time to get the absolute final state of the resource before exiting the module.
-        if needs_refetch:
-            self.check_existence()
+        It populates `self.resource` with the found data or sets it to `None`.
+
+        Required context keys:
+        - `check_url` (str): The API list endpoint to query.
+
+        Optional context keys:
+        - `check_filter_keys` (dict): A mapping of Ansible parameter names to the
+                                      API query filter keys they correspond to
+                                      (e.g., `{"project": "project_uuid"}`).
+        """
+        # --- Step 1: Gather configuration from the context ---
+        check_url = self.context["check_url"]
+
+        # --- Step 2: Build the query parameters ---
+        # Start with the primary identifier (e.g., 'name_exact').
+        identifier_value = self.module.params["name"]
+        query_params = {"name_exact": identifier_value}
+
+        # Add any additional context filters (e.g., project_uuid).
+        filter_keys = self.context.get("check_filter_keys", {})
+        for param_name, filter_key in filter_keys.items():
+            if self.module.params.get(param_name):
+                # Use the resolver to convert the context param (e.g., project name)
+                # into its UUID for the API filter.
+                resolved_url = self.resolver.resolve_to_url(
+                    param_name=param_name, value=self.module.params[param_name]
+                )
+                if resolved_url:
+                    query_params[filter_key] = resolved_url.strip("/").split("/")[-1]
+
+        # --- Step 3: Execute the API call ---
+        data, _ = self.send_request("GET", check_url, query_params=query_params)
+
+        # --- Step 4: Process the result ---
+        if data and len(data) > 1:
+            self.module.fail_json(
+                msg=f"Multiple resources found for '{identifier_value}'. The first one will be used."
+            )
+
+        # Handle both list responses and direct object responses gracefully.
+        if isinstance(data, list):
+            self.resource = data[0] if data else None
+        else:
+            self.resource = data if isinstance(data, dict) else None

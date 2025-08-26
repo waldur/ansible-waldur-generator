@@ -195,6 +195,7 @@ class Generator:
             return  # This plugin might not use a separate runner file.
 
         collection_root = self._get_collection_root(output_dir)
+        project_root = os.path.dirname(os.path.dirname(__file__))
         # All our vendored utils live under a 'waldur' subdirectory to avoid name collisions.
         dest_utils_dir = os.path.join(
             collection_root, "plugins", "module_utils", "waldur"
@@ -204,26 +205,26 @@ class Generator:
         # Ensure the destination directory is a Python package by creating an __init__.py.
         open(os.path.join(dest_utils_dir, "__init__.py"), "a").close()
 
-        # Copy the BaseRunner, as all specific runners depend on it. This is done only once.
-        if "base" not in self.copied_runners:
-            project_root = os.path.dirname(os.path.dirname(__file__))
-            base_runner_src = os.path.join(
-                project_root, "ansible_waldur_generator", "interfaces", "runner.py"
-            )
-            base_runner_dest = os.path.join(dest_utils_dir, "base_runner.py")
-            if os.path.exists(base_runner_src):
-                shutil.copy(base_runner_src, base_runner_dest)
-                self.copied_runners.add("base")
+        # --- Define all shared dependencies ---
+        # A dictionary mapping the source file name to its new destination name.
+        shared_deps = {
+            "runner.py": "base_runner.py",
+            "resolver.py": "resolver.py",
+            "command.py": "command.py",
+        }
 
-        # Copy the ParameterResolver, as runners depend on it.
-        if "resolver" not in self.copied_runners:
-            resolver_src = os.path.join(
-                project_root, "ansible_waldur_generator", "interfaces", "resolver.py"
-            )
-            resolver_dest = os.path.join(dest_utils_dir, "resolver.py")
-            if os.path.exists(resolver_src):
-                shutil.copy(resolver_src, resolver_dest)
-                self.copied_runners.add("resolver")
+        for src_name, dest_name in shared_deps.items():
+            # Check if this shared dependency has already been copied for this collection.
+            if dest_name not in self.copied_runners:
+                src_path = os.path.join(
+                    project_root, "ansible_waldur_generator", "interfaces", src_name
+                )
+                dest_path = os.path.join(dest_utils_dir, dest_name)
+                if os.path.exists(src_path):
+                    shutil.copy(src_path, dest_path)
+                    self.copied_runners.add(
+                        dest_name
+                    )  # Mark as copied for this collection run.
 
         # Copy the specific runner for the current plugin type (e.g., crud_runner.py).
         runner_dest_path = os.path.join(dest_utils_dir, f"{plugin_type}_runner.py")
@@ -244,14 +245,24 @@ class Generator:
                 f".plugins.module_utils.waldur.resolver"
             )
 
+            command_fqcn = f"ansible_collections.{self.collection_namespace}.{self.collection_name}.plugins.module_utils.waldur.command"
+
             # Replace the generator-internal import with the new FQCN.
-            new_content = content.replace(
-                "from ansible_waldur_generator.interfaces.runner import BaseRunner",
-                f"from {base_runner_fqcn} import BaseRunner",
-            ).replace(
-                "from ansible_waldur_generator.interfaces.resolver import ParameterResolver",
-                f"from {resolver_fqcn} import ParameterResolver",
+            new_content = (
+                content.replace(
+                    "from ansible_waldur_generator.interfaces.runner import BaseRunner",
+                    f"from {base_runner_fqcn} import BaseRunner",
+                )
+                .replace(
+                    "from ansible_waldur_generator.interfaces.resolver import ParameterResolver",
+                    f"from {resolver_fqcn} import ParameterResolver",
+                )
+                .replace(
+                    "from ansible_waldur_generator.interfaces.command import",
+                    f"from {command_fqcn} import",
+                )
             )
+
             f.seek(0)
             f.write(new_content)
             f.truncate()

@@ -42,3 +42,6 @@ pythonpath = [
   ".",
   "outputs"
 ]
+testpaths = [
+    "tests",
+]
