@@ -7,7 +7,7 @@ from urllib.parse import urlencode
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.urls import fetch_url
 
-from .command import ActionCommand, CreateCommand, DeleteCommand, UpdateCommand
+from .command import Command
 
 
 class BaseRunner:
@@ -95,43 +95,69 @@ class BaseRunner:
         # Step 5: Exit with the final state and a diff generated from the plan.
         self.exit(plan=self.plan)
 
+    def exit(self, plan: list | None = None, commands: list | None = None):
+        """
+        Formats the final response for Ansible and exits the module.
+        """
+        if commands is None:
+            commands = [cmd.serialize_request() for cmd in plan] if plan else []
+
+        self.module.exit_json(
+            changed=self.has_changed,
+            resource=self.resource,
+            commands=commands,
+        )
+
     def execute_change_plan(self, plan: list):
         """
-        Executes a list of Command objects, making the actual API calls.
-        This is the "execution" phase.
+        Executes a list of Command objects, making the actual API calls and
+        triggering asynchronous waiters if required.
         """
         if not plan:
             return
 
         self.has_changed = True
-        needs_refetch = False
 
         for command in plan:
             result = command.execute()
 
-            # Correctly update self.resource after command execution.
-            if isinstance(command, CreateCommand):
+            # Update runner's internal state based on the type of command executed.
+            if command.command_type == "create":
                 self.resource = result
-            elif isinstance(command, UpdateCommand):
-                # An update command can return a partial or full resource.
-                # Merge the result to ensure we have the most complete state.
-                if self.resource and result:
-                    self.resource.update(result)
-            elif isinstance(command, DeleteCommand):
-                self.resource = None  # The resource is now gone.
-            elif isinstance(command, ActionCommand):
-                # Handle async actions
-                if (
-                    result == 202
-                    and self.module.params.get("wait", True)
-                    and self.context.get("wait_config")
-                ):
-                    self._wait_for_resource_state(self.resource["uuid"])
-                else:
-                    needs_refetch = True
+            elif command.command_type == "order":
+                # For an order, the result is the order object itself.
+                # The final resource will be fetched by the waiter.
+                self.order = result
+                self.resource = None  # It doesn't exist yet.
+            elif command.command_type == "delete":
+                self.resource = None
+            elif command.command_type == "update" and self.resource and result:
+                self.resource.update(result)
+            # For 'action' commands, the resource state is typically updated by the waiter.
 
-        if needs_refetch:
-            self.check_existence()
+            # --- Generic Waiting Logic ---
+            if command.wait_config and self.module.params.get("wait", True):
+                # Determine the UUID to poll based on the command's context.
+                uuid_source_config = command.wait_config.get("uuid_source", {})
+                uuid_source_location = uuid_source_config.get("location")
+                uuid_key = uuid_source_config.get("key")
+                uuid_to_poll = None
+
+                if uuid_source_location == "result_body" and result:
+                    uuid_to_poll = result.get(uuid_key)
+                elif uuid_source_location == "resource" and self.resource:
+                    uuid_to_poll = self.resource.get(uuid_key)
+
+                if uuid_to_poll:
+                    self._wait_for_completion(
+                        polling_path=command.wait_config["polling_path"],
+                        resource_uuid=uuid_to_poll,
+                        wait_config=command.wait_config,
+                    )
+                else:
+                    self.module.fail_json(
+                        msg=f"Could not determine UUID to poll for async action. Source config: {uuid_source_config}"
+                    )
 
     def handle_check_mode(self, plan: list):
         """
@@ -140,7 +166,7 @@ class BaseRunner:
         if plan:
             self.has_changed = True
         # The specialized runner's exit method will handle the diff.
-        self.exit(diff=[cmd.to_diff() for cmd in plan])
+        self.exit(commands=[cmd.serialize_request() for cmd in plan])
 
     def send_request(
         self, method, path, data=None, query_params=None, path_params=None
@@ -252,27 +278,13 @@ class BaseRunner:
         except (ValueError, TypeError, AttributeError):
             return False
 
-    def _wait_for_resource_state(self, resource_uuid: str):
+    def _wait_for_completion(
+        self, polling_path: str, resource_uuid: str, wait_config: dict
+    ):
         """
-        Polls a resource by its UUID until it reaches a stable state (OK or Erred).
-        This is a generic utility for actions that trigger asynchronous background jobs.
+        A generic poller for an asynchronous task until it reaches a stable state.
+        This is used for both marketplace orders and long-running resource actions.
         """
-        wait_config = self.context.get("wait_config", {})
-        if not wait_config:
-            self.module.fail_json(
-                msg="Runner Error: _wait_for_resource_state called but 'wait_config' is not defined in the runner context."
-            )
-            return
-
-        # The path to the resource's detail view, used for polling.
-        # We'll configure plugins to ensure this key is in the context.
-        polling_path = self.context.get("resource_detail_path")
-        if not polling_path:
-            self.module.fail_json(
-                msg="Runner Error: 'resource_detail_path' is required in runner context for waiting."
-            )
-            return
-
         ok_states = wait_config.get("ok_states", ["OK"])
         erred_states = wait_config.get("erred_states", ["Erred"])
         state_field = wait_config.get("state_field", "state")
@@ -282,7 +294,7 @@ class BaseRunner:
         start_time = time.time()
 
         while time.time() - start_time < timeout:
-            resource_state, status_code = self.send_request(
+            polled_data, status_code = self.send_request(
                 "GET", polling_path, path_params={"uuid": resource_uuid}
             )
 
@@ -292,22 +304,27 @@ class BaseRunner:
                 self.resource = None
                 return
 
-            if resource_state:
-                current_state = resource_state.get(state_field)
+            if polled_data:
+                current_state = polled_data.get(state_field)
                 if current_state in ok_states:
-                    self.resource = resource_state  # Update runner's resource state
+                    # For orders, we must re-fetch the *final provisioned resource*.
+                    # For simple resource actions, the polled data *is* the final resource.
+                    if wait_config.get("refetch_resource", False):
+                        self.check_existence()
+                    else:
+                        self.resource = polled_data
                     return
                 if current_state in erred_states:
                     self.module.fail_json(
-                        msg=f"Resource action resulted in an error state: '{current_state}'.",
-                        resource=resource_state,
+                        msg=f"Task resulted in an error state: '{current_state}'.",
+                        details=polled_data,
                     )
                     return  # Unreachable
 
             time.sleep(interval)
 
         self.module.fail_json(
-            msg=f"Timeout waiting for resource {resource_uuid} to become stable."
+            msg=f"Timeout waiting for task on resource {resource_uuid} to complete."
         )
 
     def _normalize_for_comparison(
@@ -503,12 +520,17 @@ class BaseRunner:
             # needed for both execution (the API path and payload) and for generating a diff.
             # The command is returned inside a list to maintain a consistent return type
             # with `_build_action_update_commands`.
+            # The payload for the API call should only contain the *new* values.
+            update_payload = {change["param"]: change["new"] for change in changes}
             return [
-                UpdateCommand(
+                Command(
                     self,
-                    update_path,
-                    changes,  # Pass the full list of changes for detailed diffing.
+                    method="PATCH",
+                    path=update_path,
+                    command_type="update",
+                    data=update_payload,
                     path_params={"uuid": self.resource["uuid"]},
+                    description=f"Update attributes of {self.context['resource_type']}",
                 )
             ]
 
@@ -640,18 +662,32 @@ class BaseRunner:
                     else:
                         final_api_payload = resolved_payload
 
+                    # Build wait_config for this action if the module is configured for it.
+                    wait_config = None
+                    if self.context.get("wait_config"):
+                        wait_config = self.context["wait_config"].copy()
+                        wait_config["polling_path"] = self.context[
+                            "resource_detail_path"
+                        ]
+                        wait_config["uuid_source"] = {
+                            "location": "resource",
+                            "key": "uuid",
+                        }
+
                     # Instantiate the `ActionCommand` with all necessary information.
                     commands.append(
-                        ActionCommand(
+                        Command(
                             self,
-                            action_info["path"],
-                            final_api_payload,
-                            param_name,
-                            old_value=resource_value,  # Store the original, un-normalized old value for the diff.
-                            new_value=resolved_payload,  # Store the resolved, un-normalized new value for the diff.
+                            method="POST",
+                            path=action_info["path"],
+                            command_type="action",
+                            data=final_api_payload,
                             path_params={"uuid": self.resource["uuid"]},
+                            description=f"Execute action '{param_name}' on {self.context['resource_type']}",
+                            wait_config=wait_config,
                         )
                     )
+
         # --- Step 3: Return the Plan ---
         # Return the list of generated commands. This list will be empty if no
         # actions needed to be triggered.

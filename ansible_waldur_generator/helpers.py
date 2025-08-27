@@ -27,6 +27,11 @@ AUTH_OPTIONS = {
     },
 }
 
+AUTH_FIXTURE = {
+    "access_token": "b83557fd8e2066e98f27dee8f3b3433cdc4183ce",
+    "api_url": "https://waldur.example.com",
+}
+
 WAITER_OPTIONS = {
     "state": {
         "description": "Should the resource be present or absent.",

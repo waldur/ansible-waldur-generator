@@ -1,7 +1,7 @@
 from ansible_waldur_generator.interfaces.resolver import ParameterResolver
 from ansible_waldur_generator.interfaces.runner import BaseRunner
 
-from ansible_waldur_generator.interfaces.command import CreateCommand, DeleteCommand
+from ansible_waldur_generator.interfaces.command import Command
 
 
 class CrudRunner(BaseRunner):
@@ -87,10 +87,19 @@ class CrudRunner(BaseRunner):
             path_params[path_param_key] = resolved_url.strip("/").split("/")[-1]
 
         # --- Step 3: Return the Final Command ---
-        # Instantiate and return the `CreateCommand` encapsulated in a list.
-        return [CreateCommand(self, self.context["create_path"], payload, path_params)]
+        return [
+            Command(
+                self,
+                method="POST",
+                path=self.context["create_path"],
+                command_type="create",
+                data=payload,
+                path_params=path_params,
+                description=f"Create new {self.context['resource_type']}",
+            )
+        ]
 
-    def plan_update(self) -> list:
+    def plan_update(self) -> list[Command]:
         """
         Builds the change plan for updating an existing resource.
 
@@ -100,23 +109,14 @@ class CrudRunner(BaseRunner):
         methods inherited from the `BaseRunner`, promoting maximum code reuse.
 
         Returns:
-            A list of `UpdateCommand` and/or `ActionCommand` objects, or an empty
-            list if no updates are needed.
+            A list of `Command` objects, or an empty list if no updates are needed.
         """
         plan = []
-
-        # Delegate planning for simple, direct attribute updates (PATCH requests).
-        # This helper will return an `UpdateCommand` if any changes are detected.
         plan.extend(self._build_simple_update_command())
-
-        # Delegate planning for complex, action-based updates (POST requests).
-        # This helper will return a list of `ActionCommands` for any actions that
-        # need to be executed.
         plan.extend(self._build_action_update_commands())
-
         return plan
 
-    def plan_deletion(self) -> list:
+    def plan_deletion(self) -> list[Command]:
         """
         Builds the change plan for deleting an existing resource.
 
@@ -130,28 +130,12 @@ class CrudRunner(BaseRunner):
         # We pass the current `self.resource` object to the command so it can be
         # used to generate an accurate "before" state in the diff.
         return [
-            DeleteCommand(
+            Command(
                 self,
-                self.context["destroy_path"],
-                self.resource,
+                method="DELETE",
+                path=self.context["destroy_path"],
+                command_type="delete",
                 path_params={"uuid": self.resource["uuid"]},
+                description=f"Delete {self.context['resource_type']} '{self.resource.get('name', self.resource.get('uuid'))}'",
             )
         ]
-
-    def exit(self, plan: list | None = None, diff: list | None = None):
-        """
-        Formats the final response for Ansible and exits the module.
-
-        This method overrides the base implementation to provide a consistent
-        exit signature for CRUD modules, which do not have an 'order' object.
-
-        Args:
-            plan (list, optional): The original plan, used to generate a diff if not in check mode.
-            diff (list, optional): A pre-generated diff from check mode.
-        """
-        if diff is None:
-            diff = [cmd.to_diff() for cmd in plan] if plan else []
-
-        self.module.exit_json(
-            changed=self.has_changed, resource=self.resource, diff=diff
-        )

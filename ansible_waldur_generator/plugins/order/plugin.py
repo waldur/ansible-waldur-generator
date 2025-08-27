@@ -5,6 +5,7 @@ from ansible_waldur_generator.api_parser import ApiSpecParser
 from ansible_waldur_generator.schema_parser import ReturnBlockGenerator
 from ansible_waldur_generator.models import AnsibleModuleParams
 from ansible_waldur_generator.helpers import (
+    AUTH_FIXTURE,
     AUTH_OPTIONS,
     OPENAPI_TO_ANSIBLE_TYPE_MAP,
     WAITER_OPTIONS,
@@ -414,8 +415,7 @@ class OrderPlugin(BasePlugin):
                     "name", {}, module_config.resource_type
                 ),
                 "project": "Project Name or UUID",
-                "access_token": "b83557fd8e2066e98f27dee8f3b3433cdc4183ce",
-                "api_url": "https://waldur.example.com",
+                **AUTH_FIXTURE,
             }
             # Add the first updatable field to the example for demonstration.
             field_to_update = module_config.update_fields[0]

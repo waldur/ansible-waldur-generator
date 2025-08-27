@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import patch
 import uuid
 
-# The class we are testing
+from ansible_waldur_generator.helpers import AUTH_FIXTURE
 from ansible_waldur_generator.plugins.facts.runner import FactsRunner
 
 
@@ -32,9 +32,6 @@ def mock_facts_runner_context():
     return context
 
 
-# --- Test Class for FactsRunner ---
-
-
 class TestFactsRunner:
     """
     Test suite for the FactsRunner logic.
@@ -47,8 +44,7 @@ class TestFactsRunner:
     ):
         # Arrange
         mock_ansible_module.params = {
-            "api_url": "http://api.com",
-            "access_token": "test-token",
+            **AUTH_FIXTURE,
             "name": "default-sg",
         }
 
@@ -77,8 +73,7 @@ class TestFactsRunner:
         # Arrange
         test_uuid = str(uuid.uuid4())
         mock_ansible_module.params = {
-            "api_url": "http://api.com",
-            "access_token": "test-token",
+            **AUTH_FIXTURE,
             "name": test_uuid,
         }
 
@@ -106,8 +101,7 @@ class TestFactsRunner:
     ):
         # Arrange
         mock_ansible_module.params = {
-            "api_url": "http://api.com/",
-            "access_token": "test-token",
+            **AUTH_FIXTURE,
             "name": "web-sg",
             "project": "Cloud Project",
             "tenant": "Cloud Tenant",
@@ -153,8 +147,7 @@ class TestFactsRunner:
     ):
         # Arrange
         mock_ansible_module.params = {
-            "api_url": "http://api.com",
-            "access_token": "test-token",
+            **AUTH_FIXTURE,
             "name": "non-existent-sg",
         }
 
@@ -178,8 +171,7 @@ class TestFactsRunner:
         # Arrange
         mock_facts_runner_context["many"] = True
         mock_ansible_module.params = {
-            "api_url": "http://api.com",
-            "access_token": "test-token",
+            **AUTH_FIXTURE,
             "name": "non-existent-sg",
         }
 
@@ -203,8 +195,7 @@ class TestFactsRunner:
     ):
         # Arrange
         mock_ansible_module.params = {
-            "api_url": "http://api.com",
-            "access_token": "test-token",
+            **AUTH_FIXTURE,
             "name": "ambiguous-name",
         }
 
@@ -235,8 +226,7 @@ class TestFactsRunner:
         # Arrange
         mock_facts_runner_context["many"] = True
         mock_ansible_module.params = {
-            "api_url": "http://api.com",
-            "access_token": "test-token",
+            **AUTH_FIXTURE,
             "name": "ambiguous-name",
         }
 

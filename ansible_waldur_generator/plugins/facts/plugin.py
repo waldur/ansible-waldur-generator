@@ -16,7 +16,7 @@
 from typing import Any, Dict, List
 
 from ansible_waldur_generator.api_parser import ApiSpecParser
-from ansible_waldur_generator.helpers import AUTH_OPTIONS
+from ansible_waldur_generator.helpers import AUTH_FIXTURE, AUTH_OPTIONS
 from ansible_waldur_generator.interfaces.plugin import BasePlugin
 from ansible_waldur_generator.models import AnsibleModuleParams
 from ansible_waldur_generator.plugins.facts.config import FactsModuleConfig
@@ -179,12 +179,7 @@ class FactsPlugin(BasePlugin):
         example_params[module_config.identifier_param] = "My Resource Name"
 
         # Add standard authentication parameters to the example.
-        example_params.update(
-            {
-                "access_token": "b83557fd8e2066e98f27dee8f3b3433cdc4183ce",
-                "api_url": "https://waldur.example.com",
-            }
-        )
+        example_params.update(AUTH_FIXTURE)
 
         # Construct the final playbook example, demonstrating best practices like
         # using the Fully Qualified Collection Name (FQCN), registering the result,

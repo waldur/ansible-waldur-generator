@@ -1,7 +1,8 @@
 import pytest
-from unittest.mock import patch, ANY
+from unittest.mock import patch
 
 # The class we are testing
+from ansible_waldur_generator.helpers import AUTH_FIXTURE
 from ansible_waldur_generator.plugins.order.runner import OrderRunner
 
 
@@ -146,8 +147,7 @@ class TestOrderRunner:
         """
         # Arrange: Define a rich set of user parameters.
         mock_ansible_module.params = {
-            "api_url": "http://api.com",
-            "access_token": "token",
+            **AUTH_FIXTURE,
             "state": "present",
             "wait": True,
             "interval": 1,
@@ -226,81 +226,59 @@ class TestOrderRunner:
             ([final_resource_state], 200),  # Final existence check
         ]
 
-        # Arrange: Define the exact payload the runner is expected to build.
-        expected_payload = {
-            "project": "http://api.com/api/projects/proj-prod-uuid/",
-            "offering": "http://api.com/api/offerings/off-prem-uuid/",
-            "plan": "http://api.com/api/plans/plan-uuid/",
-            "limits": {"cpu": 8, "ram": 16384},
-            "accepting_terms_of_service": True,
-            "attributes": {
-                "name": "prod-web-vm-01",
-                "flavor": "http://api.com/api/flavors/flavor-large-uuid/",
-                "image": "http://api.com/api/images/img-ubuntu-uuid/",
-                "security_groups": [
-                    {"url": "http://api.com/api/security-groups/sg-web-uuid/"},
-                    {"url": "http://api.com/api/security-groups/sg-ssh-uuid/"},
-                ],
-                "system_volume_size": 100,
-                "ports": [
-                    {
-                        "subnet": "http://api.com/api/subnets/subnet-private-uuid/",
-                        "fixed_ips": [{"ip_address": "10.0.1.50"}],
-                    }
-                ],
-                "floating_ips": [
-                    {"subnet": "http://api.com/api/subnets/subnet-public-uuid/"}
-                ],
-                "ssh_public_key": "http://api.com/api/ssh-keys/key-admin-uuid/",
-            },
-        }
-
-        # Act
+        # ACT
         runner = OrderRunner(mock_ansible_module, mock_instance_runner_context)
         runner.run()
 
-        expected_diff = [
-            {
-                "state": "Resource will be created via a new marketplace order.",
-                "order_attributes": {
-                    "name": "prod-web-vm-01",
-                    "flavor": "http://api.com/api/flavors/flavor-large-uuid/",
-                    "image": "http://api.com/api/images/img-ubuntu-uuid/",
-                    "security_groups": [
-                        {"url": "http://api.com/api/security-groups/sg-web-uuid/"},
-                        {"url": "http://api.com/api/security-groups/sg-ssh-uuid/"},
-                    ],
-                    "system_volume_size": 100,
-                    "ports": [
-                        {
-                            "subnet": "http://api.com/api/subnets/subnet-private-uuid/",
-                            "fixed_ips": [{"ip_address": "10.0.1.50"}],
-                        }
-                    ],
-                    "floating_ips": [
-                        {"subnet": "http://api.com/api/subnets/subnet-public-uuid/"}
-                    ],
-                    "ssh_public_key": "http://api.com/api/ssh-keys/key-admin-uuid/",
-                },
-            }
-        ]
-
-        # Assert: Final state is correct
+        # ASSERT
         mock_ansible_module.exit_json.assert_called_once_with(
             changed=True,
-            diff=expected_diff,
             resource={
                 "name": "prod-web-vm-01",
                 "state": "OK",
                 "uuid": "final-vm-uuid-123",
             },
-            order={"uuid": "order-xyz-789"},
+            commands=[
+                {
+                    "method": "POST",
+                    "url": "https://waldur.example.com/api/marketplace-orders/",
+                    "description": "Create OpenStack instance via marketplace order",
+                    "body": {
+                        "project": "http://api.com/api/projects/proj-prod-uuid/",
+                        "offering": "http://api.com/api/offerings/off-prem-uuid/",
+                        "attributes": {
+                            "name": "prod-web-vm-01",
+                            "flavor": "http://api.com/api/flavors/flavor-large-uuid/",
+                            "image": "http://api.com/api/images/img-ubuntu-uuid/",
+                            "security_groups": [
+                                {
+                                    "url": "http://api.com/api/security-groups/sg-web-uuid/"
+                                },
+                                {
+                                    "url": "http://api.com/api/security-groups/sg-ssh-uuid/"
+                                },
+                            ],
+                            "system_volume_size": 100,
+                            "ports": [
+                                {
+                                    "subnet": "http://api.com/api/subnets/subnet-private-uuid/",
+                                    "fixed_ips": [{"ip_address": "10.0.1.50"}],
+                                }
+                            ],
+                            "floating_ips": [
+                                {
+                                    "subnet": "http://api.com/api/subnets/subnet-public-uuid/"
+                                }
+                            ],
+                            "ssh_public_key": "http://api.com/api/ssh-keys/key-admin-uuid/",
+                        },
+                        "accepting_terms_of_service": True,
+                        "plan": "http://api.com/api/plans/plan-uuid/",
+                        "limits": {"cpu": 8, "ram": 16384},
+                    },
+                }
+            ],
         )
-
-        # Assert: The order creation call was made with the exact expected payload
-        order_creation_call = mocksend_request.call_args_list[11]
-        assert order_creation_call.args == ("POST", "/api/marketplace-orders/")
-        assert order_creation_call.kwargs["data"] == expected_payload
 
     # --- Scenario 2: Resource already exists, no changes needed ---
     @patch("ansible_waldur_generator.plugins.order.runner.OrderRunner.send_request")
@@ -313,6 +291,7 @@ class TestOrderRunner:
         """
         # Arrange
         mock_ansible_module.params = {
+            **AUTH_FIXTURE,
             "state": "present",
             "name": "existing-vm",
             "project": "Cloud Project",
@@ -345,7 +324,9 @@ class TestOrderRunner:
 
         # Assert
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=False, diff=[], resource=existing_resource, order=None
+            changed=False,
+            commands=[],
+            resource=existing_resource,
         )
 
     # --- Scenario 3: Update an existing resource ---
@@ -359,6 +340,7 @@ class TestOrderRunner:
         """
         # Arrange
         mock_ansible_module.params = {
+            **AUTH_FIXTURE,
             "state": "present",
             "name": "vm-to-update",
             "project": "Cloud Project",
@@ -386,28 +368,22 @@ class TestOrderRunner:
         runner = OrderRunner(mock_ansible_module, mock_instance_runner_context)
         runner.run()
 
-        expected_diff = [
-            {
-                "updated_attributes": [
-                    {
-                        "param": "description",
-                        "old": "old description",
-                        "new": "a new description",
-                    }
-                ]
-            }
-        ]
-
         # Assert
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=True, diff=expected_diff, resource=updated_resource, order=None
-        )
-        # Verify the PATCH call was made correctly.
-        mocksend_request.assert_any_call(
-            "PATCH",
-            "/api/openstack-instances/{uuid}/",
-            data={"description": "a new description"},
-            path_params={"uuid": "vm-uuid-456"},
+            changed=True,
+            resource={
+                "name": "vm-to-update",
+                "uuid": "vm-uuid-456",
+                "description": "a new description",
+            },
+            commands=[
+                {
+                    "method": "PATCH",
+                    "url": "https://waldur.example.com/api/openstack-instances/vm-uuid-456/",
+                    "description": "Update attributes of OpenStack instance",
+                    "body": {"description": "a new description"},
+                }
+            ],
         )
 
     # --- Scenario 4: Delete an existing resource ---
@@ -419,8 +395,9 @@ class TestOrderRunner:
         Tests that `state: absent` correctly triggers a termination call
         when the resource exists.
         """
-        # Arrange
+        # ARRANGE
         mock_ansible_module.params = {
+            **AUTH_FIXTURE,
             "state": "absent",
             "name": "vm-to-delete",
             "project": "Cloud Project",
@@ -438,27 +415,21 @@ class TestOrderRunner:
             (None, 204),  # The terminate call returns 204 No Content
         ]
 
-        # Act
+        # ACT
         runner = OrderRunner(mock_ansible_module, mock_instance_runner_context)
         runner.run()
 
-        expected_diff = [
-            {
-                "state": "Resource will be deleted.",
-                "old_attributes": existing_resource,
-            }
-        ]
-
-        # Assert
+        # ASSERT
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=True, diff=expected_diff, resource=None, order=None
-        )
-        # Verify the termination call was made to the correct endpoint.
-        mocksend_request.assert_called_with(
-            "POST",
-            "/api/marketplace-resources/mkt-res-uuid-789/terminate/",
-            data={},
-            path_params=None,
+            changed=True,
+            resource=None,
+            commands=[
+                {
+                    "method": "POST",
+                    "url": "https://waldur.example.com/api/marketplace-resources/mkt-res-uuid-789/terminate/",
+                    "description": "Terminate OpenStack instance 'vm-to-delete'",
+                }
+            ],
         )
 
     # --- Scenario 5: Check mode ---
@@ -473,6 +444,7 @@ class TestOrderRunner:
         # Arrange
         mock_ansible_module.check_mode = True
         mock_ansible_module.params = {
+            **AUTH_FIXTURE,
             "state": "present",
             "name": "new-vm-in-check-mode",
             "project": "Cloud Project",
@@ -490,9 +462,8 @@ class TestOrderRunner:
         # Assert
         mock_ansible_module.exit_json.assert_called_once_with(
             changed=True,
-            diff=[],
+            commands=[],
             resource=None,
-            order=None,
         )
         # Only two calls should be made: project resolve and existence check
         assert mocksend_request.call_count == 2
@@ -542,6 +513,7 @@ class TestOrderRunner:
         # Define the user's desired new configuration in the Ansible playbook.
         # Note the use of names ("private-subnet-new", "web-sg") that need resolution.
         mock_ansible_module.params = {
+            **AUTH_FIXTURE,
             "state": "present",
             "name": "vm-to-reconfigure",
             "project": "Cloud Project",
@@ -636,47 +608,50 @@ class TestOrderRunner:
         runner.run()
 
         # ASSERT
-        # Check that the module exited with 'changed: true' and the final resource state.
-        expected_diff = [
-            {
-                "action": "ports",
-                "old": [
+        mock_ansible_module.exit_json.assert_called_once_with(
+            changed=True,
+            resource={
+                "name": "vm-to-reconfigure",
+                "uuid": "vm-uuid-789",
+                "url": "http://api.com/api/openstack-instances/vm-uuid-789/",
+                "project": "http://api.com/api/projects/proj-uuid/",
+                "offering": "http://api.com/api/offerings/off-prem-uuid/",
+                "ports": [
                     {
                         "subnet": "http://api.com/api/subnets/subnet-old-uuid/",
                         "fixed_ips": [{"ip_address": "10.0.0.5"}],
                     }
                 ],
-                "new": [
-                    {
-                        "subnet": "http://api.com/api/subnets/subnet-new-uuid/",
-                        "fixed_ips": [{"ip_address": "10.1.1.10"}],
-                    }
-                ],
-            },
-            {
-                "action": "security_groups",
-                "old": [{"url": "http://api.com/api/security-groups/sg-default-uuid/"}],
-                "new": [
-                    "http://api.com/api/security-groups/sg-web-uuid/",
-                    "http://api.com/api/security-groups/sg-ssh-uuid/",
-                ],
-            },
-        ]
-        mock_ansible_module.exit_json.assert_called_once_with(
-            changed=True, diff=expected_diff, resource=ANY, order=None
-        )
-
-        # Assert that the update_security_groups action was called with the resolved payload.
-        mocksend_request.assert_any_call(
-            "POST",
-            "/api/openstack-instances/{uuid}/update_security_groups/",
-            data={
                 "security_groups": [
-                    "http://api.com/api/security-groups/sg-web-uuid/",
-                    "http://api.com/api/security-groups/sg-ssh-uuid/",
-                ]
+                    {"url": "http://api.com/api/security-groups/sg-default-uuid/"}
+                ],
             },
-            path_params={"uuid": "vm-uuid-789"},
+            commands=[
+                {
+                    "method": "POST",
+                    "url": "https://waldur.example.com/api/openstack-instances/vm-uuid-789/update_ports/",
+                    "description": "Execute action 'ports' on OpenStack instance",
+                    "body": {
+                        "ports": [
+                            {
+                                "subnet": "http://api.com/api/subnets/subnet-new-uuid/",
+                                "fixed_ips": [{"ip_address": "10.1.1.10"}],
+                            }
+                        ]
+                    },
+                },
+                {
+                    "method": "POST",
+                    "url": "https://waldur.example.com/api/openstack-instances/vm-uuid-789/update_security_groups/",
+                    "description": "Execute action 'security_groups' on OpenStack instance",
+                    "body": {
+                        "security_groups": [
+                            "http://api.com/api/security-groups/sg-web-uuid/",
+                            "http://api.com/api/security-groups/sg-ssh-uuid/",
+                        ]
+                    },
+                },
+            ],
         )
 
     @patch("ansible_waldur_generator.plugins.order.runner.OrderRunner.send_request")
@@ -689,6 +664,7 @@ class TestOrderRunner:
         """
         # ARRANGE
         mock_ansible_module.params = {
+            **AUTH_FIXTURE,
             "state": "absent",
             "name": "vm-to-force-delete",
             "project": "Cloud Project",
@@ -711,37 +687,22 @@ class TestOrderRunner:
         runner = OrderRunner(mock_ansible_module, mock_instance_runner_context)
         runner.run()
 
-        expected_diff = [
-            {
-                "old_attributes": {
-                    "marketplace_resource_uuid": "mkt-res-uuid-123",
-                    "name": "vm-to-force-delete",
-                },
-                "state": "Resource will be deleted.",
-                "termination_options": {
-                    "attributes": {
-                        "action": "force_destroy",
-                        "delete_volumes": True,
-                        "release_floating_ips": True,
-                    }
-                },
-            }
-        ]
         # ASSERT
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=True, diff=expected_diff, resource=None, order=ANY
-        )
-        # Verify the payload contains the mapped attributes.
-        expected_payload = {
-            "attributes": {
-                "action": "force_destroy",
-                "delete_volumes": True,
-                "release_floating_ips": True,
-            }
-        }
-        mocksend_request.assert_any_call(
-            "POST",
-            "/api/marketplace-resources/mkt-res-uuid-123/terminate/",
-            data=expected_payload,
-            path_params=None,
+            changed=True,
+            resource=None,
+            commands=[
+                {
+                    "method": "POST",
+                    "url": "https://waldur.example.com/api/marketplace-resources/mkt-res-uuid-123/terminate/",
+                    "description": "Terminate OpenStack instance 'vm-to-force-delete'",
+                    "body": {
+                        "attributes": {
+                            "action": "force_destroy",
+                            "delete_volumes": True,
+                            "release_floating_ips": True,
+                        }
+                    },
+                }
+            ],
         )

@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from ansible_waldur_generator.api_parser import ApiSpecParser
+from ansible_waldur_generator.helpers import AUTH_FIXTURE
 from ansible_waldur_generator.models import (
     AnsibleModuleParams,
     ApiOperation,
@@ -339,8 +340,7 @@ class BasePlugin(ABC):
         # --- Create Example ---
         create_params = {
             "state": "present",
-            "access_token": "b83557fd8e2066e98f27dee8f3b3433cdc4183ce",
-            "api_url": "https://waldur.example.com",
+            **AUTH_FIXTURE,
             **base_params,
         }
 
@@ -365,8 +365,7 @@ class BasePlugin(ABC):
             delete_identifier_param: schema_parser._generate_sample_value(
                 delete_identifier_param, {}, module_config.resource_type
             ),
-            "access_token": "b83557fd8e2066e98f27dee8f3b3433cdc4183ce",
-            "api_url": "https://waldur.example.com",
+            **AUTH_FIXTURE,
             **base_params,
         }
 

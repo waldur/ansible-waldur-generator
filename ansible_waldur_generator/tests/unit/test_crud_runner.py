@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import patch
 
+from ansible_waldur_generator.helpers import AUTH_FIXTURE
 from ansible_waldur_generator.plugins.crud.runner import CrudRunner
 
 
@@ -79,6 +80,7 @@ class TestCrudRunner:
         """
         # --- ARRANGE ---
         mock_ansible_module.params = {
+            **AUTH_FIXTURE,
             "state": "present",
             "name": "new-web-sg",
             "description": "Allow web traffic",
@@ -112,28 +114,21 @@ class TestCrudRunner:
         runner.run()
 
         # --- ASSERT ---
-        # 1. Verify that the create API call was made to the correct nested endpoint.
-        mock_send_request.assert_any_call(
-            "POST",
-            "/api/tenants/{uuid}/security_groups/",
-            data={"name": "new-web-sg", "description": "Allow web traffic"},
-            path_params={"uuid": "tenant-uuid"},
-        )
-
-        # 2. Define the expected diff that the plan should have generated.
-        expected_diff = [
-            {
-                "state": "Resource will be created.",
-                "new_attributes": {
-                    "name": "new-web-sg",
-                    "description": "Allow web traffic",
-                },
-            }
-        ]
-
-        # 3. Assert the final state of the module.
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=True, resource=new_resource, diff=expected_diff
+            changed=True,
+            resource={
+                "name": "new-web-sg",
+                "uuid": "new-sg-uuid",
+                "description": "Allow web traffic",
+            },
+            commands=[
+                {
+                    "method": "POST",
+                    "url": "https://waldur.example.com/api/tenants/tenant-uuid/security_groups/",
+                    "description": "Create new security group",
+                    "body": {"name": "new-web-sg", "description": "Allow web traffic"},
+                }
+            ],
         )
         mock_ansible_module.fail_json.assert_not_called()
 
@@ -151,6 +146,7 @@ class TestCrudRunner:
         """
         # --- ARRANGE ---
         mock_ansible_module.params = {
+            **AUTH_FIXTURE,
             "state": "present",
             "name": "existing-sg",
             "description": "current description",  # Value matches the existing resource
@@ -176,7 +172,14 @@ class TestCrudRunner:
         # --- ASSERT ---
         # The plan should be empty, resulting in `changed=False` and an empty diff.
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=False, resource=existing_resource, diff=[]
+            changed=False,
+            resource={
+                "name": "existing-sg",
+                "uuid": "existing-sg-uuid",
+                "description": "current description",
+                "rules": [{"protocol": "tcp", "from_port": 22}],
+            },
+            commands=[],
         )
         mock_ansible_module.fail_json.assert_not_called()
         # Crucially, assert that only the initial GET request was made.
@@ -198,6 +201,7 @@ class TestCrudRunner:
         """
         # --- ARRANGE ---
         mock_ansible_module.params = {
+            **AUTH_FIXTURE,
             "state": "present",
             "name": "sg-to-update",
             "description": "A new, better description",
@@ -223,9 +227,6 @@ class TestCrudRunner:
             "description": "A new, better description",
         }
 
-        # **FIX**: This is the key change. The final re-fetch of the resource
-        # must return the complete, final state of the object, including
-        # the results of ALL updates (the patched description and the new rules).
         final_resource_state = {
             **patched_resource,
             "rules": mock_ansible_module.params["rules"],
@@ -252,23 +253,37 @@ class TestCrudRunner:
         runner.run()
 
         # --- ASSERT ---
-        expected_diff = [
-            {
-                "updated_attributes": [
-                    {
-                        "param": "description",
-                        "old": "old description",
-                        "new": "A new, better description",
-                    }
-                ]
-            },
-            {"action": "rules", "old": [], "new": mock_ansible_module.params["rules"]},
-        ]
-
-        # This assertion will now pass because the runner's `self.resource` will
-        # be correctly updated to the `final_resource_state` by the final re-fetch.
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=True, resource=final_resource_state, diff=expected_diff
+            changed=True,
+            resource={
+                "name": "sg-to-update",
+                "uuid": "sg-uuid-123",
+                "description": "A new, better description",
+                "rules": [],
+            },
+            commands=[
+                {
+                    "method": "PATCH",
+                    "url": "https://waldur.example.com/api/security-groups/sg-uuid-123/",
+                    "description": "Update attributes of security group",
+                    "body": {"description": "A new, better description"},
+                },
+                {
+                    "method": "POST",
+                    "url": "https://waldur.example.com/api/security-groups/sg-uuid-123/set_rules/",
+                    "description": "Execute action 'rules' on security group",
+                    "body": {
+                        "rules": [
+                            {
+                                "protocol": "tcp",
+                                "from_port": 443,
+                                "to_port": 443,
+                                "cidr": "0.0.0.0/0",
+                            }
+                        ]
+                    },
+                },
+            ],
         )
 
     # ==========================================================================
@@ -284,6 +299,7 @@ class TestCrudRunner:
         """
         # --- ARRANGE ---
         mock_ansible_module.params = {
+            **AUTH_FIXTURE,
             "state": "absent",
             "name": "sg-to-delete",
         }
@@ -301,12 +317,17 @@ class TestCrudRunner:
         runner.run()
 
         # --- ASSERT ---
-        expected_diff = [
-            {"state": "Resource will be deleted.", "old_attributes": existing_resource}
-        ]
         # After execution, the resource state is `None`.
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=True, resource=None, diff=expected_diff
+            changed=True,
+            resource=None,
+            commands=[
+                {
+                    "method": "DELETE",
+                    "url": "https://waldur.example.com/api/security-groups/sg-to-delete-uuid/",
+                    "description": "Delete security group 'sg-to-delete'",
+                }
+            ],
         )
 
     @patch("ansible_waldur_generator.plugins.crud.runner.CrudRunner.send_request")
@@ -318,7 +339,11 @@ class TestCrudRunner:
         no plan should be generated and no change should occur.
         """
         # --- ARRANGE ---
-        mock_ansible_module.params = {"state": "absent", "name": "non-existent-sg"}
+        mock_ansible_module.params = {
+            **AUTH_FIXTURE,
+            "state": "absent",
+            "name": "non-existent-sg",
+        }
         mock_send_request.return_value = ([], 200)  # `check_existence` finds nothing.
 
         # --- ACT ---
@@ -327,7 +352,7 @@ class TestCrudRunner:
 
         # --- ASSERT ---
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=False, resource=None, diff=[]
+            changed=False, resource=None, commands=[]
         )
         mock_send_request.assert_called_once()  # Only the existence check is made.
 
@@ -346,6 +371,7 @@ class TestCrudRunner:
         # --- ARRANGE ---
         mock_ansible_module.check_mode = True
         mock_ansible_module.params = {
+            **AUTH_FIXTURE,
             "state": "present",
             "name": "new-sg-check-mode",
             "tenant": "Cloud Tenant",
@@ -365,13 +391,15 @@ class TestCrudRunner:
         runner.run()
 
         # --- ASSERT ---
-        expected_diff = [
-            {
-                "state": "Resource will be created.",
-                "new_attributes": {"name": "new-sg-check-mode"},
-            }
-        ]
-        # In check mode, `resource` is `None` because nothing was executed.
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=True, resource=None, diff=expected_diff
+            changed=True,
+            resource=None,
+            commands=[
+                {
+                    "method": "POST",
+                    "url": "https://waldur.example.com/api/tenants/tenant-uuid/security_groups/",
+                    "description": "Create new security group",
+                    "body": {"name": "new-sg-check-mode"},
+                }
+            ],
         )
