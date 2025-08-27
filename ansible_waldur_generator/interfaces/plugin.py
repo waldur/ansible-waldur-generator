@@ -133,6 +133,38 @@ class BasePlugin(ABC):
         """
         ...
 
+    def _get_standard_commands_return_block(self) -> dict[str, Any]:
+        """Returns the static documentation block for the 'commands' output."""
+        return {
+            "description": "A list of HTTP requests that were made (or would be made in check mode) to execute the task.",
+            "type": "list",
+            "returned": "when changed",
+            "elements": "dict",
+            "contains": {
+                "method": {
+                    "description": "The HTTP method used (e.g., POST, PATCH, DELETE).",
+                    "type": "str",
+                    "sample": "POST",
+                },
+                "url": {
+                    "description": "The fully qualified URL of the API endpoint.",
+                    "type": "str",
+                    "sample": "https://api.example.com/api/projects/",
+                },
+                "description": {
+                    "description": "A human-readable summary of the command's purpose.",
+                    "type": "str",
+                    "sample": "Create new project",
+                },
+                "body": {
+                    "description": "The JSON payload sent with the request. Only present for methods with a body.",
+                    "type": "dict",
+                    "returned": "if applicable",
+                    "sample": {"name": "My-Awesome-Project"},
+                },
+            },
+        }
+
     @abstractmethod
     def _build_runner_context(
         self, module_config: Any, api_parser: ApiSpecParser
@@ -193,6 +225,11 @@ class BasePlugin(ABC):
             return_generator,
         )
         runner_context = self._build_runner_context(module_config, api_parser)
+
+        # Augment the return block with the standard 'commands' output documentation
+        # for all plugins that can make changes.
+        if self.get_type_name() != "facts" and return_block is not None:
+            return_block["commands"] = self._get_standard_commands_return_block()
 
         return GenerationContext(
             argument_spec=self._build_argument_spec(parameters),
