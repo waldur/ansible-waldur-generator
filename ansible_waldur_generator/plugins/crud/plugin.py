@@ -86,11 +86,16 @@ class CrudPlugin(BasePlugin):
                 "error_message": resolver.error_message,
             }
 
+        # Build the map of context parameters to their API filter keys for the existence check.
+        check_filter_keys = {}
+        for p_conf in conf.context_params:
+            check_filter_keys[p_conf.name] = p_conf.filter_key
+
         # The final context dictionary passed to the runner.
         runner_context = {
             "resource_type": conf.resource_type,
             "check_url": conf.check_operation.path if conf.check_operation else None,
-            "check_filter_keys": {},  # Crud modules typically don't need extra context filters
+            "check_filter_keys": check_filter_keys,
             # API paths for each lifecycle stage.
             "list_path": conf.check_operation.path if conf.check_operation else None,
             "create_path": conf.create_operation.path
@@ -151,9 +156,11 @@ class CrudPlugin(BasePlugin):
         conf = module_config
 
         # 1. Add parameters used for checking existence (e.g., 'name').
-        for p in conf.check_operation_config.get("params", []):
-            p["type"] = OPENAPI_TO_ANSIBLE_TYPE_MAP.get(p.get("type", "str"), "str")
-            params[p["name"]] = p
+        params["name"] = {
+            "description": f"The name of the {conf.resource_type}.",
+            "type": "str",
+            "required": True,
+        }
 
         # 2. Add parameters required for nested API paths (e.g., the parent resource 'tenant').
         # This is derived from the 'path_param_maps' configuration.
@@ -167,7 +174,19 @@ class CrudPlugin(BasePlugin):
                     "description": f"The parent {ansible_param} name or UUID for creating the resource.",
                 }
 
-        # 3. Infer parameters from the 'create' operation's request body schema.
+        # 3. Add any context parameters used for filtering the existence check.
+        for p_conf in conf.context_params:
+            # Only add the parameter if it hasn't been defined by a more specific
+            # configuration (like a path parameter).
+            if p_conf.name not in params:
+                params[p_conf.name] = {
+                    "description": p_conf.description
+                    or f"The name or UUID of the parent {p_conf.name} for filtering.",
+                    "type": "str",
+                    "required": p_conf.required,
+                }
+
+        # 4. Infer parameters from the 'create' operation's request body schema.
         if conf.create_operation and conf.create_operation.model_schema:
             schema = conf.create_operation.model_schema
             required_fields = schema.get("required", [])
@@ -198,7 +217,7 @@ class CrudPlugin(BasePlugin):
                     "choices": choices,
                 }
 
-        # 4. Add parameters required for any special update actions.
+        # 5. Add parameters required for any special update actions.
         if conf.update_config:
             for action_key, action_conf in conf.update_config.actions.items():
                 param_name = action_conf.param
@@ -347,19 +366,6 @@ class CrudPlugin(BasePlugin):
                     action_conf["operation"]
                 )
 
-        # Set default configuration for the 'check' operation.
-        raw_config["check_operation_config"] = {
-            "params": [
-                {
-                    "name": "name",
-                    "type": "str",
-                    "required": True,
-                    "description": f"The name of the {module_key} to check/create/delete.",
-                    "maps_to": "name_exact",
-                }
-            ]
-        }
-
         # Parse resolver operationIds as well.
         for name, resolver_conf in raw_config.get("resolvers", {}).items():
             if isinstance(resolver_conf, str):
@@ -379,10 +385,17 @@ class CrudPlugin(BasePlugin):
 
         module_config = CrudModuleConfig(**raw_config)
 
-        # Final validation after parsing
+        # Operation validation after parsing
         if not module_config.check_operation:
             raise ValueError(f"Module '{module_key}' must have a 'check' operation.")
         if not module_config.create_operation:
             raise ValueError(f"Module '{module_key}' must have a 'create' operation.")
 
+        # Perform build-time validation of context parameter filter keys.
+        self._validate_context_params(
+            module_key=module_key,
+            context_params=module_config.context_params,
+            target_operation=module_config.check_operation,
+            api_parser=api_parser,
+        )
         return module_config

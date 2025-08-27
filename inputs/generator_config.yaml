@@ -154,6 +154,7 @@ collections:
         resource_type: "OpenStack security group"
         description: "Manage OpenStack Security Groups and their rules in Waldur."
         base_operation_id: "openstack_security_groups"
+        context_params: *base_openstack_context_params
         operations:
           update:
             actions:
@@ -176,6 +177,7 @@ collections:
         resource_type: "OpenStack network"
         description: "Manage OpenStack Networks in Waldur."
         base_operation_id: "openstack_networks"
+        context_params: *base_openstack_context_params
         operations:
           update:
             actions:
@@ -190,6 +192,7 @@ collections:
       - name: server_group
         plugin: crud
         wait_config: *default_wait_config
+        context_params: *base_openstack_context_params
         resolvers:
           tenant: "openstack_tenants"
         resource_type: "OpenStack server group"
@@ -204,6 +207,7 @@ collections:
       - name: floating_ip
         plugin: crud
         wait_config: *default_wait_config
+        context_params: *base_openstack_context_params
         resolvers:
           tenant: "openstack_tenants"
         resource_type: "OpenStack floating IP"

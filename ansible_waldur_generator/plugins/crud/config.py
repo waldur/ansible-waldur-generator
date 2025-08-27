@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
-from typing import Dict, List, Any
+from typing import Dict, List
 
-from ansible_waldur_generator.models import ApiOperation
+from ansible_waldur_generator.models import ApiOperation, ContextParam
 
 
 class ModuleResolver(BaseModel):
@@ -114,9 +114,8 @@ class CrudModuleConfig(BaseModel):
     # Example: path_param_maps: { create: { uuid: "tenant" } }
     path_param_maps: Dict[str, Dict[str, str]] = Field(default_factory=dict)
 
-    # Defines the parameters used by the `check_operation` to find a resource.
-    # By default, this is configured to search by `name`.
-    check_operation_config: Dict[str, Any] = Field(default_factory=dict)
+    # A list of context parameters used to filter the existence check.
+    context_params: List[ContextParam] = Field(default_factory=list)
 
     # A dictionary of resolvers for any parameters that need to be converted
     # from names/UUIDs to full API URLs. The key is the parameter name.

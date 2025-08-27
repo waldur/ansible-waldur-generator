@@ -72,7 +72,16 @@ class FactsPlugin(BasePlugin):
             raw_config["retrieve_operation"] = api_parser.get_operation(retrieve_op_id)
 
         # 4. Instantiate the Pydantic model, which validates the final structure.
-        return FactsModuleConfig(**raw_config)
+        module_config = FactsModuleConfig(**raw_config)
+
+        # 5. Perform build-time validation of context parameter filter keys.
+        self._validate_context_params(
+            module_key=module_key,
+            context_params=module_config.context_params,
+            target_operation=module_config.list_operation,
+            api_parser=api_parser,
+        )
+        return module_config
 
     def _build_parameters(
         self, module_config: FactsModuleConfig, api_parser: ApiSpecParser

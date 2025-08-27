@@ -1,18 +1,6 @@
-from typing import List
 from pydantic import BaseModel, Field, field_validator
 
-from ansible_waldur_generator.models import ApiOperation
-
-
-class ContextParam(BaseModel):
-    name: str
-    type: str = "str"
-    required: bool = False
-    description: str | None = None
-    # `resolver` is just a string, representing the base_operation_id
-    # of the parent resource (e.g., "openstack_tenants")
-    resolver: str
-    filter_key: str
+from ansible_waldur_generator.models import ApiOperation, ContextParam
 
 
 class FactsModuleConfig(BaseModel):
@@ -22,7 +10,7 @@ class FactsModuleConfig(BaseModel):
     resource_type: str
     list_operation: ApiOperation | None = None
     retrieve_operation: ApiOperation | None = None
-    context_params: List[ContextParam] = Field(default_factory=list)
+    context_params: list[ContextParam] = Field(default_factory=list)
     many: bool = False
     identifier_param: str = "name"
 
