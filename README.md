@@ -43,8 +43,11 @@ poetry run ansible-waldur-generator
 ```
 
 By default, this command will:
+
 -   Read `inputs/generator_config.yaml` and `inputs/waldur_api.yaml`.
+
 -   Use the configured collection name (e.g., `waldur.openstack`) to create a standard Ansible Collections structure.
+
 -   Place the generated collection into the `outputs/` directory.
 
 The final structure will look like this:
