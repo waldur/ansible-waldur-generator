@@ -235,7 +235,10 @@ class BasePlugin(ABC):
             argument_spec=self._build_argument_spec(parameters),
             module_filename=f"{module_key}.py",
             documentation=self._build_documentation(
-                module_key, getattr(module_config, "description", None), parameters
+                module_key,
+                getattr(module_config, "description", None),
+                parameters,
+                module_config,
             ),
             examples=examples,
             return_block=return_block,
@@ -275,6 +278,7 @@ class BasePlugin(ABC):
         module_name: str,
         description: str | None,
         parameters: dict[str, Any],
+        module_config: any,
     ) -> dict[str, Any]:
         """
         Constructs the main `DOCUMENTATION` block for the Ansible module.
@@ -293,10 +297,45 @@ class BasePlugin(ABC):
                 description = f"Get facts about a specific {module_name.replace('_facts', '').replace('_', ' ')}"
             else:
                 description = f"Manage {module_name.replace('_', ' ')} resources."
+
+        updatable_fields = []
+        # Handle CrudPlugin style configuration (update_config.fields/actions)
+        if hasattr(module_config, "update_config") and module_config.update_config:
+            if module_config.update_config.fields:
+                updatable_fields.extend(module_config.update_config.fields)
+            if (
+                hasattr(module_config.update_config, "actions")
+                and module_config.update_config.actions
+            ):
+                updatable_fields.extend(
+                    [
+                        action.param
+                        for action in module_config.update_config.actions.values()
+                    ]
+                )
+
+        # Handle OrderPlugin style configuration (update_fields/update_actions)
+        if hasattr(module_config, "update_fields") and module_config.update_fields:
+            updatable_fields.extend(module_config.update_fields)
+        if hasattr(module_config, "update_actions") and module_config.update_actions:
+            updatable_fields.extend(
+                [action.param for action in module_config.update_actions.values()]
+            )
+
+        full_description = ""
+
+        if updatable_fields:
+            # Format the fields with backticks for better readability in Ansible docs.
+            fields_str = ", ".join(sorted(list(set(updatable_fields))))
+            full_description = (
+                f"When the resource already exists, the following fields can be"
+                f" updated: {fields_str}."
+            )
+
         return {
             "module": module_name,
             "short_description": description,
-            "description": [description],
+            "description": full_description,
             "author": "Waldur Team",
             "options": self._clean_parameters_for_documentation(parameters),
             "requirements": ["python >= 3.11"],
