@@ -1,0 +1,138 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/openstack-tenants/?name_exact=waldur-dev-farm
+  response:
+    body:
+      string: '[{"url":"http://127.0.0.1:8000/api/openstack-tenants/9d80c96ced07443e99a1c810a1d41ba9/","uuid":"9d80c96ced07443e99a1c810a1d41ba9","name":"waldur-dev-farm","description":"","service_name":"UT
+        HPC (Campus)","service_settings":"http://127.0.0.1:8000/api/service-settings/58978795d079495b83bc4a5a8b87f2fc/","service_settings_uuid":"58978795d079495b83bc4a5a8b87f2fc","service_settings_state":"OK","service_settings_error_message":"","project":"http://127.0.0.1:8000/api/projects/5d3016240ccf4181b4cdc0baa0e41d5c/","project_name":"Self-Service
+        dev infrastructure","project_uuid":"5d3016240ccf4181b4cdc0baa0e41d5c","customer":"http://127.0.0.1:8000/api/customers/bad9fcc9071e49a0aeb919c1523e7def/","customer_name":"ETAIS
+        Self-Service testing","customer_native_name":"","customer_abbreviation":"","resource_type":"OpenStack.Tenant","state":"OK","created":"2021-06-28T14:27:11.077883+00:00","modified":"2025-09-04T18:06:24.309244+00:00","backend_id":"169e2cfe9ed54402beb5fa827a8a8def","availability_zone":"","internal_network_id":"03997c55-ef37-4a71-b3f6-15d3b502bfce","external_network_id":"e0c1110b-96d6-4c45-9b8e-2d33bf11259f","quotas":[{"name":"instances","usage":14,"limit":30},{"name":"gigabytes_prod3","usage":1460,"limit":-1},{"name":"subnet_count","usage":1,"limit":100},{"name":"ram","usage":229376,"limit":229376},{"name":"gigabytes_prod","usage":0,"limit":-1},{"name":"snapshots_size","usage":0,"limit":-1},{"name":"gigabytes_gpfs","usage":0,"limit":-1},{"name":"gigabytes_scratch","usage":1460,"limit":-1},{"name":"volumes","usage":15,"limit":50},{"name":"floating_ip_count","usage":1,"limit":50},{"name":"volumes_size","usage":1495040,"limit":-1},{"name":"storage","usage":1495040,"limit":1495040},{"name":"gigabytes_rbd","usage":0,"limit":-1},{"name":"gigabytes___DEFAULT__","usage":0,"limit":-1},{"name":"port_count","usage":35,"limit":500},{"name":"snapshots","usage":0,"limit":50},{"name":"network_count","usage":1,"limit":100},{"name":"security_group_count","usage":7,"limit":100},{"name":"vcpu","usage":224,"limit":224},{"name":"security_group_rule_count","usage":12,"limit":100},{"name":"gigabytes_prod2","usage":0,"limit":-1}],"default_volume_type_name":"","marketplace_offering_uuid":"4ce883470b7242beb7368becf614d1ec","marketplace_offering_name":"UT
+        HPC (Campus)","marketplace_offering_plugin_options":{"storage_mode":"dynamic","homedir_prefix":"/home/","initial_uidnumber":5000,"initial_usergroup_number":6000,"username_anonymized_prefix":"waldur_","username_generation_policy":"service_provider","initial_primarygroup_number":5000},"marketplace_category_uuid":"06e45986252244218bd062149fc3b5b5","marketplace_category_name":"Private
+        clouds","marketplace_resource_uuid":"a83cbdcae5b24cad968bc14649521876","marketplace_plan_uuid":"c092afb394924d7d86f14bb5d6fb984c","marketplace_resource_state":"OK","is_usage_based":false,"is_limit_based":true}]'
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '12296'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Thu, 04 Sep 2025 18:22:25 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/openstack-tenants/?name_exact=waldur-dev-farm>;
+        rel="first", <http://127.0.0.1:8000/api/openstack-tenants/?name_exact=waldur-dev-farm>;
+        rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: POST
+    uri: http://127.0.0.1:8000/api/openstack-tenants/9d80c96ced07443e99a1c810a1d41ba9/pull/
+  response:
+    body:
+      string: '{"detail":"Pull operation was successfully scheduled."}'
+    headers:
+      Allow:
+      - POST, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '55'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Thu, 04 Sep 2025 18:22:25 GMT
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+    status:
+      code: 202
+      message: Accepted
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/openstack-tenants/?name_exact=waldur-dev-farm
+  response:
+    body:
+      string: '[{"url":"http://127.0.0.1:8000/api/openstack-tenants/9d80c96ced07443e99a1c810a1d41ba9/","uuid":"9d80c96ced07443e99a1c810a1d41ba9","name":"waldur-dev-farm","description":"","service_name":"UT
+        HPC (Campus)","service_settings":"http://127.0.0.1:8000/api/service-settings/58978795d079495b83bc4a5a8b87f2fc/","service_settings_uuid":"58978795d079495b83bc4a5a8b87f2fc","service_settings_state":"OK","service_settings_error_message":"","project":"http://127.0.0.1:8000/api/projects/5d3016240ccf4181b4cdc0baa0e41d5c/","project_name":"Self-Service
+        dev infrastructure","project_uuid":"5d3016240ccf4181b4cdc0baa0e41d5c","customer":"http://127.0.0.1:8000/api/customers/bad9fcc9071e49a0aeb919c1523e7def/","customer_name":"ETAIS
+        Self-Service testing","customer_native_name":"","customer_abbreviation":"","resource_type":"OpenStack.Tenant","state":"UPDATE_SCHEDULED","created":"2021-06-28T14:27:11.077883+00:00","modified":"2025-09-04T18:22:25.475650+00:00","backend_id":"169e2cfe9ed54402beb5fa827a8a8def","availability_zone":"","internal_network_id":"03997c55-ef37-4a71-b3f6-15d3b502bfce","external_network_id":"e0c1110b-96d6-4c45-9b8e-2d33bf11259f","quotas":[{"name":"instances","usage":14,"limit":30},{"name":"gigabytes_prod3","usage":1460,"limit":-1},{"name":"subnet_count","usage":1,"limit":100},{"name":"ram","usage":229376,"limit":229376},{"name":"gigabytes_prod","usage":0,"limit":-1},{"name":"snapshots_size","usage":0,"limit":-1},{"name":"gigabytes_gpfs","usage":0,"limit":-1},{"name":"gigabytes_scratch","usage":1460,"limit":-1},{"name":"volumes","usage":15,"limit":50},{"name":"floating_ip_count","usage":1,"limit":50},{"name":"volumes_size","usage":1495040,"limit":-1},{"name":"storage","usage":1495040,"limit":1495040},{"name":"gigabytes_rbd","usage":0,"limit":-1},{"name":"gigabytes___DEFAULT__","usage":0,"limit":-1},{"name":"port_count","usage":35,"limit":500},{"name":"snapshots","usage":0,"limit":50},{"name":"network_count","usage":1,"limit":100},{"name":"security_group_count","usage":7,"limit":100},{"name":"vcpu","usage":224,"limit":224},{"name":"security_group_rule_count","usage":12,"limit":100},{"name":"gigabytes_prod2","usage":0,"limit":-1}],"default_volume_type_name":"","marketplace_offering_uuid":"4ce883470b7242beb7368becf614d1ec","marketplace_offering_name":"UT
+        HPC (Campus)","marketplace_offering_plugin_options":{"storage_mode":"dynamic","homedir_prefix":"/home/","initial_uidnumber":5000,"initial_usergroup_number":6000,"username_anonymized_prefix":"waldur_","username_generation_policy":"service_provider","initial_primarygroup_number":5000},"marketplace_category_uuid":"06e45986252244218bd062149fc3b5b5","marketplace_category_name":"Private
+        clouds","marketplace_resource_uuid":"a83cbdcae5b24cad968bc14649521876","marketplace_plan_uuid":"c092afb394924d7d86f14bb5d6fb984c","marketplace_resource_state":"OK","is_usage_based":false,"is_limit_based":true}]'
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '12310'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Thu, 04 Sep 2025 18:22:25 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/openstack-tenants/?name_exact=waldur-dev-farm>;
+        rel="first", <http://127.0.0.1:8000/api/openstack-tenants/?name_exact=waldur-dev-farm>;
+        rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '1'
+    status:
+      code: 200
+      message: OK
+version: 1

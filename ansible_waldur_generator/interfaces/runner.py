@@ -172,101 +172,165 @@ class BaseRunner:
         self, method, path, data=None, query_params=None, path_params=None
     ) -> tuple[any, int]:
         """
-        A wrapper around fetch_url to handle API requests robustly.
+        A robust, centralized wrapper around Ansible's `fetch_url` utility to
+        handle all API requests to the Waldur backend.
+
+        This method is the single point of entry for all network communication
+        in any generated module. It is responsible for:
+        1.  **URL Construction:** Correctly building the full request URL from the
+            API base URL, the relative path, and any query or path parameters.
+            It also handles pre-signed absolute URLs.
+        2.  **Authentication:** Injecting the required 'Authorization' header
+            with the user-provided access token into every request.
+        3.  **Payload Handling:** Serializing Python dictionaries into JSON for
+            request bodies.
+        4.  **Robust Error Handling:** Intercepting non-successful HTTP status
+            codes (>= 400), parsing the detailed error message from the API
+            response body, and failing the Ansible module with a clear,
+            structured, and user-friendly error message.
+        5.  **Success Response Parsing:** Parsing the JSON response body for
+            successful requests and handling special cases like '204 No Content'.
+
+        By centralizing this logic, we ensure consistent behavior, authentication,
+        and error reporting across all generated Ansible modules.
+
+        Args:
+            method (str): The HTTP method (e.g., 'GET', 'POST', 'PATCH').
+            path (str): The relative API endpoint path (e.g., '/api/projects/') or a full pre-signed URL.
+            data (dict, optional): The request body payload. Defaults to None.
+            query_params (dict, optional): A dictionary of query parameters. Defaults to None.
+            path_params (dict, optional): Parameters to format into the path for nested endpoints. Defaults to None.
+
+        Returns:
+            A tuple containing the parsed JSON response (or None for '204 No Content')
+            and the integer HTTP status code.
         """
-        # 1. Handle path parameters safely
+        # --- Step 1: URL and Path Parameter Assembly ---
+
+        # If path parameters are provided (e.g., for nested endpoints like '/api/networks/{uuid}/subnets/'),
+        # format them into the path string. This is a critical first step.
         if path_params:
             try:
                 path = path.format(**path_params)
             except KeyError as e:
+                # Fail early if a required placeholder is missing from the provided parameters.
                 self.module.fail_json(
-                    msg=f"Missing required path parameter in API call: {e}"
+                    msg=f"Internal configuration error: Missing required path parameter in API call: {e}"
                 )
-                return
+                return None, 0  # Unreachable
 
-        # 2. Build the final URL, handling both relative paths and absolute URLs.
-        # If the path is already a full URL, use it directly. Otherwise, prepend the api_url.
+        # Determine the final URL. If the path is already a full URL (e.g., from a previous
+        # API response), use it directly. Otherwise, construct it by combining the
+        # base `api_url` with the relative endpoint path.
         if path.startswith("http://") or path.startswith("https://"):
             url = path
         else:
-            url = f"{self.module.params['api_url'].rstrip('/')}/{path.lstrip('/')}"
+            api_url_base = self.module.params["api_url"].rstrip("/")
+            path_relative = path.lstrip("/")
+            url = f"{api_url_base}/{path_relative}"
 
-        # 3. Safely encode and append query parameters
+        # Safely encode and append query parameters to the URL. This handles special
+        # characters and correctly formats list values as repeated parameters (e.g., ?key=v1&key=v2).
         if query_params:
-            # Convert list values to repeated parameters
             encoded_params = []
             for key, value in query_params.items():
                 if isinstance(value, list):
-                    for v in value:
-                        encoded_params.append((key, v))
+                    for v_item in value:
+                        encoded_params.append((key, v_item))
                 else:
                     encoded_params.append((key, value))
             url += "?" + urlencode(encoded_params)
 
-        # Prepare data for the request body
-        # Ansible's fetch_url handles dict->json conversion if headers are correct,
-        # but being explicit is safer.
+        # --- Step 2: Prepare Request Body and Headers ---
+
+        # If a data payload is provided, serialize it to a JSON string. Ansible's `fetch_url`
+        # requires the `data` argument to be a byte string for POST/PUT/PATCH requests.
         if data and not isinstance(data, str):
             data = self.module.jsonify(data)
 
-        # Make the request
+        # Define the standard headers for all API requests.
+        headers = {
+            "Authorization": f"token {self.module.params['access_token']}",
+            "Content-Type": "application/json",
+        }
+
+        # --- Step 3: Execute the API Request ---
+
+        # Call Ansible's built-in `fetch_url` utility to perform the HTTP request.
+        # This is the only place in the codebase that makes a network call.
         response, info = fetch_url(
             self.module,
             url,
-            headers={
-                "Authorization": f"token {self.module.params['access_token']}",
-                "Content-Type": "application/json",
-            },
-            method=method,
             data=data,
-            timeout=30,  # Best practice: always add a timeout
+            headers=headers,
+            method=method,
+            timeout=30,  # A sensible default timeout to prevent hung tasks.
         )
 
-        # Read the response body, if it exists
-        body_content = None
-        if response:
-            body_content = response.read()
+        # --- Step 4: Process the Response ---
 
         status_code = info["status"]
 
-        # 4. Handle failed requests with detailed error messages
-        if status_code not in [200, 201, 202, 204]:
-            error_details = ""
-            if body_content:
+        # Handle non-successful status codes (e.g., 400, 403, 404, 500).
+        if status_code >= 400:
+            # As per the `fetch_url` contract, the error response body is located in `info['body']`.
+            error_body = info.get("body", b"")
+            error_json = None
+            error_details_str = "No detailed error message from API."
+
+            if error_body:
                 try:
-                    # Try to parse the error body for more details
-                    error_json = json.loads(body_content)
-                    error_details = f"API Response: {json.dumps(error_json, indent=2)}"
+                    # Attempt to parse the error body as JSON, as this is the standard
+                    # format for detailed errors from the Waldur API.
+                    error_json = json.loads(error_body)
+                    # Create a pretty-printed string version for the main error message.
+                    error_details_str = (
+                        f"API Response: {json.dumps(error_json, indent=2)}"
+                    )
                 except json.JSONDecodeError:
-                    # The error body was not JSON
-                    error_details = (
-                        f"API Response (raw): {body_content.decode(errors='ignore')}"
+                    # If the body is not JSON, fall back to a raw string representation.
+                    error_details_str = (
+                        f"API Response (raw): {error_body.decode(errors='ignore')}"
                     )
 
-            msg = f"Request to {url} failed. Status: {status_code}. Message: {info['msg']}. {error_details}. Payload: {data}"
-            self.module.fail_json(msg=msg)
-            return (error_details, status_code)
+            # Construct a comprehensive, user-friendly error message.
+            msg = (
+                f"Request to {url} failed. Status: {status_code}. "
+                f"Message: {info['msg']}. {error_details_str}. Payload: {data}"
+            )
 
-        # 5. Handle successful responses
-        # Handle 204 No Content - success with no body
-        if not body_content:
-            # For GET requests, an empty response body should be an empty list,
-            # not None, to prevent TypeErrors in callers. For other methods,
-            # None is appropriate for "No Content" responses.
-            # For GET, return empty list; for others, return None.
+            # Fail the Ansible module, providing both the comprehensive message and the
+            # structured JSON error for easier parsing and debugging in playbooks.
+            self.module.fail_json(msg=msg, api_error=error_json)
+            return error_json, status_code  # Unreachable
+
+        # Handle successful responses.
+        body_content = None
+        if response:
+            # For successful requests, the response body is a file-like object
+            # that must be read.
+            body_content = response.read()
+
+        # Handle '204 No Content' - a successful request with an intentionally empty body.
+        if status_code == 204 or not body_content:
+            # For GET requests, an empty response should be an empty list to prevent
+            # TypeErrors in the calling code. For other methods (POST, PATCH),
+            # None is the correct representation of "No Content".
             body = [] if method == "GET" else None
             return body, status_code
 
-        # Try to parse the successful response as JSON
+        # Attempt to parse the successful response body as JSON.
         try:
             return json.loads(body_content), status_code
         except json.JSONDecodeError:
-            # The server returned a 2xx status but the body was not valid JSON
+            # This is an exceptional case: the API returned a success status (2xx)
+            # but the response body was not valid JSON, indicating a potential API bug
+            # or proxy issue.
             self.module.fail_json(
-                msg=f"API returned a success status ({info['status']}) but the response was not valid JSON.",
+                msg=f"API returned a success status ({status_code}) but the response was not valid JSON.",
                 response_body=body_content.decode(errors="ignore"),
             )
-            return
+            return None, status_code  # Unreachable
 
     def _is_uuid(self, val):
         """

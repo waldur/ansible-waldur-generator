@@ -1,0 +1,93 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/openstack-networks/?name_exact=waldur-dev-farm-int-net
+  response:
+    body:
+      string: '[{"url":"http://127.0.0.1:8000/api/openstack-networks/24a91363451349a2b78b2c48bb09e80a/","uuid":"24a91363451349a2b78b2c48bb09e80a","name":"waldur-dev-farm-int-net","description":"","service_name":"UT
+        HPC (Campus)","service_settings":"http://127.0.0.1:8000/api/service-settings/58978795d079495b83bc4a5a8b87f2fc/","service_settings_uuid":"58978795d079495b83bc4a5a8b87f2fc","service_settings_state":"OK","service_settings_error_message":"","project":"http://127.0.0.1:8000/api/projects/5d3016240ccf4181b4cdc0baa0e41d5c/","project_name":"Self-Service
+        dev infrastructure","project_uuid":"5d3016240ccf4181b4cdc0baa0e41d5c","customer":"http://127.0.0.1:8000/api/customers/bad9fcc9071e49a0aeb919c1523e7def/","customer_name":"ETAIS
+        Self-Service testing","customer_native_name":"","customer_abbreviation":"","error_message":"","error_traceback":"","resource_type":"OpenStack.Network","state":"OK","created":"2021-06-28T14:27:12.620425+00:00","modified":"2021-06-28T14:28:13.782844+00:00","backend_id":"03997c55-ef37-4a71-b3f6-15d3b502bfce","access_url":null,"tenant":"http://127.0.0.1:8000/api/openstack-tenants/9d80c96ced07443e99a1c810a1d41ba9/","tenant_name":"waldur-dev-farm","tenant_uuid":"9d80c96ced07443e99a1c810a1d41ba9","is_external":false,"type":"vxlan","segmentation_id":1127,"subnets":[{"uuid":"0a627224c2aa4af4a8c402ab92312ae5","name":"waldur-dev-farm-sub-net","description":"","cidr":"192.168.42.0/24","gateway_ip":"192.168.42.1","allocation_pools":[{"start":"192.168.42.10","end":"192.168.42.200"}],"ip_version":4,"enable_dhcp":true}],"mtu":1500,"rbac_policies":[],"marketplace_offering_uuid":null,"marketplace_offering_name":null,"marketplace_offering_plugin_options":null,"marketplace_category_uuid":null,"marketplace_category_name":null,"marketplace_resource_uuid":null,"marketplace_plan_uuid":null,"marketplace_resource_state":null,"is_usage_based":null,"is_limit_based":null}]'
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '1885'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Thu, 04 Sep 2025 18:13:47 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/openstack-networks/?name_exact=waldur-dev-farm-int-net>;
+        rel="first", <http://127.0.0.1:8000/api/openstack-networks/?name_exact=waldur-dev-farm-int-net>;
+        rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/openstack-network-rbac-policies/?name_exact=E2E-VCR-Test-Policy&network_uuid=24a91363451349a2b78b2c48bb09e80a
+  response:
+    body:
+      string: '[]'
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '2'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Thu, 04 Sep 2025 18:13:47 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/openstack-network-rbac-policies/?name_exact=E2E-VCR-Test-Policy&network_uuid=24a91363451349a2b78b2c48bb09e80a>;
+        rel="first", <http://127.0.0.1:8000/api/openstack-network-rbac-policies/?name_exact=E2E-VCR-Test-Policy&network_uuid=24a91363451349a2b78b2c48bb09e80a>;
+        rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '0'
+    status:
+      code: 200
+      message: OK
+version: 1

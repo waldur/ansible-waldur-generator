@@ -1,0 +1,226 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/openstack-networks/?name_exact=waldur-dev-farm-int-net
+  response:
+    body:
+      string: '[{"url":"http://127.0.0.1:8000/api/openstack-networks/24a91363451349a2b78b2c48bb09e80a/","uuid":"24a91363451349a2b78b2c48bb09e80a","name":"waldur-dev-farm-int-net","description":"","service_name":"UT
+        HPC (Campus)","service_settings":"http://127.0.0.1:8000/api/service-settings/58978795d079495b83bc4a5a8b87f2fc/","service_settings_uuid":"58978795d079495b83bc4a5a8b87f2fc","service_settings_state":"OK","service_settings_error_message":"","project":"http://127.0.0.1:8000/api/projects/5d3016240ccf4181b4cdc0baa0e41d5c/","project_name":"Self-Service
+        dev infrastructure","project_uuid":"5d3016240ccf4181b4cdc0baa0e41d5c","customer":"http://127.0.0.1:8000/api/customers/bad9fcc9071e49a0aeb919c1523e7def/","customer_name":"ETAIS
+        Self-Service testing","customer_native_name":"","customer_abbreviation":"","error_message":"","error_traceback":"","resource_type":"OpenStack.Network","state":"OK","created":"2021-06-28T14:27:12.620425+00:00","modified":"2021-06-28T14:28:13.782844+00:00","backend_id":"03997c55-ef37-4a71-b3f6-15d3b502bfce","access_url":null,"tenant":"http://127.0.0.1:8000/api/openstack-tenants/9d80c96ced07443e99a1c810a1d41ba9/","tenant_name":"waldur-dev-farm","tenant_uuid":"9d80c96ced07443e99a1c810a1d41ba9","is_external":false,"type":"vxlan","segmentation_id":1127,"subnets":[{"uuid":"0a627224c2aa4af4a8c402ab92312ae5","name":"waldur-dev-farm-sub-net","description":"","cidr":"192.168.42.0/24","gateway_ip":"192.168.42.1","allocation_pools":[{"start":"192.168.42.10","end":"192.168.42.200"}],"ip_version":4,"enable_dhcp":true}],"mtu":1500,"rbac_policies":[],"marketplace_offering_uuid":null,"marketplace_offering_name":null,"marketplace_offering_plugin_options":null,"marketplace_category_uuid":null,"marketplace_category_name":null,"marketplace_resource_uuid":null,"marketplace_plan_uuid":null,"marketplace_resource_state":null,"is_usage_based":null,"is_limit_based":null}]'
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '1885'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Thu, 04 Sep 2025 18:13:46 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/openstack-networks/?name_exact=waldur-dev-farm-int-net>;
+        rel="first", <http://127.0.0.1:8000/api/openstack-networks/?name_exact=waldur-dev-farm-int-net>;
+        rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/openstack-network-rbac-policies/?name_exact=E2E-VCR-Test-Policy&network_uuid=24a91363451349a2b78b2c48bb09e80a
+  response:
+    body:
+      string: '[]'
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '2'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Thu, 04 Sep 2025 18:13:47 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/openstack-network-rbac-policies/?name_exact=E2E-VCR-Test-Policy&network_uuid=24a91363451349a2b78b2c48bb09e80a>;
+        rel="first", <http://127.0.0.1:8000/api/openstack-network-rbac-policies/?name_exact=E2E-VCR-Test-Policy&network_uuid=24a91363451349a2b78b2c48bb09e80a>;
+        rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/openstack-tenants/?name_exact=91809
+  response:
+    body:
+      string: '[{"url":"http://127.0.0.1:8000/api/openstack-tenants/05e5dc3d75c74b969bbd794f6f8ce1c2/","uuid":"05e5dc3d75c74b969bbd794f6f8ce1c2","name":"91809","description":"","service_name":"UT
+        HPC (Campus)","service_settings":"http://127.0.0.1:8000/api/service-settings/58978795d079495b83bc4a5a8b87f2fc/","service_settings_uuid":"58978795d079495b83bc4a5a8b87f2fc","service_settings_state":"OK","service_settings_error_message":"","project":"http://127.0.0.1:8000/api/projects/692b1720611346ca80bdc2f83c331137/","project_name":"91809","project_uuid":"692b1720611346ca80bdc2f83c331137","customer":"http://127.0.0.1:8000/api/customers/1ea9c174995346b5bbdcb649aa9f789c/","customer_name":"UT-DevOpsCourse","customer_native_name":"","customer_abbreviation":"","error_message":"","error_traceback":"","resource_type":"OpenStack.Tenant","state":"OK","created":"2024-09-06T15:02:50.149846+00:00","modified":"2024-09-09T21:16:53.141487+00:00","backend_id":"9a7cdd8673044619a5c9d892e93fa7a6","availability_zone":"","internal_network_id":"fa4099b9-c9e2-4958-b2bc-801e26b56492","external_network_id":"e0c1110b-96d6-4c45-9b8e-2d33bf11259f","quotas":[{"name":"gigabytes_prod3","usage":0,"limit":-1},{"name":"instances","usage":0,"limit":10},{"name":"floating_ip_count","usage":0,"limit":50},{"name":"storage","usage":0,"limit":51200},{"name":"gigabytes_rbd","usage":0,"limit":-1},{"name":"gigabytes___DEFAULT__","usage":0,"limit":-1},{"name":"port_count","usage":3,"limit":500},{"name":"subnet_count","usage":1,"limit":100},{"name":"ram","usage":0,"limit":20480},{"name":"snapshots","usage":0,"limit":10},{"name":"gigabytes_prod","usage":0,"limit":-1},{"name":"network_count","usage":1,"limit":100},{"name":"security_group_count","usage":5,"limit":20},{"name":"gigabytes_prod2","usage":0,"limit":-1},{"name":"vcpu","usage":0,"limit":10},{"name":"gigabytes_gpfs","usage":0,"limit":-1},{"name":"security_group_rule_count","usage":9,"limit":100},{"name":"volumes","usage":0,"limit":10}],"default_volume_type_name":"","marketplace_offering_uuid":"4ce883470b7242beb7368becf614d1ec","marketplace_offering_name":"UT
+        HPC (Campus)","marketplace_offering_plugin_options":{"storage_mode":"dynamic","homedir_prefix":"/home/","initial_uidnumber":5000,"initial_usergroup_number":6000,"username_anonymized_prefix":"waldur_","username_generation_policy":"service_provider","initial_primarygroup_number":5000},"marketplace_category_uuid":"06e45986252244218bd062149fc3b5b5","marketplace_category_name":"Private
+        clouds","marketplace_resource_uuid":"b3eb6f7256594662abb3aeff3a67eaaf","marketplace_plan_uuid":"c092afb394924d7d86f14bb5d6fb984c","marketplace_resource_state":"OK","is_usage_based":false,"is_limit_based":true}]'
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '2676'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Thu, 04 Sep 2025 18:13:47 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/openstack-tenants/?name_exact=91809>; rel="first",
+        <http://127.0.0.1:8000/api/openstack-tenants/?name_exact=91809>; rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/openstack-networks/?name_exact=waldur-dev-farm-int-net
+  response:
+    body:
+      string: '[{"url":"http://127.0.0.1:8000/api/openstack-networks/24a91363451349a2b78b2c48bb09e80a/","uuid":"24a91363451349a2b78b2c48bb09e80a","name":"waldur-dev-farm-int-net","description":"","service_name":"UT
+        HPC (Campus)","service_settings":"http://127.0.0.1:8000/api/service-settings/58978795d079495b83bc4a5a8b87f2fc/","service_settings_uuid":"58978795d079495b83bc4a5a8b87f2fc","service_settings_state":"OK","service_settings_error_message":"","project":"http://127.0.0.1:8000/api/projects/5d3016240ccf4181b4cdc0baa0e41d5c/","project_name":"Self-Service
+        dev infrastructure","project_uuid":"5d3016240ccf4181b4cdc0baa0e41d5c","customer":"http://127.0.0.1:8000/api/customers/bad9fcc9071e49a0aeb919c1523e7def/","customer_name":"ETAIS
+        Self-Service testing","customer_native_name":"","customer_abbreviation":"","error_message":"","error_traceback":"","resource_type":"OpenStack.Network","state":"OK","created":"2021-06-28T14:27:12.620425+00:00","modified":"2021-06-28T14:28:13.782844+00:00","backend_id":"03997c55-ef37-4a71-b3f6-15d3b502bfce","access_url":null,"tenant":"http://127.0.0.1:8000/api/openstack-tenants/9d80c96ced07443e99a1c810a1d41ba9/","tenant_name":"waldur-dev-farm","tenant_uuid":"9d80c96ced07443e99a1c810a1d41ba9","is_external":false,"type":"vxlan","segmentation_id":1127,"subnets":[{"uuid":"0a627224c2aa4af4a8c402ab92312ae5","name":"waldur-dev-farm-sub-net","description":"","cidr":"192.168.42.0/24","gateway_ip":"192.168.42.1","allocation_pools":[{"start":"192.168.42.10","end":"192.168.42.200"}],"ip_version":4,"enable_dhcp":true}],"mtu":1500,"rbac_policies":[],"marketplace_offering_uuid":null,"marketplace_offering_name":null,"marketplace_offering_plugin_options":null,"marketplace_category_uuid":null,"marketplace_category_name":null,"marketplace_resource_uuid":null,"marketplace_plan_uuid":null,"marketplace_resource_state":null,"is_usage_based":null,"is_limit_based":null}]'
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '1885'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Thu, 04 Sep 2025 18:13:47 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/openstack-networks/?name_exact=waldur-dev-farm-int-net>;
+        rel="first", <http://127.0.0.1:8000/api/openstack-networks/?name_exact=waldur-dev-farm-int-net>;
+        rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"policy_type": "access_as_shared", "target_tenant": "http://127.0.0.1:8000/api/openstack-tenants/05e5dc3d75c74b969bbd794f6f8ce1c2/"}'
+    headers:
+      Connection:
+      - close
+      Content-Length:
+      - '133'
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: POST
+    uri: http://127.0.0.1:8000/api/openstack-networks/24a91363451349a2b78b2c48bb09e80a/rbac_policy_create/
+  response:
+    body:
+      string: '{"url":"http://127.0.0.1:8000/api/openstack-network-rbac-policies/0f6f6e8a8a304613a011f39da706bd36/","uuid":"0f6f6e8a8a304613a011f39da706bd36","network":"http://127.0.0.1:8000/api/openstack-networks/24a91363451349a2b78b2c48bb09e80a/","network_name":"waldur-dev-farm-int-net","target_tenant":"http://127.0.0.1:8000/api/openstack-tenants/05e5dc3d75c74b969bbd794f6f8ce1c2/","target_tenant_name":"91809","backend_id":"ea50ef36-8eec-4218-bd1e-6dbf18c4803d","policy_type":"access_as_shared","created":"2025-09-04T18:13:47.258982+00:00"}'
+    headers:
+      Allow:
+      - POST, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '530'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Thu, 04 Sep 2025 18:13:47 GMT
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+    status:
+      code: 201
+      message: Created
+version: 1

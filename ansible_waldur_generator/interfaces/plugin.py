@@ -511,6 +511,17 @@ class BasePlugin(ABC):
                             choices.extend(target_schema["enum"])
                     except (ValueError, KeyError):
                         pass  # Suppress errors if a ref can't be resolved
+        # Handle 'allOf' for schema composition, which is common for enums with defaults.
+        elif "allOf" in prop_schema:
+            for sub_schema in prop_schema["allOf"]:
+                if "$ref" in sub_schema:
+                    try:
+                        target_schema = api_parser.get_schema_by_ref(sub_schema["$ref"])
+                        if "enum" in target_schema:
+                            choices.extend(target_schema["enum"])
+                    except (ValueError, KeyError):
+                        pass
+
         return [c for c in choices if c is not None] or None
 
     def _build_update_actions_context(

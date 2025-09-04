@@ -126,16 +126,41 @@ class CrudRunner(BaseRunner):
         Returns:
             A list containing one `DeleteCommand` object.
         """
-        # The plan is simple: a single command to delete the resource by its UUID.
-        # We pass the current `self.resource` object to the command so it can be
-        # used to generate an accurate "before" state in the diff.
+        # --- Step 1: Resolve Path Parameters for Simple or Nested Endpoints ---
+        path_params = {}
+        destroy_path_maps = self.context.get("path_param_maps", {}).get("destroy", {})
+
+        if not destroy_path_maps:
+            # Fallback to original simple logic for single-parameter paths.
+            path_params = {"uuid": self.resource["uuid"]}
+        else:
+            # New, flexible logic for multi-parameter paths.
+            for path_key, ansible_param_name in destroy_path_maps.items():
+                # If the Ansible parameter is 'name', it refers to the primary resource itself.
+                # Its value in the path should be the resource's UUID, which we found during the existence check.
+                if ansible_param_name == "name":
+                    path_params[path_key] = self.resource["uuid"]
+                else:
+                    # Otherwise, it's a parent/context resource that must be resolved.
+                    parent_identifier = self.module.params.get(ansible_param_name)
+                    if parent_identifier is None:
+                        self.module.fail_json(
+                            msg=f"Parameter '{ansible_param_name}' is required for deletion."
+                        )
+
+                    resolved_url = self.resolver.resolve_to_url(
+                        ansible_param_name, parent_identifier
+                    )
+                    path_params[path_key] = resolved_url.strip("/").split("/")[-1]
+
+        # --- Step 2: Return the Final Command ---
         return [
             Command(
                 self,
                 method="DELETE",
                 path=self.context["destroy_path"],
                 command_type="delete",
-                path_params={"uuid": self.resource["uuid"]},
+                path_params=path_params,
                 description=f"Delete {self.context['resource_type']} '{self.resource.get('name', self.resource.get('uuid'))}'",
             )
         ]

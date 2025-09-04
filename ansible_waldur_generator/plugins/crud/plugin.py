@@ -162,16 +162,18 @@ class CrudPlugin(BasePlugin):
             "required": True,
         }
 
-        # 2. Add parameters required for nested API paths (e.g., the parent resource 'tenant').
-        # This is derived from the 'path_param_maps' configuration.
-        create_path_maps = conf.path_param_maps.get("create", {})
-        for _, ansible_param in create_path_maps.items():
+        # 2. Add parameters required for nested API paths from ALL operations.
+        all_path_params = set()
+        for op_params in conf.path_param_maps.values():
+            all_path_params.update(op_params.values())
+
+        for ansible_param in all_path_params:
             if ansible_param not in params:
                 params[ansible_param] = {
                     "name": ansible_param,
                     "type": "str",
-                    "required": True,  # Path parameters are always required for creation.
-                    "description": f"The parent {ansible_param} name or UUID for creating the resource.",
+                    "required": True,  # Path parameters are always required for the operations they map to.
+                    "description": f"The parent {ansible_param} name or UUID.",
                 }
 
         # 3. Add any context parameters used for filtering the existence check.
@@ -195,8 +197,20 @@ class CrudPlugin(BasePlugin):
                 if prop.get("readOnly", False) or name in params:
                     continue
 
+                # Resolve the property schema if it's a reference. This is crucial
+                # for correctly finding enums, descriptions, and types that are
+                # defined in separate, reusable schema components.
+                resolved_prop = prop
+                if "$ref" in prop:
+                    try:
+                        resolved_prop = api_parser.get_schema_by_ref(prop["$ref"])
+                    except ValueError:
+                        # If the reference is invalid, we proceed with the original
+                        # property, but it will likely lack details. This prevents a crash.
+                        pass
+
                 is_resolved = name in conf.resolvers
-                description = prop.get(
+                description = resolved_prop.get(
                     "description", capitalize_first(name.replace("_", " "))
                 )
 
@@ -204,12 +218,12 @@ class CrudPlugin(BasePlugin):
                 if is_resolved:
                     description = f"The name or UUID of the {name}. {description}"
 
-                choices = self._extract_choices_from_prop(prop, api_parser)
+                choices = self._extract_choices_from_prop(resolved_prop, api_parser)
 
                 params[name] = {
                     "name": name,
                     "type": OPENAPI_TO_ANSIBLE_TYPE_MAP.get(
-                        prop.get("type", "string"), "str"
+                        resolved_prop.get("type", "string"), "str"
                     ),
                     "required": name in required_fields,
                     "description": description.strip(),
@@ -272,93 +286,135 @@ class CrudPlugin(BasePlugin):
         module_key: str,
         raw_config: Dict[str, Any],
         api_parser: ApiSpecParser,
-    ):
+    ) -> CrudModuleConfig:
+        """
+        Parses the raw dictionary configuration for a single 'crud' module into a
+        structured, validated, and enriched `CrudModuleConfig` object.
+
+        This is the most critical method in the plugin, as it acts as the bridge
+        between the user's YAML configuration and the structured data the generator
+        needs. It is designed to be both flexible and intelligent, supporting
+        multiple configuration styles:
+
+        1.  **Inference (most concise):** If a `base_operation_id` is provided,
+            the method will infer the standard `_list`, `_create`, `_destroy`, and
+            `_partial_update` operations by convention. It will also infer updatable
+            fields from the update operation's schema.
+
+        2.  **Shorthand (explicit but simple):** Users can provide just the
+            `operationId` string for each lifecycle stage (e.g., `create: "my_custom_create"`).
+
+        3.  **Structured (most powerful):** Users can provide a dictionary for an
+            operation to configure advanced features like `path_params` for nested
+            endpoints, or `fields` and `actions` for complex updates.
+
+        The method processes the configuration in a clear order of precedence
+        (structured > shorthand > inference) and progressively builds up the
+        `raw_config` dictionary before finally validating it with the Pydantic model.
+
+        Args:
+            module_key: The name of the module being generated (e.g., 'project').
+            raw_config: The raw dictionary for one module from `generator_config.yaml`.
+            api_parser: The shared `ApiSpecParser` instance for resolving API operations.
+
+        Returns:
+            A validated and fully populated `CrudModuleConfig` instance.
+
+        Raises:
+            ValueError: If a required operation cannot be found or inferred, or if
+                        the configuration is otherwise invalid.
+        """
+        # --- Step 1: Initialization ---
+        # Extract the base_operation_id, which is the cornerstone of inference.
         base_id = raw_config.get("base_operation_id")
+        # Get the user-defined 'operations' block from the config.
         operations_config = raw_config.get("operations", {})
+        # This dictionary will store path parameter mappings for all operations.
         path_param_maps = {}
 
-        # --- Step 1: Parse mandatory and simply-inferred operations ---
-        op_map = {
-            "check": ("check_operation", "_list"),
-            "create": ("create_operation", "_create"),
-            "delete": ("destroy_operation", "_destroy"),
+        # Define a map that governs the parsing loop. It connects the keys from the
+        # user's config ('check', 'create', etc.) to the field names in our Pydantic
+        # model ('check_operation', 'create_operation') and the conventional suffixes
+        # used for inference. For 'update', we define a priority order for suffixes.
+        op_keys_map = {
+            "check": ("check_operation", ["_list"]),
+            "create": ("create_operation", ["_create"]),
+            "destroy": ("destroy_operation", ["_destroy"]),
+            "update": ("update_operation", ["_partial_update", "_update"]),
         }
 
-        for op_key, (field_name, op_suffix) in op_map.items():
-            op_conf = operations_config.get(op_key, None)
+        # --- Step 2: Main Operation Parsing Loop ---
+        # This loop iterates through each lifecycle stage (check, create, etc.) and
+        # determines the correct ApiOperation object for it based on the user's config.
+        for op_key, (field_name, suffixes) in op_keys_map.items():
+            op_conf = operations_config.get(op_key)
+            # Allow users to explicitly disable an operation (e.g., a read-only resource).
             if op_conf is False:
                 continue
+
             op_id = None
-            if isinstance(op_conf, (str, dict)):
-                op_id = op_conf if isinstance(op_conf, str) else op_conf.get("id")
-                if isinstance(op_conf, dict) and "path_params" in op_conf:
+            # Case 1: Structured Configuration (dict). This is the most powerful format.
+            if isinstance(op_conf, dict):
+                op_id = op_conf.get("id")
+                # If path_params are defined for this operation, store them.
+                if "path_params" in op_conf:
                     path_param_maps[op_key] = op_conf["path_params"]
-            elif op_conf is not False:
-                if not base_id:
-                    raise ValueError(
-                        f"Cannot infer '{op_key}' without `base_operation_id`."
-                    )
-                op_id = f"{base_id}{op_suffix}"
+            # Case 2: Shorthand Configuration (string). A simple, direct mapping.
+            elif isinstance(op_conf, str):
+                op_id = op_conf
+            # Case 3: Inference. If no config is provided, try to infer the operationId.
+            elif base_id:
+                for suffix in suffixes:
+                    potential_id = f"{base_id}{suffix}"
+                    # We query the ApiSpecParser to see if this inferred ID actually exists.
+                    if api_parser.get_operation(potential_id):
+                        op_id = potential_id
+                        break  # Stop after finding the first valid match.
+
+            # If an operation ID was found (by any method), resolve it into a full
+            # ApiOperation object and add it to our raw_config for Pydantic validation.
             if op_id:
                 raw_config[field_name] = api_parser.get_operation(op_id)
 
-        # --- Step 2: Handle the 'update' operation with standardized inference ---
-        update_op_conf = operations_config.get("update")
-        if update_op_conf is not False:
-            update_op_id = None
-            # Priority 1: Explicit ID from user config
-            if isinstance(update_op_conf, str):
-                update_op_id = update_op_conf
-            elif isinstance(update_op_conf, dict):
-                update_op_id = update_op_conf.get("id")
-
-            # Priority 2: Infer with standard suffixes
-            if not update_op_id and base_id:
-                # Try '_partial_update' first, as it's the preferred method for PATCH.
-                potential_id = f"{base_id}_partial_update"
-                if api_parser.get_operation(potential_id):
-                    update_op_id = potential_id
-                else:
-                    # Fall back to '_update'.
-                    potential_id = f"{base_id}_update"
-                    if api_parser.get_operation(potential_id):
-                        update_op_id = potential_id
-
-            if update_op_id:
-                update_operation = api_parser.get_operation(update_op_id)
-                if update_operation:
-                    raw_config["update_operation"] = update_operation
-
-                    # Handle fields: explicit config takes precedence over inference
-                    update_fields = None
-                    if isinstance(update_op_conf, dict):
-                        update_fields = update_op_conf.get("fields")
-
-                    if update_fields is None and update_operation.model_schema:
-                        schema = update_operation.model_schema
-                        update_fields = [
-                            name
-                            for name, prop in schema.get("properties", {}).items()
-                            if not prop.get("readOnly", False)
-                        ]
-
-                    if update_fields:
-                        raw_config.setdefault("update_config", {})["fields"] = (
-                            update_fields
-                        )
-
-                    # Handle actions and path_params from dict config
-                    if isinstance(update_op_conf, dict):
-                        if "actions" in update_op_conf:
-                            raw_config.setdefault("update_config", {})["actions"] = (
-                                update_op_conf["actions"]
-                            )
-                        if "path_params" in update_op_conf:
-                            path_param_maps["update"] = update_op_conf["path_params"]
-
+        # Store the collected path parameter mappings.
         raw_config["path_param_maps"] = path_param_maps
 
-        # Post-process actions within update_config
+        # --- Step 3: Handle `update_config` (Fields and Actions) ---
+        # This section handles the complex logic for updates, including inference of
+        # updatable fields, which is a key convenience feature.
+        update_op_conf = operations_config.get("update")
+        update_operation = raw_config.get("update_operation")
+        update_config = raw_config.setdefault("update_config", {})
+
+        # If the user provided a structured config for 'update', extract the
+        # explicit 'fields' and 'actions' from it.
+        if isinstance(update_op_conf, dict):
+            if "fields" in update_op_conf:
+                update_config["fields"] = update_op_conf["fields"]
+            if "actions" in update_op_conf:
+                update_config["actions"] = update_op_conf["actions"]
+
+        # **CRITICAL**: Infer updatable fields if they were not explicitly defined.
+        # This is a major usability feature.
+        if "fields" not in update_config and update_operation:
+            # We can only infer fields if the update operation has a request body schema.
+            if update_operation.model_schema:
+                schema = update_operation.model_schema
+                # The updatable fields are all properties in the schema that are NOT read-only.
+                inferred_fields = [
+                    name
+                    for name, prop in schema.get("properties", {}).items()
+                    if not prop.get("readOnly", False)
+                ]
+                if inferred_fields:
+                    update_config["fields"] = inferred_fields
+
+        # If the update_config block is still empty after all parsing and inference,
+        # remove it from the raw_config to keep the final model clean.
+        if not update_config:
+            raw_config.pop("update_config")
+
+        # Post-process any 'actions' by resolving their operationId strings into objects.
         update_config_raw = raw_config.get("update_config", {})
         if "actions" in update_config_raw:
             for _, action_conf in update_config_raw["actions"].items():
@@ -366,16 +422,18 @@ class CrudPlugin(BasePlugin):
                     action_conf["operation"]
                 )
 
-        # Parse resolver operationIds as well.
+        # --- Step 4: Parse Resolvers ---
+        # Process the 'resolvers' block, expanding shorthand where necessary.
         for name, resolver_conf in raw_config.get("resolvers", {}).items():
+            # Support shorthand `resolver: "customers"`
             if isinstance(resolver_conf, str):
-                # Expand shorthand
                 raw_config["resolvers"][name] = {
                     "list": f"{resolver_conf}_list",
                     "retrieve": f"{resolver_conf}_retrieve",
                 }
-            # Re-fetch the (potentially new) conf
+            # Re-fetch the config, which may have just been expanded.
             current_resolver_conf = raw_config["resolvers"][name]
+            # Resolve the operation IDs into full ApiOperation objects.
             current_resolver_conf["list_operation"] = api_parser.get_operation(
                 current_resolver_conf["list"]
             )
@@ -383,19 +441,24 @@ class CrudPlugin(BasePlugin):
                 current_resolver_conf["retrieve"]
             )
 
+        # --- Step 5: Final Validation and Instantiation ---
+        # At this point, `raw_config` is fully populated with enriched data.
+        # We pass it to the Pydantic model for final validation and type coercion.
         module_config = CrudModuleConfig(**raw_config)
 
-        # Operation validation after parsing
+        # Perform critical post-validation checks to prevent generating a broken module.
         if not module_config.check_operation:
             raise ValueError(f"Module '{module_key}' must have a 'check' operation.")
         if not module_config.create_operation:
             raise ValueError(f"Module '{module_key}' must have a 'create' operation.")
 
-        # Perform build-time validation of context parameter filter keys.
+        # Validate that any `context_params` are configured correctly against the
+        # OpenAPI spec for the `check_operation`.
         self._validate_context_params(
             module_key=module_key,
             context_params=module_config.context_params,
             target_operation=module_config.check_operation,
             api_parser=api_parser,
         )
+
         return module_config
