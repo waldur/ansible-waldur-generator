@@ -45,15 +45,19 @@ class ActionsPlugin(BasePlugin):
                 f"Could not infer list/retrieve operations for base '{base_id}' in module '{module_key}'."
             )
 
-        # Parse the 'actions' dictionary, resolving each operationId.
+        # Parse the 'actions' list, inferring the operationId for each action.
         parsed_actions = {}
-        for action_name, action_op_id in raw_config.get("actions", {}).items():
+        # The raw config is expected to have a list of strings for actions.
+        for action_name in raw_config.get("actions", []):
+            # Infer the operation ID by convention: base_id + _ + action_name
+            action_op_id = f"{base_id}_{action_name}"
             operation = api_parser.get_operation(action_op_id)
             if not operation:
                 raise ValueError(
-                    f"In module '{module_key}', could not find operation with id '{action_op_id}' for action '{action_name}'."
+                    f"In module '{module_key}', could not find operation with inferred id '{action_op_id}' for action '{action_name}'."
                 )
             parsed_actions[action_name] = operation
+        # Replace the list in raw_config with the parsed dictionary before validation.
         raw_config["actions"] = parsed_actions
 
         # Validate the configuration using the Pydantic model.

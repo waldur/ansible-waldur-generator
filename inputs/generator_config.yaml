@@ -1,9 +1,18 @@
 definitions:
-
   wait_config: &default_wait_config
     ok_states: ["OK"]
     erred_states: ["ERRED"]
     state_field: "state"
+
+  project_customer_context_params: &project_customer_context_params
+    - name: "project"
+      description: "The name or UUID of the project to filter resources by."
+      resolver: "projects"
+      filter_key: "project_uuid"
+    - name: "customer"
+      description: "The name or UUID of the customer to filter resources by."
+      resolver: "customers"
+      filter_key: "customer_uuid"
 
   base_openstack_context_params: &base_openstack_context_params
     - name: "project"
@@ -92,15 +101,7 @@ collections:
       - name: vpc_facts
         plugin: facts
         base_operation_id: "openstack_tenants"
-        context_params:
-        - name: "project"
-          description: "The name or UUID of the project to filter resources by."
-          resolver: "projects"
-          filter_key: "project_uuid"
-        - name: "customer"
-          description: "The name or UUID of the customer to filter resources by."
-          resolver: "customers"
-          filter_key: "customer_uuid"
+        context_params: *project_customer_context_params
 
       - name: volume_facts
         plugin: facts
@@ -142,7 +143,7 @@ collections:
         offering_type: OpenStack.Volume
         base_operation_id: "openstack_volumes"
         transformations:
-          size: 'gb_to_mb'
+          size: "gb_to_mb"
         resolvers:
           type: *volume_type_resolver
           image: *image_resolver
@@ -155,8 +156,8 @@ collections:
         offering_type: OpenStack.Instance
         base_operation_id: "openstack_instances"
         transformations:
-          data_volume_size: 'gb_to_mb'
-          system_volume_size: 'gb_to_mb'
+          data_volume_size: "gb_to_mb"
+          system_volume_size: "gb_to_mb"
         operations:
           update:
             actions:
@@ -310,7 +311,7 @@ collections:
           connect: "openstack_subnets_connect"
           disconnect: "openstack_subnets_disconnect"
           pull: "openstack_subnets_pull"
-          unlink: "openstack_subnets_pull"
+          unlink: "openstack_subnets_unlink"
 
         wait_config: *default_wait_config
         context_params: *base_openstack_context_params
@@ -324,7 +325,7 @@ collections:
 
         actions:
           pull: "openstack_networks_pull"
-          unlink: "openstack_networks_pull"
+          unlink: "openstack_networks_unlink"
 
         wait_config: *default_wait_config
         context_params: *base_openstack_context_params
@@ -341,7 +342,21 @@ collections:
           stop: "openstack_instances_stop"
           restart: "openstack_instances_restart"
           pull: "openstack_instances_pull"
-          unlink: "openstack_instances_pull"
+          unlink: "openstack_instances_unlink"
 
         wait_config: *default_wait_config
         context_params: *base_openstack_context_params
+
+      - name: vpc_action
+        plugin: actions
+        resource_type: "OpenStack tenant"
+        description: "Perform actions on OpenStack tenant."
+
+        base_operation_id: "openstack_tenants"
+
+        actions:
+          pull: "openstack_tenants_pull"
+          unlink: "openstack_tenants_unlink"
+
+        wait_config: *default_wait_config
+        context_params: *project_customer_context_params
