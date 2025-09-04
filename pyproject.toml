@@ -36,6 +36,7 @@ build-backend = "poetry.core.masonry.api"
 "crud" = "ansible_waldur_generator.plugins.crud.plugin:CrudPlugin"
 "facts" = "ansible_waldur_generator.plugins.facts.plugin:FactsPlugin"
 "order" = "ansible_waldur_generator.plugins.order.plugin:OrderPlugin"
+"actions" = "ansible_waldur_generator.plugins.actions.plugin:ActionsPlugin"
 
 [tool.pytest.ini_options]
 pythonpath = [
