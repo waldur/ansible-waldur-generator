@@ -617,16 +617,15 @@ class BaseRunner:
         2.  **Resolve Desired State**: For each action, take the user's input (which can
             be a complex structure of names and UUIDs) and use the `ParameterResolver`
             to convert it into the precise data structure the API endpoint expects.
-        3.  **Key Mapping & Normalization**: Use the `key_map` from the generator to
-            normalize the desired state, ensuring input keys (e.g., `subnet`) are
-            compared against the correct output keys (e.g., `subnet_name`). It then
-            uses `_normalize_for_comparison` to create a canonical, order-insensitive
-            representation for a robust check.
+        3.  **Normalize for Comparison**: Convert both the newly resolved desired state
+            and the current state from the resource into a canonical, order-insensitive
+            format using the `_normalize_for_comparison` helper. This is the cornerstone
+            of robustly comparing complex data like lists of objects.
         4.  **Detect Change**: Compare the two normalized representations. If they differ,
             a change is required.
         5.  **Command Generation**: For each detected change, instantiate a distinct
             `ActionCommand`. This command encapsulates the specific API path for the
-            action, the resolved payload for the API call, and other metadata.
+            action, the resolved payload, and the old/new values for a precise diff.
 
         Returns:
             A list of `ActionCommand` objects, or an empty list if no actions need to be
@@ -653,26 +652,27 @@ class BaseRunner:
             param_value = self.module.params.get(param_name)
 
             # An action is only planned if the user has provided its corresponding parameter.
+            # If the parameter is `None`, we skip this action entirely.
             if param_value is not None:
                 # --- 2a. RESOLVE Desired State ---
                 # Delegate to the ParameterResolver to convert the user's input (e.g., `['sg-web']`)
                 # into the final, API-ready data structure (e.g., `[{'url': '...'}]`).
+                # The `resolve_output_format` hint is crucial for context-dependent formatting.
                 resolved_payload = self.resolver.resolve(
                     param_name, param_value, output_format=resolve_output_format
                 )
 
-                # --- 2b. NORMALIZE Current and Desired States for Comparison ---
-
-                # Get the necessary metadata for this action from the context.
+                # --- 2b. NORMALIZE Current and Desired States ---
+                # Get the current value from the existing resource.
                 compare_key = action_info.get("compare_key", param_name)
                 resource_value = self.resource.get(compare_key)
+                # Get the list of keys that define an object's identity for normalization.
                 idempotency_keys = action_info.get("idempotency_keys", [])
-                key_map = action_info.get("key_map", {})
-                defaults_map = action_info.get("defaults_map")
 
-                # Handle a specific edge case: the user provides a simple list of strings/URLs,
-                # but the resource's state is a complex list of objects. We must transform
-                # the resource's complex list into a simple one for a fair comparison.
+                # **CRITICAL EDGE CASE**: Handle schema mismatch between user input and resource state.
+                # This occurs when the user provides a simple list of strings (e.g., security group URLs),
+                # but the API resource represents them as a rich list of objects. We must transform
+                # the resource's rich list into a simple one before normalization can work correctly.
                 is_simple_list_payload = (
                     isinstance(resolved_payload, list)
                     and resolved_payload
@@ -684,43 +684,31 @@ class BaseRunner:
                     and isinstance(resource_value[0], dict)
                 )
 
+                # Extract the defaults_map from the context.
+                defaults_map = action_info.get("defaults_map")
+
                 if is_simple_list_payload and is_complex_list_resource:
-                    # Transform the "rich" list from the resource into a simple list of URLs.
+                    # A mismatch is detected. Transform the "rich" list from the
+                    # resource into a simple list of URLs for a fair comparison.
                     transformed_resource_value = [
                         item.get("url")
                         for item in resource_value
                         if item.get("url") is not None
                     ]
+                    # Now, normalize the newly transformed (simple) list.
                     normalized_old = self._normalize_for_comparison(
                         transformed_resource_value, [], defaults_map
                     )
                 else:
-                    # In all other cases (object-to-object, etc.), normalize the resource value directly.
+                    # In all other cases (object-to-object, etc.), no pre-transformation
+                    # is needed before normalization.
                     normalized_old = self._normalize_for_comparison(
                         resource_value, idempotency_keys, defaults_map
                     )
 
-                # CRITICAL: Before normalizing the desired state, we must first
-                # apply the key_map to it if it's a list of objects. This ensures
-                # that we compare the user's input keys (e.g., 'subnet') against the
-                # correct output keys on the resource (e.g., 'subnet_name').
-                payload_to_normalize = resolved_payload
-                if (
-                    key_map
-                    and isinstance(payload_to_normalize, list)
-                    and payload_to_normalize
-                    and isinstance(payload_to_normalize[0], dict)
-                ):
-                    mapped_payload = []
-                    for item in payload_to_normalize:
-                        # Create a new dictionary, replacing input keys with mapped output keys.
-                        mapped_item = {key_map.get(k, k): v for k, v in item.items()}
-                        mapped_payload.append(mapped_item)
-                    payload_to_normalize = mapped_payload
-
-                # Now, normalize the (potentially key-mapped) desired state.
+                # Normalize the user's desired state.
                 normalized_new = self._normalize_for_comparison(
-                    payload_to_normalize, idempotency_keys, defaults_map
+                    resolved_payload, idempotency_keys, defaults_map
                 )
 
                 # --- 2c. DETECT Change ---
@@ -729,13 +717,13 @@ class BaseRunner:
                     # --- 2d. GENERATE Command ---
                     # A change was detected. We must create an `ActionCommand` for it.
 
-                    # Handle API payload wrapping: some endpoints expect a raw body `[...]`
-                    # while others expect `{"key": [...]}`.
+                    # **CRITICAL EDGE CASE**: Handle API payload wrapping.
+                    # Some action endpoints expect a raw JSON body (e.g., `[...]`), while
+                    # others expect it to be wrapped in an object (e.g., `{"rules": [...]}`).
+                    # The generator infers this and provides the 'wrap_in_object' flag.
                     if action_info.get("wrap_in_object"):
                         final_api_payload = {param_name: resolved_payload}
                     else:
-                        # The payload sent to the API is always the original `resolved_payload`,
-                        # not the key-mapped one, which was only for comparison.
                         final_api_payload = resolved_payload
 
                     # Build wait_config for this action if the module is configured for it.
