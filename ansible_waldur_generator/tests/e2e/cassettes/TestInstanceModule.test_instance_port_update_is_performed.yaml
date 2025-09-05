@@ -1,0 +1,361 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/projects/?name_exact=Self-Service+dev+infrastructure
+  response:
+    body:
+      string: '[{"url":"http://127.0.0.1:8000/api/projects/5d3016240ccf4181b4cdc0baa0e41d5c/","uuid":"5d3016240ccf4181b4cdc0baa0e41d5c","name":"Self-Service
+        dev infrastructure","slug":"self-ser-1","customer":"http://127.0.0.1:8000/api/customers/bad9fcc9071e49a0aeb919c1523e7def/","customer_uuid":"bad9fcc9071e49a0aeb919c1523e7def","customer_name":"ETAIS
+        Self-Service testing","customer_slug":"etais-se-1","customer_native_name":"","customer_abbreviation":"","description":"","created":"2017-06-07T11:46:34.561207+00:00","type":null,"type_name":null,"type_uuid":null,"backend_id":"","start_date":null,"end_date":null,"end_date_requested_by":null,"oecd_fos_2007_code":null,"oecd_fos_2007_label":null,"is_industry":false,"image":null,"resources_count":35,"max_service_accounts":0,"project_credit":null,"marketplace_resource_count":{"06e45986252244218bd062149fc3b5b5":2,"4588ff519260461893ab371b8fe83363":1,"6dfcdbe3c18241dc87526ef411bf6064":17,"e5a5e7651f394d10958328bbc3e967eb":16},"billing_price_estimate":{"total":800.45,"current":"0.00","tax":"0.00","tax_current":"0.00"}}]'
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '1059'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Fri, 05 Sep 2025 11:30:56 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/projects/?name_exact=Self-Service+dev+infrastructure>;
+        rel="first", <http://127.0.0.1:8000/api/projects/?name_exact=Self-Service+dev+infrastructure>;
+        rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/openstack-instances/?name_exact=ttu-runner-0e&project_uuid=5d3016240ccf4181b4cdc0baa0e41d5c
+  response:
+    body:
+      string: '[{"url":"http://127.0.0.1:8000/api/openstack-instances/a7ddd058f1114493bd0a4c6af090a0b8/","uuid":"a7ddd058f1114493bd0a4c6af090a0b8","name":"ttu-runner-0e","description":"","service_name":"UT
+        HPC (Campus)","service_settings":"http://127.0.0.1:8000/api/service-settings/58978795d079495b83bc4a5a8b87f2fc/","service_settings_uuid":"58978795d079495b83bc4a5a8b87f2fc","service_settings_state":"OK","service_settings_error_message":"","project":"http://127.0.0.1:8000/api/projects/5d3016240ccf4181b4cdc0baa0e41d5c/","project_name":"Self-Service
+        dev infrastructure","project_uuid":"5d3016240ccf4181b4cdc0baa0e41d5c","customer":"http://127.0.0.1:8000/api/customers/bad9fcc9071e49a0aeb919c1523e7def/","customer_name":"ETAIS
+        Self-Service testing","customer_native_name":"","customer_abbreviation":"","error_message":"","error_traceback":"","resource_type":"OpenStack.Instance","state":"OK","created":"2024-08-15T13:04:56.256708+00:00","modified":"2025-09-05T11:28:01.176508+00:00","backend_id":"d19c6785-9382-493b-9f30-857ecbb08f39","access_url":["192.168.42.70"],"start_time":"2024-08-15T13:06:19.065721+00:00","cores":16,"ram":16384,"disk":102400,"min_ram":1024,"min_disk":10240,"user_data":"#cloud-config\ngroups:\n-
+        docker\nusers:\n- name: gitlab-runner\n  groups: docker\n- name: manager\n  groups:
+        docker,sudo,wheel\n  shell: /bin/bash\n  sudo: ALL=(ALL) NOPASSWD:ALL\n  ssh_authorized_keys:\n    -
+        ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDbo7NxuTcJrdi8bS7E5eBXdqa6ZNtwk40YC63koA63NNAwcjyUFAhcKefbrRw9eQx9JMWJyr5KqUut2adwymnRDihS0C7IA+EDDpIEx1W4Hxh0h1OpSpD2DEmyp9H2iPcS01Nz5+AKGn4ZB7m1vT9dLXS8wtLOzmVYtIYKFZ2dcUX4NY4euSwT7FNAhiVg6Gwm1zez/myMJzvH3wmr/7iowdVjmAZCBxRzFupL6/QNsfGjFflPI3kgdKfRisJAnYxDYz7hAz6wGig87a9n9bdO/rO3bzC5zgnZ5ahZR8ynya3/AVogojvg5cAP3Vvp3gBMZW7780OPx0snlQGKtBafjPZw4FWLRPUU4dTdvo793e7veAKUXZ1YLVQfKixj5UxSfktIpLqX2SVkFi7fiKscbjAferbJ/KI7O8UwdwSH4OvTVRtT3GUU78KTN+N1f7I/53IdwXSjQbJCF+bGyqaoFkeMOWvunzoMcjrSNQ766HKiaKRYvKbPeh4r0s/Jdtk=
+        fronox@MacBook-Pro-Sergei.local\n    - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDhs9Hzz2FV3eRDhuhKMIuP8I+hyK6nLWus247rvWQpbSWvPWky530MTPqWFWFnEeJydl0HfEAiCl8F3z7yRRmv+JkUxxt6HhZhaqhPQX+YzpUT07tZCUhuV/k2ObPm+UfxVA/QHdP2xuH5eKhOhpW/5L7fsyln2wMDDZZcdfTcFp/uC5ysUsxgkH/zFwHJD8srk5i4HyvSgUbf0PZjPLjD19o4apxuswjdNyL3VfxDl8gsMlCfmxKWfDyOkYi6OnZsGQtj4t+h++dKOqxuCohkg+RAyEm4IIZrtTGhnGcKtlX1PBMtUhWhPRRi3787TgQm98FGwwNPpHA4cakx7cit
+        ilja@localhost.localdomain\napt:\n  sources:\n    docker.list:\n      source:
+        ''deb [arch=amd64] https://download.docker.com/linux/ubuntu $RELEASE stable''\n      keyid:
+        0EBFCD88\n\npackage_upgrade: true\npackage_update: true\n\npackages:\n- ca-certificates\n-
+        curl\n- gnupg\n- debian-archive-keyring\n- apt-transport-https\n- ca-certificates\n-
+        software-properties-common\n- htop\n- docker-ce\n- docker-ce-cli\n- containerd.io\n-
+        docker-buildx-plugin\n- docker-compose-plugin\n- docker-ce\n- docker-ce-cli\n-
+        golang-go\n- fail2ban\n- vim\nwrite_files:\n  - owner: root:root\n    path:
+        /etc/cron.d/kill_dead\n    content: \"* 5 * * * root (/usr/bin/docker ps --filter
+        status=dead --filter status=exited -aq   |  /usr/bin/xargs /usr/bin/docker
+        rm -v 2> /dev/null) || true\"\n  - owner: root:root\n    path: /etc/cron.d/clean_docker\n    content:
+        \"2 3 * * * root docker system prune -af\"\n  - owner: root:root\n    path:
+        \"/etc/docker/daemon.json\"\n    permissions: \"0644\"\n    content: |\n      {\n          \"bip\":
+        \"192.168.67.1/24\",\n          \"fixed-cidr\": \"192.168.67.0/24\",\n          \"storage-driver\":
+        \"overlay2\",\n          \"mtu\": 1400,\n          \"default-address-pools\":
+        [\n            {\n              \"base\": \"192.168.167.1/24\",\n              \"size\":
+        24\n            },\n            {\n              \"base\": \"192.168.168.1/24\",\n              \"size\":
+        24\n            },\n            {\n              \"base\": \"192.168.169.1/24\",\n              \"size\":
+        24\n            },\n            {\n              \"base\": \"192.168.170.1/24\",\n              \"size\":
+        24\n            },\n            {\n              \"base\": \"192.168.171.1/24\",\n              \"size\":
+        24\n            },\n            {\n              \"base\": \"192.168.172.1/24\",\n              \"size\":
+        24\n            },\n            {\n              \"base\": \"192.168.173.1/24\",\n              \"size\":
+        24\n            },\n            {\n              \"base\": \"192.168.174.1/24\",\n              \"size\":
+        24\n            }\n          ]\n      }\n  - owner: root:root\n    path: /root/register.sh\n    content:
+        |\n      gitlab-runner register --executor docker  \\\n        -u https://code.opennodecloud.com/
+        \\\n        --non-interactive \\\n        --token glrt-7xgK7xY7AEPLbd6s5Naj
+        \\\n        --docker-privileged=true \\\n        --docker-shm-size=268435456
+        \\\n        --docker-volumes=''/cache'' \\\n        --docker-volumes=''/certs/client''
+        \\\n        --docker-image=\"registry.hpc.ut.ee/mirror/library/docker:24.0.6\"
+        \\\nruncmd:\n  - curl -LJO https://gitlab-runner-downloads.s3.amazonaws.com/latest/deb/gitlab-runner_amd64.deb\n  -
+        dpkg -i gitlab-runner_amd64.deb\n  - [/bin/bash, /root/register.sh]\n\npower_state:\n  delay:
+        \"now\"\n  mode: reboot\n  message: First reboot\n  condition: True","external_ips":[],"internal_ips":["192.168.42.70"],"latitude":null,"longitude":null,"key_name":"dff7f7114a3746ccabcc37a34f1413fb-ilja-key","key_fingerprint":"5b:0e:78:3c:6f:a5:26:17:66:c0:03:75:ea:a3:46:fa","image_name":"ubuntu22.04","flavor_disk":10240,"flavor_name":"c3.small","volumes":[{"url":"http://127.0.0.1:8000/api/openstack-volumes/159c348444ae45258d70eee73ff2577d/","uuid":"159c348444ae45258d70eee73ff2577d","name":"ttu-runner-0e-system","image_name":"ubuntu22.04","state":"OK","bootable":true,"size":102400,"device":"/dev/sda","resource_type":"OpenStack.Volume","type":null,"marketplace_resource_uuid":"b18a24376da2485b98fa727dca7d792e"}],"security_groups":[{"url":"http://127.0.0.1:8000/api/openstack-security-groups/eb2f0a9783d94ff59764dd24c0098b2a/","name":"ssh","rules":[{"ethertype":"IPv4","direction":"ingress","protocol":"tcp","from_port":22,"to_port":22,"cidr":"0.0.0.0/0","description":"","id":64215}],"description":"Security
+        group for secure shell access","state":"OK"},{"url":"http://127.0.0.1:8000/api/openstack-security-groups/ef36e63b667e463fb9fc9d64548f7715/","name":"allow-all","rules":[{"ethertype":"IPv4","direction":"ingress","protocol":"icmp","from_port":-1,"to_port":-1,"cidr":"0.0.0.0/0","description":"","id":64213},{"ethertype":"IPv4","direction":"ingress","protocol":"tcp","from_port":-1,"to_port":-1,"cidr":"0.0.0.0/0","description":"","id":64214}],"description":"Security
+        group for any access","state":"OK"}],"server_group":null,"floating_ips":[],"ports":[{"url":"http://127.0.0.1:8000/api/openstack-ports/6d75caca9f014ad7a1deccea14317209/","fixed_ips":[{"subnet_id":"1ccfb0b6-0731-4dde-b7bb-b8db72e21d28","ip_address":"192.168.42.70"}],"mac_address":"fa:16:3e:77:e5:5c","subnet":"http://127.0.0.1:8000/api/openstack-subnets/0a627224c2aa4af4a8c402ab92312ae5/","subnet_uuid":"0a627224c2aa4af4a8c402ab92312ae5","subnet_name":"waldur-dev-farm-sub-net","subnet_description":"","subnet_cidr":"192.168.42.0/24","allowed_address_pairs":[],"device_id":"d19c6785-9382-493b-9f30-857ecbb08f39","device_owner":"compute:nova","security_groups":[{"url":"http://127.0.0.1:8000/api/openstack-security-groups/d15715434e8d4da4bd51a54dd35fe2ed/","uuid":"d15715434e8d4da4bd51a54dd35fe2ed","name":"default","description":"Default
+        security group","service_name":"UT HPC (Campus)","service_settings":"http://127.0.0.1:8000/api/service-settings/58978795d079495b83bc4a5a8b87f2fc/","service_settings_uuid":"58978795d079495b83bc4a5a8b87f2fc","service_settings_state":"OK","service_settings_error_message":"","project":"http://127.0.0.1:8000/api/projects/5d3016240ccf4181b4cdc0baa0e41d5c/","project_name":"Self-Service
+        dev infrastructure","project_uuid":"5d3016240ccf4181b4cdc0baa0e41d5c","customer":"http://127.0.0.1:8000/api/customers/bad9fcc9071e49a0aeb919c1523e7def/","customer_name":"ETAIS
+        Self-Service testing","customer_native_name":"","customer_abbreviation":"","error_message":"","error_traceback":"","resource_type":"OpenStack.SecurityGroup","state":"OK","created":"2024-03-18T13:40:59.066950+00:00","modified":"2024-03-18T13:40:59.066950+00:00","backend_id":"fd369b3e-e9fd-4c3b-ba39-38527fae776d","access_url":null,"tenant":"http://127.0.0.1:8000/api/openstack-tenants/9d80c96ced07443e99a1c810a1d41ba9/","tenant_name":"waldur-dev-farm","tenant_uuid":"9d80c96ced07443e99a1c810a1d41ba9","rules":[{"ethertype":"IPv6","direction":"ingress","protocol":"","from_port":-1,"to_port":-1,"cidr":null,"description":"","remote_group_name":"default","remote_group_uuid":"d15715434e8d4da4bd51a54dd35fe2ed","id":64217,"remote_group":"http://127.0.0.1:8000/api/openstack-security-groups/d15715434e8d4da4bd51a54dd35fe2ed/"},{"ethertype":"IPv6","direction":"egress","protocol":"","from_port":-1,"to_port":-1,"cidr":null,"description":"","id":64218,"remote_group":null},{"ethertype":"IPv4","direction":"ingress","protocol":"","from_port":-1,"to_port":-1,"cidr":null,"description":"","remote_group_name":"default","remote_group_uuid":"d15715434e8d4da4bd51a54dd35fe2ed","id":64219,"remote_group":"http://127.0.0.1:8000/api/openstack-security-groups/d15715434e8d4da4bd51a54dd35fe2ed/"},{"ethertype":"IPv4","direction":"egress","protocol":"","from_port":-1,"to_port":-1,"cidr":null,"description":"","id":64220,"remote_group":null}],"marketplace_offering_uuid":null,"marketplace_offering_name":null,"marketplace_offering_plugin_options":null,"marketplace_category_uuid":null,"marketplace_category_name":null,"marketplace_resource_uuid":null,"marketplace_plan_uuid":null,"marketplace_resource_state":null,"is_usage_based":null,"is_limit_based":null}]}],"availability_zone":null,"connect_directly_to_external_network":false,"runtime_state":"ACTIVE","action":"Update
+        security groups","action_details":{},"tenant_uuid":"9d80c96ced07443e99a1c810a1d41ba9","hypervisor_hostname":"shrimp4.hpc.ut.ee","tenant":"http://127.0.0.1:8000/api/openstack-tenants/9d80c96ced07443e99a1c810a1d41ba9/","external_address":[],"rancher_cluster":null,"marketplace_offering_uuid":"85089fbe70b84869bc9b8385887a39f4","marketplace_offering_name":"Virtual
+        machine in waldur-dev-farm","marketplace_offering_plugin_options":{"storage_mode":"dynamic"},"marketplace_category_uuid":"e5a5e7651f394d10958328bbc3e967eb","marketplace_category_name":"VMs","marketplace_resource_uuid":"2b4d46bf5e2840a79f8d86fadf89820d","marketplace_plan_uuid":null,"marketplace_resource_state":"OK","is_usage_based":false,"is_limit_based":false}]'
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '10579'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Fri, 05 Sep 2025 11:30:56 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/openstack-instances/?name_exact=ttu-runner-0e&project_uuid=5d3016240ccf4181b4cdc0baa0e41d5c>;
+        rel="first", <http://127.0.0.1:8000/api/openstack-instances/?name_exact=ttu-runner-0e&project_uuid=5d3016240ccf4181b4cdc0baa0e41d5c>;
+        rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/projects/5d3016240ccf4181b4cdc0baa0e41d5c/
+  response:
+    body:
+      string: '{"url":"http://127.0.0.1:8000/api/projects/5d3016240ccf4181b4cdc0baa0e41d5c/","uuid":"5d3016240ccf4181b4cdc0baa0e41d5c","name":"Self-Service
+        dev infrastructure","slug":"self-ser-1","customer":"http://127.0.0.1:8000/api/customers/bad9fcc9071e49a0aeb919c1523e7def/","customer_uuid":"bad9fcc9071e49a0aeb919c1523e7def","customer_name":"ETAIS
+        Self-Service testing","customer_slug":"etais-se-1","customer_native_name":"","customer_abbreviation":"","description":"","created":"2017-06-07T11:46:34.561207+00:00","type":null,"type_name":null,"type_uuid":null,"backend_id":"","start_date":null,"end_date":null,"end_date_requested_by":null,"oecd_fos_2007_code":null,"oecd_fos_2007_label":null,"is_industry":false,"image":null,"resources_count":35,"max_service_accounts":0,"project_credit":null,"marketplace_resource_count":{"06e45986252244218bd062149fc3b5b5":2,"4588ff519260461893ab371b8fe83363":1,"6dfcdbe3c18241dc87526ef411bf6064":17,"e5a5e7651f394d10958328bbc3e967eb":16},"billing_price_estimate":{"total":800.45,"current":"0.00","tax":"0.00","tax_current":"0.00"}}'
+    headers:
+      Allow:
+      - GET, PUT, PATCH, DELETE, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '1057'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Fri, 05 Sep 2025 11:30:56 GMT
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/marketplace-public-offerings/?name_exact=Virtual+machine+in+waldur-dev-farm
+  response:
+    body:
+      string: '[{"url":"http://127.0.0.1:8000/api/marketplace-public-offerings/85089fbe70b84869bc9b8385887a39f4/","uuid":"85089fbe70b84869bc9b8385887a39f4","created":"2021-06-28T14:28:00.855894+00:00","name":"Virtual
+        machine in waldur-dev-farm","slug":"virtual--1737","description":"","full_description":"","privacy_policy_link":"","access_url":"","endpoints":[],"roles":[],"customer":"http://127.0.0.1:8000/api/customers/bad9fcc9071e49a0aeb919c1523e7def/","customer_uuid":"bad9fcc9071e49a0aeb919c1523e7def","customer_name":"ETAIS
+        Self-Service testing","project":"http://127.0.0.1:8000/api/projects/5d3016240ccf4181b4cdc0baa0e41d5c/","project_uuid":"5d3016240ccf4181b4cdc0baa0e41d5c","project_name":"Self-Service
+        dev infrastructure","category":"http://127.0.0.1:8000/api/marketplace-categories/e5a5e7651f394d10958328bbc3e967eb/","category_uuid":"e5a5e7651f394d10958328bbc3e967eb","category_title":"VMs","attributes":{"vpc_Support_email":"support@hpc.ut.ee","vpc_Security_certification":["vpc_Security_certification_iskem"]},"options":{},"resource_options":{},"components":[{"uuid":"6e8faee110474979ae52ef747e6b1ee2","billing_type":"limit","type":"cores","name":"Cores","description":"","measured_unit":"cores","unit_factor":1,"limit_period":"month","limit_amount":null,"article_code":"","max_value":500,"min_value":1,"max_available_limit":null,"is_boolean":false,"default_limit":null,"factor":1,"is_builtin":true},{"uuid":"8f84e936290548d7b1837350725dae95","billing_type":"limit","type":"ram","name":"RAM","description":"","measured_unit":"GB","unit_factor":1,"limit_period":"month","limit_amount":null,"article_code":"","max_value":20480000,"min_value":1024,"max_available_limit":null,"is_boolean":false,"default_limit":null,"factor":1024,"is_builtin":true},{"uuid":"e81afc06ed1e464995080ad6414e183e","billing_type":"limit","type":"storage","name":"Storage","description":"","measured_unit":"GB","unit_factor":1,"limit_period":"month","limit_amount":null,"article_code":"","max_value":102400000,"min_value":10240,"max_available_limit":null,"is_boolean":false,"default_limit":null,"factor":1024,"is_builtin":true}],"plugin_options":{"storage_mode":"dynamic"},"state":"Active","vendor_details":"","getting_started":"","integration_guide":"","thumbnail":"http://127.0.0.1:8000/api/media/afbe32bf56034fd78045cc7c01362a6e/","order_count":1310,"plans":[{"url":"http://127.0.0.1:8000/api/marketplace-public-offerings/4ce883470b7242beb7368becf614d1ec/plans/c092afb394924d7d86f14bb5d6fb984c/","uuid":"c092afb394924d7d86f14bb5d6fb984c","name":"Default","description":"","article_code":"","max_amount":null,"archived":false,"is_active":true,"unit_price":"0.0000000000","unit":"day","init_price":0,"switch_price":0,"backend_id":"","organization_groups":[],"prices":{"cores":"0.0720000000","ram":"0.0312000000","storage":"0.0011700000"},"future_prices":{"cores":null,"ram":null,"storage":null},"quotas":{"cores":0,"ram":0,"storage":0},"resources_count":3258,"plan_type":"limit","minimal_price":"0.1043700000"}],"screenshots":[],"type":"OpenStack.Instance","shared":false,"billable":false,"scope":"http://127.0.0.1:8000/api/openstack-tenants/9d80c96ced07443e99a1c810a1d41ba9/","scope_uuid":"9d80c96ced07443e99a1c810a1d41ba9","scope_name":"waldur-dev-farm","scope_state":"UPDATE_SCHEDULED","scope_error_message":"","files":[],"quotas":[{"name":"ram","usage":229376,"limit":229376},{"name":"storage","usage":1495040,"limit":1495040},{"name":"volumes","usage":15,"limit":50},{"name":"gigabytes_prod","usage":0,"limit":-1},{"name":"volumes_size","usage":1495040,"limit":-1},{"name":"network_count","usage":1,"limit":100},{"name":"gigabytes_rbd","usage":0,"limit":-1},{"name":"floating_ip_count","usage":1,"limit":50},{"name":"gigabytes_gpfs","usage":0,"limit":-1},{"name":"gigabytes_prod3","usage":1460,"limit":-1},{"name":"gigabytes_prod2","usage":0,"limit":-1},{"name":"vcpu","usage":224,"limit":224},{"name":"gigabytes_scratch","usage":1460,"limit":-1},{"name":"gigabytes___DEFAULT__","usage":0,"limit":-1},{"name":"snapshots_size","usage":0,"limit":-1},{"name":"port_count","usage":35,"limit":500},{"name":"instances","usage":14,"limit":30},{"name":"security_group_rule_count","usage":12,"limit":100},{"name":"snapshots","usage":0,"limit":50},{"name":"subnet_count","usage":3,"limit":100},{"name":"security_group_count","usage":7,"limit":100}],"paused_reason":"","datacite_doi":"","citation_count":-1,"latitude":58.3750372,"longitude":26.6625565,"country":"","backend_id":"","organization_groups":[],"image":null,"total_customers":null,"total_cost":null,"total_cost_estimated":null,"parent_description":"OpenStack-based
+        IaaS offered by University of Tartu HPC team.","parent_uuid":"4ce883470b7242beb7368becf614d1ec","parent_name":"UT
+        HPC (Campus)","backend_metadata":{},"has_compliance_requirements":false,"google_calendar_is_public":null,"google_calendar_link":null,"promotion_campaigns":[]}]'
+    headers:
+      Allow:
+      - GET, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '4865'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Fri, 05 Sep 2025 11:30:56 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/marketplace-public-offerings/?name_exact=Virtual+machine+in+waldur-dev-farm>;
+        rel="first", <http://127.0.0.1:8000/api/marketplace-public-offerings/?name_exact=Virtual+machine+in+waldur-dev-farm>;
+        rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/openstack-subnets/?tenant_uuid=9d80c96ced07443e99a1c810a1d41ba9&name_exact=E2E-VCR-Test-Subnet
+  response:
+    body:
+      string: '[{"url":"http://127.0.0.1:8000/api/openstack-subnets/4aaf32221b904717a8c9fecf8c40903d/","uuid":"4aaf32221b904717a8c9fecf8c40903d","name":"E2E-VCR-Test-Subnet","description":"Subnet
+        created by an end-to-end VCR test.","service_name":"UT HPC (Campus)","service_settings":"http://127.0.0.1:8000/api/service-settings/58978795d079495b83bc4a5a8b87f2fc/","service_settings_uuid":"58978795d079495b83bc4a5a8b87f2fc","service_settings_state":"OK","service_settings_error_message":"","project":"http://127.0.0.1:8000/api/projects/5d3016240ccf4181b4cdc0baa0e41d5c/","project_name":"Self-Service
+        dev infrastructure","project_uuid":"5d3016240ccf4181b4cdc0baa0e41d5c","customer":"http://127.0.0.1:8000/api/customers/bad9fcc9071e49a0aeb919c1523e7def/","customer_name":"ETAIS
+        Self-Service testing","customer_native_name":"","customer_abbreviation":"","error_message":"","error_traceback":"","resource_type":"OpenStack.SubNet","state":"CREATION_SCHEDULED","created":"2025-09-04T18:50:26.885058+00:00","modified":"2025-09-04T18:50:26.885058+00:00","backend_id":"","access_url":null,"tenant":"http://127.0.0.1:8000/api/openstack-tenants/9d80c96ced07443e99a1c810a1d41ba9/","tenant_name":"waldur-dev-farm","network":"http://127.0.0.1:8000/api/openstack-networks/24a91363451349a2b78b2c48bb09e80a/","network_name":"waldur-dev-farm-int-net","cidr":"10.0.10.0/24","gateway_ip":null,"disable_gateway":false,"allocation_pools":{},"ip_version":4,"enable_dhcp":true,"dns_nameservers":["8.8.8.8","8.8.4.4"],"host_routes":[],"is_connected":true,"marketplace_offering_uuid":null,"marketplace_offering_name":null,"marketplace_offering_plugin_options":null,"marketplace_category_uuid":null,"marketplace_category_name":null,"marketplace_resource_uuid":null,"marketplace_plan_uuid":null,"marketplace_resource_state":null,"is_usage_based":null,"is_limit_based":null}]'
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '1829'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Fri, 05 Sep 2025 11:30:56 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/openstack-subnets/?name_exact=E2E-VCR-Test-Subnet&tenant_uuid=9d80c96ced07443e99a1c810a1d41ba9>;
+        rel="first", <http://127.0.0.1:8000/api/openstack-subnets/?name_exact=E2E-VCR-Test-Subnet&tenant_uuid=9d80c96ced07443e99a1c810a1d41ba9>;
+        rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/openstack-subnets/?tenant_uuid=9d80c96ced07443e99a1c810a1d41ba9&name_exact=waldur-dev-farm-sub-net
+  response:
+    body:
+      string: '[{"url":"http://127.0.0.1:8000/api/openstack-subnets/0a627224c2aa4af4a8c402ab92312ae5/","uuid":"0a627224c2aa4af4a8c402ab92312ae5","name":"waldur-dev-farm-sub-net","description":"","service_name":"UT
+        HPC (Campus)","service_settings":"http://127.0.0.1:8000/api/service-settings/58978795d079495b83bc4a5a8b87f2fc/","service_settings_uuid":"58978795d079495b83bc4a5a8b87f2fc","service_settings_state":"OK","service_settings_error_message":"","project":"http://127.0.0.1:8000/api/projects/5d3016240ccf4181b4cdc0baa0e41d5c/","project_name":"Self-Service
+        dev infrastructure","project_uuid":"5d3016240ccf4181b4cdc0baa0e41d5c","customer":"http://127.0.0.1:8000/api/customers/bad9fcc9071e49a0aeb919c1523e7def/","customer_name":"ETAIS
+        Self-Service testing","customer_native_name":"","customer_abbreviation":"","error_message":"","error_traceback":"","resource_type":"OpenStack.SubNet","state":"OK","created":"2021-06-28T14:27:13.070890+00:00","modified":"2021-06-28T14:28:14.839851+00:00","backend_id":"1ccfb0b6-0731-4dde-b7bb-b8db72e21d28","access_url":null,"tenant":"http://127.0.0.1:8000/api/openstack-tenants/9d80c96ced07443e99a1c810a1d41ba9/","tenant_name":"waldur-dev-farm","network":"http://127.0.0.1:8000/api/openstack-networks/24a91363451349a2b78b2c48bb09e80a/","network_name":"waldur-dev-farm-int-net","cidr":"192.168.42.0/24","gateway_ip":"192.168.42.1","disable_gateway":false,"allocation_pools":[{"start":"192.168.42.10","end":"192.168.42.200"}],"ip_version":4,"enable_dhcp":true,"dns_nameservers":["8.8.8.8","8.8.4.4"],"host_routes":[],"is_connected":true,"marketplace_offering_uuid":null,"marketplace_offering_name":null,"marketplace_offering_plugin_options":null,"marketplace_category_uuid":null,"marketplace_category_name":null,"marketplace_resource_uuid":null,"marketplace_plan_uuid":null,"marketplace_resource_state":null,"is_usage_based":null,"is_limit_based":null}]'
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '1873'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Fri, 05 Sep 2025 11:30:56 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/openstack-subnets/?name_exact=waldur-dev-farm-sub-net&tenant_uuid=9d80c96ced07443e99a1c810a1d41ba9>;
+        rel="first", <http://127.0.0.1:8000/api/openstack-subnets/?name_exact=waldur-dev-farm-sub-net&tenant_uuid=9d80c96ced07443e99a1c810a1d41ba9>;
+        rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"ports": [{"subnet": "http://127.0.0.1:8000/api/openstack-subnets/4aaf32221b904717a8c9fecf8c40903d/"},
+      {"subnet": "http://127.0.0.1:8000/api/openstack-subnets/0a627224c2aa4af4a8c402ab92312ae5/"}]}'
+    headers:
+      Connection:
+      - close
+      Content-Length:
+      - '197'
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: POST
+    uri: http://127.0.0.1:8000/api/openstack-instances/a7ddd058f1114493bd0a4c6af090a0b8/update_ports/
+  response:
+    body:
+      string: '{"status":"internal ips update was scheduled"}'
+    headers:
+      Allow:
+      - POST, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '46'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Fri, 05 Sep 2025 11:30:57 GMT
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+    status:
+      code: 202
+      message: Accepted
+version: 1

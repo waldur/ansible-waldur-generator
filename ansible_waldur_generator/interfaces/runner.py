@@ -666,6 +666,38 @@ class BaseRunner:
                 # Get the current value from the existing resource.
                 compare_key = action_info.get("compare_key", param_name)
                 resource_value = self.resource.get(compare_key)
+
+                # This logic filters the resource's current state to only include keys
+                # that the user has explicitly provided in their playbook. This ensures
+                # that omitted optional keys do not trigger a false change detection.
+                if (
+                    isinstance(param_value, list)
+                    and param_value
+                    and isinstance(resource_value, list)
+                    and resource_value
+                    and isinstance(param_value[0], dict)
+                    and isinstance(resource_value[0], dict)
+                ):
+                    user_provided_keys = set()
+                    for item in param_value:
+                        if isinstance(item, dict):
+                            user_provided_keys.update(item.keys())
+
+                    if user_provided_keys:
+                        temp_filtered_list = []
+                        for resource_item in resource_value:
+                            if isinstance(resource_item, dict):
+                                filtered_item = {
+                                    k: v
+                                    for k, v in resource_item.items()
+                                    if k in user_provided_keys
+                                }
+                                temp_filtered_list.append(filtered_item)
+                            else:
+                                temp_filtered_list.append(resource_item)
+                        # The original resource_value is replaced with the filtered one for comparison.
+                        resource_value = temp_filtered_list
+
                 # Get the list of keys that define an object's identity for normalization.
                 idempotency_keys = action_info.get("idempotency_keys", [])
 
