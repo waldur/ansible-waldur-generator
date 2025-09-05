@@ -528,6 +528,7 @@ class BasePlugin(ABC):
         self,
         actions_config: dict[str, Any],
         api_parser: ApiSpecParser,
+        resource_schema: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         A shared utility to build the runner context for complex, action-based updates.
@@ -538,22 +539,26 @@ class BasePlugin(ABC):
 
         For each update action defined in the `generator_config.yaml`, this method
         introspects the corresponding API operation's schema in `waldur_api.yaml`
-        to infer three key pieces of metadata:
+        to infer four key pieces of metadata:
 
         1.  `idempotency_keys`: For actions that operate on a list of complex objects (e.g.,
             updating a VM's network ports), this determines which fields within each
-            object define its unique identity. This is the cornerstone of the robust,
-            order-insensitive idempotency check in the runner. For a port, this might
-            be `['subnet', 'fixed_ips']`.
+            object define its unique identity. For a port, this might be `['subnet']`.
+            The heuristic used is to select only primitive-type fields.
 
-        2.  `wrap_in_object`: It determines the expected format of the API request body.
+        2.  `key_map`: This is the cornerstone of robust idempotency. It maps the keys from
+            the user's *input* (e.g., `subnet`) to the corresponding keys in the API's
+            *output* (e.g., `subnet_name`). This allows the runner to correctly compare
+            the desired state with the actual state even when field names differ.
+
+        3.  `wrap_in_object`: It determines the expected format of the API request body.
             - `True`: The API expects a JSON object with the parameter name as a key,
               e.g., `{"rules": [...]}`.
             - `False`: The API expects the raw value as the entire request body,
               e.g., just `[...]`.
 
-        3.  `compare_key`: It standardizes the name of the field on the existing resource
-            that should be used for the idempotency comparison.
+        4.  `compare_key`: It standardizes the name of the field on the existing resource
+            that should be used for the idempotency comparison (e.g., `ports`).
 
         By centralizing this complex schema analysis here, we keep the plugin-specific
         code clean and ensure that all generated modules, regardless of type, benefit
@@ -562,6 +567,8 @@ class BasePlugin(ABC):
         Args:
             actions_config: The dictionary of action configurations from the parsed
                             module config (e.g., `module_config.update_config.actions`).
+            resource_schema: The fully resolved schema of the main resource, used to
+                             map input keys to output keys for idempotency.
             api_parser: The shared ApiSpecParser instance, used to access the OpenAPI spec.
 
         Returns:
@@ -579,25 +586,25 @@ class BasePlugin(ABC):
 
         # Iterate through each action defined in the user's configuration.
         for action_name, action in actions_config.items():
-            # Get the full OpenAPI schema for the action's request body.
-            # Default to an empty dict if no schema is defined.
-            # Get the raw, unresolved schema for the action's request body.
-            action_schema_raw = action.operation.model_schema or {}
+            # --- Step 1: Initialization for the current action ---
 
+            # Get the full OpenAPI schema for the action's request body.
+            action_schema_raw = action.operation.model_schema or {}
             # This will hold the list of keys to be used for the idempotency check.
             idempotency_keys = []
-
-            defaults_map = {}  # Initialize a map for default values.
+            # This will hold default values inferred from the schema.
+            defaults_map = {}
+            # This map will store the mapping from an input key to an output key.
+            key_map = {}
 
             # The name of the Ansible parameter that triggers this action.
-            # We use `getattr` for safety, in case the action config object is malformed.
             param_name = getattr(action, "param", None)
             if not param_name:
                 continue  # Skip actions that don't specify a parameter.
 
-            # --- Start of Idempotency Key Inference ---
-            # This is the core intelligence of the method. We dive into the schema
-            # to figure out how to compare lists of objects.
+            # --- Step 2: Idempotency Key and Key Map Inference ---
+            # This is the core intelligence of the method. We analyze the input and
+            # output schemas to figure out how to compare lists of objects correctly.
 
             payload_schema_raw = None
             is_wrapped = False
@@ -613,34 +620,75 @@ class BasePlugin(ABC):
                 )
                 is_wrapped = True
 
+            # Proceed only if we've found an array schema to analyze.
             if payload_schema_raw and payload_schema_raw.get("type") == "array":
-                # Get the schema for the items *within* the array.
+                # Get the schema for the items *within* the input array.
                 item_schema_ref = payload_schema_raw.get("items", {})
 
-                # We must work with the UNRESOLVED schema here.
-                # We only resolve a single level of '$ref' if it exists, but we explicitly
-                # DO NOT resolve 'allOf'. This ensures we only get the properties
-                # that are defined for the *input* of the action.
-                item_schema = item_schema_ref
-                if "$ref" in item_schema_ref:
-                    item_schema = (
-                        schema_resolver._get_schema_by_ref(item_schema_ref["$ref"])
-                        or {}
-                    )
+                # Resolve the input item schema completely to handle $ref and allOf.
+                item_schema = schema_resolver._resolve_schema(item_schema_ref)
+
+                # Also resolve the main resource's schema to prepare for key mapping.
+                resolved_resource_schema = (
+                    schema_resolver._resolve_schema(resource_schema)
+                    if resource_schema
+                    else {}
+                )
 
                 if item_schema.get("type") == "object":
-                    # The idempotency keys are the properties explicitly defined
-                    # in this input schema.
                     properties = item_schema.get("properties", {})
-                    idempotency_keys = list(properties.keys())
 
-                    # Populate the defaults_map.
+                    # HEURISTIC 1: Infer idempotency keys by selecting only properties
+                    # with primitive types (e.g., string, integer). Complex types like
+                    # 'array' and 'object' are treated as mutable attributes, not identifiers.
+                    # This prevents issues where an optional array (like 'fixed_ips')
+                    # causes false positives in idempotency checks when the API auto-populates it.
+                    idempotency_keys = [
+                        key
+                        for key, prop in properties.items()
+                        if prop.get("type") not in ["array", "object"]
+                    ]
+
+                    # HEURISTIC 2: Build the key_map.
+                    # For each idempotency key from the input, find its corresponding
+                    # output key in the main resource schema.
+                    if resolved_resource_schema:
+                        resource_props = resolved_resource_schema.get("properties", {})
+                        # Find the corresponding list property on the main resource (e.g., 'ports').
+                        resource_action_prop = resource_props.get(
+                            action.compare_key, {}
+                        )
+
+                        if resource_action_prop.get("type") == "array":
+                            # Resolve the schema of items in the output list.
+                            output_item_schema = schema_resolver._resolve_schema(
+                                resource_action_prop.get("items", {})
+                            )
+                            output_props = output_item_schema.get("properties", {})
+
+                            for input_key in idempotency_keys:
+                                # Our convention prefers comparing against a `_name` field
+                                # for resolved string identifiers (e.g., input 'subnet' becomes output 'subnet_name').
+                                output_key_candidate = f"{input_key}_name"
+                                if output_key_candidate in output_props:
+                                    key_map[input_key] = output_key_candidate
+                                # If no `_name` field exists, we assume the key names are identical.
+                                # No entry is needed in the map in this case.
+
+                    # Fallback for safety: if the heuristic finds no keys, revert to the old
+                    # behavior to avoid breaking modules where identity might be complex.
+                    if not idempotency_keys:
+                        idempotency_keys = list(properties.keys())
+
+                    # Populate the defaults_map from the input schema.
                     for key, prop_schema in properties.items():
                         if "default" in prop_schema:
                             defaults_map[key] = prop_schema["default"]
 
-            # --- End of Idempotency Key Inference ---
+            # --- Step 3: Finalize the Context for this Action ---
 
+            # Determine the key on the existing resource for comparison.
+            # Default to the parameter name if not specified.
             compare_key = getattr(action, "compare_key", None) or param_name
 
             # Build the final context dictionary for this specific action.
@@ -652,6 +700,7 @@ class BasePlugin(ABC):
                 # Provide the inferred keys, sorted for deterministic output.
                 "idempotency_keys": sorted(idempotency_keys),
                 "defaults_map": defaults_map,
+                "key_map": key_map,
             }
 
         return update_actions_context
