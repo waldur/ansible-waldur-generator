@@ -89,16 +89,17 @@ class ApiSpecParser:
                 )
         return schema
 
-    def get_query_parameters_for_operation(self, operation_id: str) -> set[str]:
+    def get_query_parameters_for_operation(self, operation_id: str) -> Dict[str, Any]:
         """
-        Retrieves a set of all defined query parameter names for a given operation.
+        Retrieves a dictionary of all defined query parameter names and their full definitions
+        for a given operation.
 
         Args:
             operation_id: The unique identifier for the operation.
 
         Returns:
-            A set of strings, where each string is a valid query parameter name.
-            Returns an empty set if the operation is not found or has no parameters.
+            A dictionary mapping parameter names to their full parameter definitions.
+            Returns an empty dictionary if the operation is not found or has no parameters.
         """
         operation_spec = None
         # This is a bit inefficient, but reuses existing logic to find the operation spec.
@@ -112,9 +113,9 @@ class ApiSpecParser:
                 break
 
         if not operation_spec:
-            return set()
+            return {}
 
-        query_params = set()
+        query_params = {}
         for param in operation_spec.get("parameters", []):
             # Parameters can be defined directly or via a $ref.
             if "$ref" in param:
@@ -124,6 +125,8 @@ class ApiSpecParser:
                     continue  # Skip unresolvable refs
 
             if param.get("in") == "query":
-                query_params.add(param.get("name"))
+                param_name = param.get("name")
+                if param_name:
+                    query_params[param_name] = param
 
         return query_params

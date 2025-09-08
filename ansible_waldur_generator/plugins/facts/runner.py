@@ -110,6 +110,13 @@ class FactsRunner(BaseRunner):
                     # add the final query parameter.
                     query_params[resolver_info["filter_key"]] = resolved_uuid
 
+        # Add inferred filter parameters to the query.
+        inferred_filter_params = self.context.get("inferred_filter_params", [])
+        for param_name in inferred_filter_params:
+            param_value = self.module.params.get(param_name)
+            if param_value is not None:
+                query_params[param_name] = param_value
+
         # Perform the final API call with the combined dictionary of filters.
         data, _ = self.send_request(
             "GET", self.context["list_url"], query_params=query_params

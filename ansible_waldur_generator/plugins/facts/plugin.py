@@ -16,7 +16,11 @@
 from typing import Any, Dict, List
 
 from ansible_waldur_generator.api_parser import ApiSpecParser
-from ansible_waldur_generator.helpers import AUTH_FIXTURE, AUTH_OPTIONS
+from ansible_waldur_generator.helpers import (
+    AUTH_FIXTURE,
+    AUTH_OPTIONS,
+    OPENAPI_TO_ANSIBLE_TYPE_MAP,
+)
 from ansible_waldur_generator.interfaces.plugin import BasePlugin
 from ansible_waldur_generator.models import AnsibleModuleParams
 from ansible_waldur_generator.plugins.facts.config import FactsModuleConfig
@@ -83,6 +87,52 @@ class FactsPlugin(BasePlugin):
         )
         return module_config
 
+    def _infer_filter_params(
+        self, module_config: FactsModuleConfig, api_parser: ApiSpecParser
+    ) -> AnsibleModuleParams:
+        """
+        Infers optional filter parameters from the OpenAPI schema of the list_operation.
+        """
+        if not module_config.list_operation:
+            return {}
+
+        inferred_params: AnsibleModuleParams = {}
+        op_id = module_config.list_operation.operation_id
+        query_params = api_parser.get_query_parameters_for_operation(op_id)
+
+        # Define a list of parameters to skip (already handled, or not useful for filtering)
+        skip_params = {
+            module_config.identifier_param,
+            "name_exact",
+            "page",
+            "page_size",
+            "o",
+            "field",
+        }
+        for p in module_config.context_params:
+            skip_params.add(p.filter_key)
+
+        for name, schema_def in query_params.items():
+            if name in skip_params:
+                continue
+
+            param_schema = schema_def.get("schema", {})
+            param_type = OPENAPI_TO_ANSIBLE_TYPE_MAP.get(
+                param_schema.get("type"), "str"
+            )
+
+            description = schema_def.get("description")
+            if not description:
+                description = f"Filter by {name.replace('_', ' ')}."
+
+            inferred_params[name] = {
+                "description": description.strip(),
+                "type": param_type,
+                "required": False,  # All inferred filters are optional
+            }
+
+        return inferred_params
+
     def _build_parameters(
         self, module_config: FactsModuleConfig, api_parser: ApiSpecParser
     ) -> AnsibleModuleParams:
@@ -111,6 +161,14 @@ class FactsPlugin(BasePlugin):
                 "type": "str",
                 "required": p_conf.required,
             }
+
+        # Add inferred parameters.
+        inferred_params = self._infer_filter_params(module_config, api_parser)
+        for name, spec in inferred_params.items():
+            # Only add if not already defined to avoid overriding explicit params.
+            if name not in params:
+                params[name] = spec
+
         return params
 
     def _build_return_block(
@@ -235,6 +293,10 @@ class FactsPlugin(BasePlugin):
                         "filter_key": p_conf.filter_key,
                     }
 
+        # Get the names of the inferred parameters to pass to the runner.
+        inferred_params = self._infer_filter_params(module_config, api_parser)
+        inferred_param_names = sorted(list(inferred_params.keys()))
+
         return {
             "resource_type": conf.resource_type,
             # Provide the API paths for listing and retrieving resources.
@@ -247,4 +309,5 @@ class FactsPlugin(BasePlugin):
             # Pass the fully constructed resolver map.
             "resolvers": resolvers,
             "many": conf.many,
+            "inferred_filter_params": inferred_param_names,
         }
