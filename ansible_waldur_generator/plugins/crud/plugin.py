@@ -84,6 +84,7 @@ class CrudPlugin(BasePlugin):
             resolvers_data[name] = {
                 "url": resolver.list_operation.path if resolver.list_operation else "",
                 "error_message": resolver.error_message,
+                "filter_by": [f.model_dump() for f in resolver.filter_by],
             }
 
         # Build the map of context parameters to their API filter keys for the existence check.
@@ -424,22 +425,9 @@ class CrudPlugin(BasePlugin):
 
         # --- Step 4: Parse Resolvers ---
         # Process the 'resolvers' block, expanding shorthand where necessary.
-        for name, resolver_conf in raw_config.get("resolvers", {}).items():
-            # Support shorthand `resolver: "customers"`
-            if isinstance(resolver_conf, str):
-                raw_config["resolvers"][name] = {
-                    "list": f"{resolver_conf}_list",
-                    "retrieve": f"{resolver_conf}_retrieve",
-                }
-            # Re-fetch the config, which may have just been expanded.
-            current_resolver_conf = raw_config["resolvers"][name]
-            # Resolve the operation IDs into full ApiOperation objects.
-            current_resolver_conf["list_operation"] = api_parser.get_operation(
-                current_resolver_conf["list"]
-            )
-            current_resolver_conf["retrieve_operation"] = api_parser.get_operation(
-                current_resolver_conf["retrieve"]
-            )
+        parsed_resolvers = self._parse_resolvers(raw_config, api_parser)
+        self._validate_resolvers(parsed_resolvers, api_parser, module_key)
+        raw_config["resolvers"] = parsed_resolvers
 
         # --- Step 5: Final Validation and Instantiation ---
         # At this point, `raw_config` is fully populated with enriched data.

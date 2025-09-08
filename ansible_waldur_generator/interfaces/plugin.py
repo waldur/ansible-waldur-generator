@@ -10,6 +10,7 @@ from ansible_waldur_generator.models import (
     ApiOperation,
     ContextParam,
     GenerationContext,
+    PluginModuleResolver,
 )
 from ansible_waldur_generator.schema_parser import ReturnBlockGenerator
 
@@ -690,3 +691,70 @@ class BasePlugin(ABC):
                     f"for the operation '{op_id}'. "
                     f"Available filters are: {sorted(list(valid_filters))}"
                 )
+
+    def _parse_resolvers(
+        self, raw_config: dict[str, Any], api_parser: ApiSpecParser
+    ) -> dict[str, PluginModuleResolver]:
+        """
+        A shared, reusable method to parse the 'resolvers' section of a module's
+        configuration. It handles shorthand and expands all resolver definitions
+        into structured PluginModuleResolver objects.
+        """
+        parsed_resolvers = {}
+        for name, resolver_conf in raw_config.get("resolvers", {}).items():
+            # Handle shorthand `resolver: "customers"`
+            if isinstance(resolver_conf, str):
+                resolver_conf = {
+                    "list": f"{resolver_conf}_list",
+                    "retrieve": f"{resolver_conf}_retrieve",
+                }
+            # Handle shorthand `resolver: { base: "customers" }`
+            elif "base" in resolver_conf:
+                base = resolver_conf["base"]
+                resolver_conf["list"] = f"{base}_list"
+                resolver_conf["retrieve"] = f"{base}_retrieve"
+
+            # Resolve the operation IDs into full ApiOperation objects.
+            resolver_conf["list_operation"] = api_parser.get_operation(
+                resolver_conf["list"]
+            )
+            resolver_conf["retrieve_operation"] = api_parser.get_operation(
+                resolver_conf["retrieve"]
+            )
+            # Validate the final structure with the Pydantic model.
+            parsed_resolvers[name] = PluginModuleResolver(**resolver_conf)
+        return parsed_resolvers
+
+    def _validate_resolvers(
+        self,
+        resolvers: dict[str, Any],
+        api_parser: ApiSpecParser,
+        module_key: str,
+    ):
+        """
+        A shared, reusable method to validate the `filter_by` configuration of resolvers
+        against the OpenAPI schema of their target API operations.
+        """
+        for resolver_name, resolver_config in resolvers.items():
+            if not getattr(resolver_config, "filter_by", None):
+                continue
+
+            list_op = getattr(resolver_config, "list_operation", None)
+            if not list_op:
+                continue
+
+            list_op_id = list_op.operation_id
+            valid_query_params = api_parser.get_query_parameters_for_operation(
+                list_op_id
+            )
+
+            # Ensure that the 'target_key' for a filter is a valid query parameter
+            # on the target API endpoint. This prevents runtime errors.
+            for filter_config in resolver_config.filter_by:
+                target_key = filter_config.target_key
+                if target_key not in valid_query_params:
+                    raise ValueError(
+                        f"Validation Error in module '{module_key}', resolver '{resolver_name}': "
+                        f"The specified target_key '{target_key}' is not a valid filter parameter for the list operation '{list_op_id}'. "
+                        f"Available filters are: {sorted(list(valid_query_params))}"
+                    )

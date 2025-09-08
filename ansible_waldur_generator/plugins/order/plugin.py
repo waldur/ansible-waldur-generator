@@ -13,7 +13,6 @@ from ansible_waldur_generator.helpers import (
 )
 from ansible_waldur_generator.interfaces.plugin import BasePlugin
 from ansible_waldur_generator.plugins.order.config import (
-    OrderModuleResolver,
     ParameterConfig,
     OrderModuleConfig,
     UpdateActionConfig,
@@ -592,33 +591,6 @@ class OrderPlugin(BasePlugin):
             inferred_params.append(param)
         return inferred_params
 
-    def _validate_resolvers(
-        self,
-        resolvers: dict[str, OrderModuleResolver],
-        api_parser: ApiSpecParser,
-        module_key: str,
-    ):
-        """Validates resolver configurations to catch errors early."""
-        for resolver_name, resolver_config in resolvers.items():
-            if not resolver_config.filter_by:
-                continue
-
-            list_op_id = resolver_config.list_operation.operation_id
-            valid_query_params = api_parser.get_query_parameters_for_operation(
-                list_op_id
-            )
-
-            # Ensure that the 'target_key' for a filter is a valid query parameter
-            # on the target API endpoint. This prevents runtime errors.
-            for filter_config in resolver_config.filter_by:
-                target_key = filter_config.target_key
-                if target_key not in valid_query_params:
-                    raise ValueError(
-                        f"Validation Error in module '{module_key}', resolver '{resolver_name}': "
-                        f"The specified target_key '{target_key}' is not a valid filter parameter for the list operation '{list_op_id}'. "
-                        f"Available filters are: {sorted(list(valid_query_params))}"
-                    )
-
     def _parse_configuration(self, module_key, raw_config, api_parser):
         """
         The main parsing entrypoint for the plugin. It takes the raw config,
@@ -740,26 +712,7 @@ class OrderPlugin(BasePlugin):
                 raw_config["update_fields"] = inferred_fields
 
         # Parse the resolver configurations, expanding shorthand where needed
-        parsed_resolvers = {}
-        for name, resolver_conf in raw_config.get("resolvers", {}).items():
-            if isinstance(resolver_conf, str):
-                resolver_conf = {
-                    "list": f"{resolver_conf}_list",
-                    "retrieve": f"{resolver_conf}_retrieve",
-                }
-            elif "base" in resolver_conf:
-                base = resolver_conf["base"]
-                resolver_conf["list"] = f"{base}_list"
-                resolver_conf["retrieve"] = f"{base}_retrieve"
-
-            resolver_conf["list_operation"] = api_parser.get_operation(
-                resolver_conf["list"]
-            )
-            resolver_conf["retrieve_operation"] = api_parser.get_operation(
-                resolver_conf["retrieve"]
-            )
-            parsed_resolvers[name] = OrderModuleResolver(**resolver_conf)
-
+        parsed_resolvers = self._parse_resolvers(raw_config, api_parser)
         self._validate_resolvers(parsed_resolvers, api_parser, module_key)
         raw_config["resolvers"] = parsed_resolvers
 

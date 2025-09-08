@@ -10,6 +10,8 @@ different module types.
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any
 
+from pydantic import BaseModel, Field
+
 # A type alias for clarity, representing a dictionary of Ansible parameter options.
 AnsibleModuleParams = Dict[str, Dict[str, Any]]
 
@@ -73,3 +75,29 @@ class GenerationContext:
     return_block: dict
 
     runner_context: Any
+
+
+class FilterByConfig(BaseModel):
+    """
+    Defines a dependency for filtering a resolver's list query.
+    """
+
+    # The Ansible parameter that provides the filter value (e.g., "offering").
+    source_param: str
+    # The key to extract from the resolved source_param's response (e.g., "scope_uuid").
+    source_key: str
+    # The query parameter key for the target API call (e.g., "settings_uuid").
+    target_key: str
+
+
+class PluginModuleResolver(BaseModel):
+    """
+    A unified, powerful model for defining how to resolve a parameter.
+    It supports both simple lookups and complex, dependency-based filtering.
+    """
+
+    list_operation: ApiOperation
+    retrieve_operation: ApiOperation
+    error_message: str | None = None
+    # A list of dependencies used to filter the 'list' operation call.
+    filter_by: list[FilterByConfig] = Field(default_factory=list)

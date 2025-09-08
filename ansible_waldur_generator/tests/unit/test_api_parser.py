@@ -489,7 +489,7 @@ class TestApiSpecParser:
         """Test extracting query parameters for operation."""
         params = parser.get_query_parameters_for_operation("customers_list")
 
-        assert isinstance(params, set)
+        assert isinstance(params, dict)
         assert "name" in params
         assert "name_exact" in params
         assert "abbreviation" in params
@@ -500,7 +500,7 @@ class TestApiSpecParser:
         """Test operation without query parameters."""
         params = parser.get_query_parameters_for_operation("customers_retrieve")
 
-        assert isinstance(params, set)
+        assert isinstance(params, dict)
         assert len(params) == 0
 
     def test_get_operation_nonexistent(self, parser):

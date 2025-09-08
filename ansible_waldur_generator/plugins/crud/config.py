@@ -1,24 +1,11 @@
 from pydantic import BaseModel, Field
 from typing import Dict, List
 
-from ansible_waldur_generator.models import ApiOperation, ContextParam
-
-
-class ModuleResolver(BaseModel):
-    """
-    Defines how to resolve a user-friendly name or UUID into a full API URL.
-    This is essential for parameters that represent foreign keys, like linking a
-    project to a customer.
-    """
-
-    # The API operation used to find a resource by its name (a list operation with filtering).
-    list_operation: ApiOperation
-
-    # The API operation used to find a resource directly by its UUID (a retrieve operation).
-    retrieve_operation: ApiOperation
-
-    # A user-friendly error message to display if the resource cannot be found.
-    error_message: str | None = None
+from ansible_waldur_generator.models import (
+    ApiOperation,
+    ContextParam,
+    PluginModuleResolver,
+)
 
 
 class UpdateAction(BaseModel):
@@ -119,7 +106,7 @@ class CrudModuleConfig(BaseModel):
 
     # A dictionary of resolvers for any parameters that need to be converted
     # from names/UUIDs to full API URLs. The key is the parameter name.
-    resolvers: Dict[str, ModuleResolver] = Field(default_factory=dict)
+    resolvers: Dict[str, PluginModuleResolver] = Field(default_factory=dict)
 
     # A list of parameter names that have 'format: uri' but should NOT be treated
     # as needing a resolver. This is an escape hatch for special cases.
