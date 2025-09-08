@@ -44,49 +44,33 @@ class CrudRunner(BaseRunner):
         Returns:
             A list containing one `CreateCommand` object.
         """
-        # --- Step 1: Assemble the Request Body Payload ---
-
-        # Gather all parameters that are part of the resource's data model,
-        # but only if the user has provided a non-None value for them. This
-        # prevents sending empty keys to the API.
-        payload = {
-            key: self.module.params[key]
-            for key in self.context["model_param_names"]
-            if key in self.module.params and self.module.params[key] is not None
-        }
-
-        # Resolve any foreign keys within the payload. For each parameter that has
-        # a configured resolver, convert its user-provided name/UUID into the
-        # full API URL that the backend expects.
-        for name in self.context.get("resolvers", {}).keys():
-            if self.module.params.get(name) and name in payload:
-                payload[name] = self.resolver.resolve_to_url(
-                    name, self.module.params[name]
-                )
-
-        # --- Step 2: Resolve Path Parameters for Nested Endpoints ---
-
-        # This handles the critical edge case where a resource is created under a parent,
-        # e.g., POST /api/tenants/{uuid}/security_groups/.
+        # --- Step 1: Resolve Path Parameters using the (now populated) Cache ---
         path_params = {}
         create_path_maps = self.context.get("path_param_maps", {}).get("create", {})
+
         for path_param_key, ansible_param_name in create_path_maps.items():
             parent_identifier = self.module.params.get(ansible_param_name)
-
-            # Defensive check: The parent identifier must be provided for nested creation.
             if not parent_identifier:
                 self.module.fail_json(
                     msg=f"Parameter '{ansible_param_name}' is required for creation, as it defines the parent resource."
                 )
 
-            # Resolve the parent's name/UUID to its full URL.
-            resolved_url = self.resolver.resolve_to_url(
-                ansible_param_name, parent_identifier
-            )
-            # Extract the UUID from the URL to be used as the path parameter.
+            # This call will now work reliably because the resolver can handle its own dependencies.
+            resolved_url = self.resolver.resolve(ansible_param_name, parent_identifier)
             path_params[path_param_key] = resolved_url.strip("/").split("/")[-1]
 
-        # --- Step 3: Return the Final Command ---
+        # --- Step 2: Assemble and Recursively Resolve the Request Body Payload ---
+        # Gather all parameters that are part of the resource's data model.
+        raw_payload = {
+            key: self.module.params[key]
+            for key in self.context["model_param_names"]
+            if key in self.module.params and self.module.params[key] is not None
+        }
+
+        payload = {}
+        for key, value in raw_payload.items():
+            payload[key] = self.resolver.resolve(key, value)
+
         return [
             Command(
                 self,

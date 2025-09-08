@@ -17,6 +17,7 @@ class TestNetworkRbacPolicyModule:
     # Define consistent test data to be used across the lifecycle tests.
     TEST_DATA = {
         "policy_name": "E2E-VCR-Test-Policy",
+        "tenant": "waldur-dev-farm",
         "network": "waldur-dev-farm-int-net",
         "target_tenant": "91809",
         "policy_type": "access_as_shared",
@@ -32,6 +33,7 @@ class TestNetworkRbacPolicyModule:
         user_params = {
             "state": "present",
             "name": self.TEST_DATA["policy_name"],
+            "tenant": self.TEST_DATA["tenant"],
             "network": self.TEST_DATA["network"],
             "target_tenant": self.TEST_DATA["target_tenant"],
             "policy_type": self.TEST_DATA["policy_type"],

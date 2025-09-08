@@ -227,6 +227,7 @@ class ParameterResolver:
         # Step 2: Check the cache first to avoid a network call.
         # Use a tuple as a cache key to distinguish between different resolutions for the
         # same parameter name (e.g., resolving two different subnets in a `ports` list).
+
         cache_key = (param_name, value)
         if cache_key in self.cache:
             resolved_object = self.cache[cache_key]
@@ -249,34 +250,29 @@ class ParameterResolver:
                 )
 
             resolved_object = resource_list[0]
-
-            # Step 3: Populate the cache with the new result.
+            # Populate the tuple-key cache to avoid re-fetching this specific item.
             self.cache[cache_key] = resolved_object
-            # For top-level parameters (like 'project' or 'offering'), also cache by the
-            # simple parameter name for easy access by dependent resolvers.
-            if param_name in self.module.params:
-                self.cache[param_name] = resolved_object
+
+        # Step 3: Populate the simple cache key for dependency lookups.
+        # This is the critical fix: ensure this happens on every call (cache hit or miss)
+        # for any top-level parameter, making the cache robust for dependencies.
+        if param_name in self.module.params:
+            self.cache[param_name] = resolved_object
 
         # Step 4: Format the return value based on the resolver's configuration and context hint.
         if resolver_conf.get("is_list"):
-            # Use the new context-aware dictionary
             list_item_keys = resolver_conf.get("list_item_keys", {})
-            # Get the specific key for the current format ('create' or 'update_action')
             item_key = list_item_keys.get(output_format)
-
-            # If item_key is a string (like 'url'), wrap the URL in an object.
-            # If item_key is None, this condition is false, and we fall through.
             if item_key:
                 return {item_key: resolved_object["url"]}
 
-        # For non-list resolvers, or for list resolvers where the format is a raw string,
-        # return the direct URL.
         return resolved_object["url"]
 
     def _build_dependency_filters(self, name: str, dependencies: list) -> dict:
         """
         Builds a query parameter dictionary from resolver dependencies by looking
-        up previously resolved objects in the cache.
+        up previously resolved objects in the cache. If a dependency is not in the
+        cache, it attempts to resolve it "just-in-time".
 
         Args:
             name: The name of the parameter currently being resolved (for error messages).
@@ -289,11 +285,25 @@ class ParameterResolver:
         for dep in dependencies:
             source_param = dep["source_param"]
 
-            # This is a critical check. The dependency (e.g., 'offering') *must* have
-            # been resolved and cached before the dependent (e.g., 'flavor') is resolved.
+            # If the dependency (e.g., 'tenant') is not
+            # in the cache, we attempt to resolve it now.
+            if source_param not in self.cache:
+                # Check if the user has provided the dependency parameter.
+                if self.module.params.get(source_param):
+                    # Trigger a recursive resolution for the dependency. This will
+                    # populate the cache via the side-effect in `_resolve_single_value`.
+                    self.resolve(source_param, self.module.params[source_param])
+                else:
+                    # If the user didn't provide the dependency, we cannot proceed.
+                    self.module.fail_json(
+                        msg=f"Configuration error: Resolver for '{name}' depends on parameter '{source_param}', which was not provided."
+                    )
+                    return {}  # Unreachable
+
+            # At this point, the dependency must be in the cache.
             if source_param not in self.cache:
                 self.module.fail_json(
-                    msg=f"Configuration error: Resolver for '{name}' depends on '{source_param}', which has not been resolved yet. This may be due to a missing parameter or an incorrect ordering in the module logic."
+                    msg=f"Internal resolver error: Failed to resolve and cache dependency '{source_param}' for parameter '{name}'."
                 )
                 return {}  # Unreachable
 
