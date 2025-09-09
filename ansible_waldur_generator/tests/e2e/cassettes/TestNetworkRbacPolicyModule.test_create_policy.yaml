@@ -13,27 +13,173 @@ interactions:
       authorization:
       - DUMMY
     method: GET
-    uri: http://127.0.0.1:8000/api/openstack-networks/?name_exact=waldur-dev-farm-int-net
+    uri: http://127.0.0.1:8000/api/openstack-tenants/?name_exact=waldur-dev-farm
   response:
     body:
-      string: '[{"url":"http://127.0.0.1:8000/api/openstack-networks/24a91363451349a2b78b2c48bb09e80a/","uuid":"24a91363451349a2b78b2c48bb09e80a","name":"waldur-dev-farm-int-net","description":"","service_name":"UT
+      string: '[{"url":"http://127.0.0.1:8000/api/openstack-tenants/9d80c96ced07443e99a1c810a1d41ba9/","uuid":"9d80c96ced07443e99a1c810a1d41ba9","name":"waldur-dev-farm","description":"","service_name":"UT
         HPC (Campus)","service_settings":"http://127.0.0.1:8000/api/service-settings/58978795d079495b83bc4a5a8b87f2fc/","service_settings_uuid":"58978795d079495b83bc4a5a8b87f2fc","service_settings_state":"OK","service_settings_error_message":"","project":"http://127.0.0.1:8000/api/projects/5d3016240ccf4181b4cdc0baa0e41d5c/","project_name":"Self-Service
         dev infrastructure","project_uuid":"5d3016240ccf4181b4cdc0baa0e41d5c","customer":"http://127.0.0.1:8000/api/customers/bad9fcc9071e49a0aeb919c1523e7def/","customer_name":"ETAIS
-        Self-Service testing","customer_native_name":"","customer_abbreviation":"","error_message":"","error_traceback":"","resource_type":"OpenStack.Network","state":"OK","created":"2021-06-28T14:27:12.620425+00:00","modified":"2021-06-28T14:28:13.782844+00:00","backend_id":"03997c55-ef37-4a71-b3f6-15d3b502bfce","access_url":null,"tenant":"http://127.0.0.1:8000/api/openstack-tenants/9d80c96ced07443e99a1c810a1d41ba9/","tenant_name":"waldur-dev-farm","tenant_uuid":"9d80c96ced07443e99a1c810a1d41ba9","is_external":false,"type":"vxlan","segmentation_id":1127,"subnets":[{"uuid":"0a627224c2aa4af4a8c402ab92312ae5","name":"waldur-dev-farm-sub-net","description":"","cidr":"192.168.42.0/24","gateway_ip":"192.168.42.1","allocation_pools":[{"start":"192.168.42.10","end":"192.168.42.200"}],"ip_version":4,"enable_dhcp":true}],"mtu":1500,"rbac_policies":[],"marketplace_offering_uuid":null,"marketplace_offering_name":null,"marketplace_offering_plugin_options":null,"marketplace_category_uuid":null,"marketplace_category_name":null,"marketplace_resource_uuid":null,"marketplace_plan_uuid":null,"marketplace_resource_state":null,"is_usage_based":null,"is_limit_based":null}]'
+        Self-Service testing","customer_native_name":"","customer_abbreviation":"","error_message":"","error_traceback":"Traceback
+        (most recent call last):\n  File \"/usr/local/lib/python3.11/site-packages/urllib3/connection.py\",
+        line 198, in _new_conn\n    sock = connection.create_connection(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File
+        \"/usr/local/lib/python3.11/site-packages/urllib3/util/connection.py\", line
+        85, in create_connection\n    raise err\n  File \"/usr/local/lib/python3.11/site-packages/urllib3/util/connection.py\",
+        line 73, in create_connection\n    sock.connect(sa)\nTimeoutError: [Errno
+        110] Connection timed out\n\nThe above exception was the direct cause of the
+        following exception:\n\nTraceback (most recent call last):\n  File \"/usr/local/lib/python3.11/site-packages/urllib3/connectionpool.py\",
+        line 793, in urlopen\n    response = self._make_request(\n               ^^^^^^^^^^^^^^^^^^^\n  File
+        \"/usr/local/lib/python3.11/site-packages/urllib3/connectionpool.py\", line
+        491, in _make_request\n    raise new_e\n  File \"/usr/local/lib/python3.11/site-packages/urllib3/connectionpool.py\",
+        line 467, in _make_request\n    self._validate_conn(conn)\n  File \"/usr/local/lib/python3.11/site-packages/urllib3/connectionpool.py\",
+        line 1099, in _validate_conn\n    conn.connect()\n  File \"/usr/local/lib/python3.11/site-packages/urllib3/connection.py\",
+        line 616, in connect\n    self.sock = sock = self._new_conn()\n                       ^^^^^^^^^^^^^^^^\n  File
+        \"/usr/local/lib/python3.11/site-packages/urllib3/connection.py\", line 207,
+        in _new_conn\n    raise ConnectTimeoutError(\nurllib3.exceptions.ConnectTimeoutError:
+        (<urllib3.connection.HTTPSConnection object at 0x7f7387614bd0>, ''Connection
+        to cloud.hpc.ut.ee timed out. (connect timeout=None)'')\n\nThe above exception
+        was the direct cause of the following exception:\n\nTraceback (most recent
+        call last):\n  File \"/usr/local/lib/python3.11/site-packages/requests/adapters.py\",
+        line 486, in send\n    resp = conn.urlopen(\n           ^^^^^^^^^^^^^\n  File
+        \"/usr/local/lib/python3.11/site-packages/urllib3/connectionpool.py\", line
+        847, in urlopen\n    retries = retries.increment(\n              ^^^^^^^^^^^^^^^^^^\n  File
+        \"/usr/local/lib/python3.11/site-packages/urllib3/util/retry.py\", line 515,
+        in increment\n    raise MaxRetryError(_pool, url, reason) from reason  # type:
+        ignore[arg-type]\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nurllib3.exceptions.MaxRetryError:
+        HTTPSConnectionPool(host=''cloud.hpc.ut.ee'', port=5000): Max retries exceeded
+        with url: /v3/auth/tokens (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection
+        object at 0x7f7387614bd0>, ''Connection to cloud.hpc.ut.ee timed out. (connect
+        timeout=None)''))\n\nDuring handling of the above exception, another exception
+        occurred:\n\nTraceback (most recent call last):\n  File \"/usr/local/lib/python3.11/site-packages/keystoneauth1/session.py\",
+        line 1021, in _send_request\n    resp = self.session.request(method, url,
+        **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File
+        \"/usr/src/waldur/src/waldur_core/core/utils.py\", line 476, in request\n    return
+        super().request(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File
+        \"/usr/local/lib/python3.11/site-packages/requests/sessions.py\", line 589,
+        in request\n    resp = self.send(prep, **send_kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File
+        \"/usr/local/lib/python3.11/site-packages/requests/sessions.py\", line 703,
+        in send\n    r = adapter.send(request, **kwargs)\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File
+        \"/usr/local/lib/python3.11/site-packages/requests/adapters.py\", line 507,
+        in send\n    raise ConnectTimeout(e, request=request)\nrequests.exceptions.ConnectTimeout:
+        HTTPSConnectionPool(host=''cloud.hpc.ut.ee'', port=5000): Max retries exceeded
+        with url: /v3/auth/tokens (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection
+        object at 0x7f7387614bd0>, ''Connection to cloud.hpc.ut.ee timed out. (connect
+        timeout=None)''))\n\nDuring handling of the above exception, another exception
+        occurred:\n\nTraceback (most recent call last):\n  File \"/usr/src/waldur/src/waldur_openstack/openstack_base/session.py\",
+        line 98, in create_session\n    ks_session.get_auth_headers()\n  File \"/usr/local/lib/python3.11/site-packages/keystoneauth1/session.py\",
+        line 1214, in get_auth_headers\n    return auth.get_headers(self, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File
+        \"/usr/local/lib/python3.11/site-packages/keystoneauth1/plugin.py\", line
+        106, in get_headers\n    token = self.get_token(session)\n            ^^^^^^^^^^^^^^^^^^^^^^^\n  File
+        \"/usr/local/lib/python3.11/site-packages/keystoneauth1/identity/base.py\",
+        line 85, in get_token\n    return self.get_access(session).auth_token\n           ^^^^^^^^^^^^^^^^^^^^^^^^\n  File
+        \"/usr/local/lib/python3.11/site-packages/keystoneauth1/identity/base.py\",
+        line 131, in get_access\n    self.auth_ref = self.get_auth_ref(session)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File
+        \"/usr/local/lib/python3.11/site-packages/keystoneauth1/identity/v3/base.py\",
+        line 185, in get_auth_ref\n    resp = session.post(token_url, json=body, headers=headers,\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File
+        \"/usr/local/lib/python3.11/site-packages/keystoneauth1/session.py\", line
+        1162, in post\n    return self.request(url, ''POST'', **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File
+        \"/usr/local/lib/python3.11/site-packages/keystoneauth1/session.py\", line
+        930, in request\n    resp = send(**kwargs)\n           ^^^^^^^^^^^^^^\n  File
+        \"/usr/local/lib/python3.11/site-packages/keystoneauth1/session.py\", line
+        1028, in _send_request\n    raise exceptions.ConnectTimeout(msg)\nkeystoneauth1.exceptions.connection.ConnectTimeout:
+        Request to https://cloud.hpc.ut.ee:5000/v3/auth/tokens timed out\n\nDuring
+        handling of the above exception, another exception occurred:\n\nTraceback
+        (most recent call last):\n  File \"/usr/local/lib/python3.11/site-packages/celery/app/trace.py\",
+        line 477, in trace_task\n    R = retval = fun(*args, **kwargs)\n                 ^^^^^^^^^^^^^^^^^^^^\n  File
+        \"/usr/local/lib/python3.11/site-packages/sentry_sdk/integrations/celery.py\",
+        line 306, in _inner\n    reraise(*exc_info)\n  File \"/usr/local/lib/python3.11/site-packages/sentry_sdk/_compat.py\",
+        line 127, in reraise\n    raise value\n  File \"/usr/local/lib/python3.11/site-packages/sentry_sdk/integrations/celery.py\",
+        line 301, in _inner\n    return f(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^\n  File
+        \"/usr/local/lib/python3.11/site-packages/sentry_sdk/integrations/celery.py\",
+        line 306, in _inner\n    reraise(*exc_info)\n  File \"/usr/local/lib/python3.11/site-packages/sentry_sdk/_compat.py\",
+        line 127, in reraise\n    raise value\n  File \"/usr/local/lib/python3.11/site-packages/sentry_sdk/integrations/celery.py\",
+        line 301, in _inner\n    return f(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^\n  File
+        \"/usr/local/lib/python3.11/site-packages/sentry_sdk/integrations/celery.py\",
+        line 306, in _inner\n    reraise(*exc_info)\n  File \"/usr/local/lib/python3.11/site-packages/sentry_sdk/_compat.py\",
+        line 127, in reraise\n    raise value\n  File \"/usr/local/lib/python3.11/site-packages/sentry_sdk/integrations/celery.py\",
+        line 301, in _inner\n    return f(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^\n  File
+        \"/usr/local/lib/python3.11/site-packages/celery/app/trace.py\", line 760,
+        in __protected_call__\n    return self.run(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File
+        \"/usr/src/waldur/src/waldur_core/core/tasks.py\", line 110, in run\n    result
+        = self.execute(instance, *self.args, **self.kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File
+        \"/usr/src/waldur/src/waldur_core/core/tasks.py\", line 256, in execute\n    getattr(backend,
+        backend_method)(instance, *args, **kwargs)\n  File \"/usr/src/waldur/src/waldur_core/structure/backend.py\",
+        line 22, in wrapped\n    result = func(self, instance, *args, **kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File
+        \"/usr/src/waldur/src/waldur_openstack/openstack/backend.py\", line 277, in
+        pull_tenant_quotas\n    self._pull_tenant_quotas(tenant.backend_id, tenant)\n  File
+        \"/usr/src/waldur/src/waldur_openstack/openstack_base/backend.py\", line 64,
+        in _pull_tenant_quotas\n    for quota_name, limit in backend.get_tenant_quotas_limits(backend_id).items():\n                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File
+        \"/usr/src/waldur/src/waldur_openstack/openstack_base/backend.py\", line 70,
+        in get_tenant_quotas_limits\n    nova = get_nova_client(self.session)\n                           ^^^^^^^^^^^^\n  File
+        \"/usr/src/waldur/src/waldur_openstack/openstack_base/backend.py\", line 39,
+        in session\n    return get_keystone_session(self.settings, self.tenant_id)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File
+        \"/usr/src/waldur/src/waldur_openstack/openstack_base/session.py\", line 151,
+        in get_keystone_session\n    ks_session = create_session(credentials, verify_ssl)\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File
+        \"/usr/src/waldur/src/waldur_openstack/openstack_base/session.py\", line 100,
+        in create_session\n    raise OpenStackAuthorizationFailed(e)\nwaldur_openstack.openstack_base.exceptions.OpenStackAuthorizationFailed:
+        Request to https://cloud.hpc.ut.ee:5000/v3/auth/tokens timed out\n","resource_type":"OpenStack.Tenant","state":"OK","created":"2021-06-28T14:27:11.077883+00:00","modified":"2025-09-09T10:36:08.696753+00:00","backend_id":"169e2cfe9ed54402beb5fa827a8a8def","availability_zone":"","internal_network_id":"03997c55-ef37-4a71-b3f6-15d3b502bfce","external_network_id":"e0c1110b-96d6-4c45-9b8e-2d33bf11259f","quotas":[{"name":"gigabytes_prod3","usage":1460,"limit":-1},{"name":"gigabytes_rbd","usage":0,"limit":-1},{"name":"network_count","usage":1,"limit":100},{"name":"gigabytes___DEFAULT__","usage":0,"limit":-1},{"name":"gigabytes_scratch","usage":1460,"limit":-1},{"name":"subnet_count","usage":3,"limit":100},{"name":"snapshots_size","usage":0,"limit":-1},{"name":"volumes_size","usage":1495040,"limit":-1},{"name":"port_count","usage":35,"limit":500},{"name":"security_group_rule_count","usage":15,"limit":100},{"name":"ram","usage":229376,"limit":229376},{"name":"instances","usage":14,"limit":30},{"name":"gigabytes_prod","usage":0,"limit":-1},{"name":"floating_ip_count","usage":1,"limit":50},{"name":"snapshots","usage":0,"limit":50},{"name":"volumes","usage":15,"limit":50},{"name":"security_group_count","usage":10,"limit":100},{"name":"gigabytes_gpfs","usage":0,"limit":-1},{"name":"vcpu","usage":224,"limit":224},{"name":"gigabytes_prod2","usage":0,"limit":-1},{"name":"storage","usage":1495040,"limit":1495040}],"default_volume_type_name":"","marketplace_offering_uuid":"4ce883470b7242beb7368becf614d1ec","marketplace_offering_name":"UT
+        HPC (Campus)","marketplace_offering_plugin_options":{"storage_mode":"dynamic","homedir_prefix":"/home/","initial_uidnumber":5000,"initial_usergroup_number":6000,"username_anonymized_prefix":"waldur_","username_generation_policy":"service_provider","initial_primarygroup_number":5000},"marketplace_category_uuid":"06e45986252244218bd062149fc3b5b5","marketplace_category_name":"Private
+        clouds","marketplace_resource_uuid":"a83cbdcae5b24cad968bc14649521876","marketplace_plan_uuid":"c092afb394924d7d86f14bb5d6fb984c","marketplace_resource_state":"OK","is_usage_based":false,"is_limit_based":true}]'
     headers:
       Allow:
       - GET, POST, HEAD, OPTIONS
       Content-Language:
       - en
       Content-Length:
-      - '1885'
+      - '12297'
       Content-Type:
       - application/json; charset=utf-8
       Date:
-      - Mon, 08 Sep 2025 18:57:17 GMT
+      - Tue, 09 Sep 2025 10:39:07 GMT
       Link:
-      - <http://127.0.0.1:8000/api/openstack-networks/?name_exact=waldur-dev-farm-int-net>;
-        rel="first", <http://127.0.0.1:8000/api/openstack-networks/?name_exact=waldur-dev-farm-int-net>;
+      - <http://127.0.0.1:8000/api/openstack-tenants/?name_exact=waldur-dev-farm>;
+        rel="first", <http://127.0.0.1:8000/api/openstack-tenants/?name_exact=waldur-dev-farm>;
+        rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/openstack-networks/?tenant_uuid=9d80c96ced07443e99a1c810a1d41ba9&name_exact=waldur-dev-farm-int-net
+  response:
+    body:
+      string: '[{"url":"http://127.0.0.1:8000/api/openstack-networks/24a91363451349a2b78b2c48bb09e80a/","uuid":"24a91363451349a2b78b2c48bb09e80a","name":"waldur-dev-farm-int-net","description":"","service_name":"UT
+        HPC (Campus)","service_settings":"http://127.0.0.1:8000/api/service-settings/58978795d079495b83bc4a5a8b87f2fc/","service_settings_uuid":"58978795d079495b83bc4a5a8b87f2fc","service_settings_state":"OK","service_settings_error_message":"","project":"http://127.0.0.1:8000/api/projects/5d3016240ccf4181b4cdc0baa0e41d5c/","project_name":"Self-Service
+        dev infrastructure","project_uuid":"5d3016240ccf4181b4cdc0baa0e41d5c","customer":"http://127.0.0.1:8000/api/customers/bad9fcc9071e49a0aeb919c1523e7def/","customer_name":"ETAIS
+        Self-Service testing","customer_native_name":"","customer_abbreviation":"","error_message":"","error_traceback":"","resource_type":"OpenStack.Network","state":"OK","created":"2021-06-28T14:27:12.620425+00:00","modified":"2021-06-28T14:28:13.782844+00:00","backend_id":"03997c55-ef37-4a71-b3f6-15d3b502bfce","access_url":null,"tenant":"http://127.0.0.1:8000/api/openstack-tenants/9d80c96ced07443e99a1c810a1d41ba9/","tenant_name":"waldur-dev-farm","tenant_uuid":"9d80c96ced07443e99a1c810a1d41ba9","is_external":false,"type":"vxlan","segmentation_id":1127,"subnets":[{"uuid":"0a627224c2aa4af4a8c402ab92312ae5","name":"waldur-dev-farm-sub-net","description":"","cidr":"192.168.42.0/24","gateway_ip":"192.168.42.1","allocation_pools":[{"start":"192.168.42.10","end":"192.168.42.200"}],"ip_version":4,"enable_dhcp":true}],"mtu":1500,"rbac_policies":[{"url":"http://127.0.0.1:8000/api/openstack-network-rbac-policies/230dab8461ef419d922f54bd330d41c3/","uuid":"230dab8461ef419d922f54bd330d41c3","network":"http://127.0.0.1:8000/api/openstack-networks/24a91363451349a2b78b2c48bb09e80a/","network_name":"waldur-dev-farm-int-net","target_tenant":"http://127.0.0.1:8000/api/openstack-tenants/05e5dc3d75c74b969bbd794f6f8ce1c2/","target_tenant_name":"91809","backend_id":"9fb427c8-bc80-45a8-a91b-c1fa6836e6d3","policy_type":"access_as_shared","created":"2025-09-08T18:57:17.442563+00:00"}],"marketplace_offering_uuid":null,"marketplace_offering_name":null,"marketplace_offering_plugin_options":null,"marketplace_category_uuid":null,"marketplace_category_name":null,"marketplace_resource_uuid":null,"marketplace_plan_uuid":null,"marketplace_resource_state":null,"is_usage_based":null,"is_limit_based":null}]'
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '2415'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Tue, 09 Sep 2025 10:13:14 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/openstack-networks/?name_exact=waldur-dev-farm-int-net&tenant_uuid=9d80c96ced07443e99a1c810a1d41ba9>;
+        rel="first", <http://127.0.0.1:8000/api/openstack-networks/?name_exact=waldur-dev-farm-int-net&tenant_uuid=9d80c96ced07443e99a1c810a1d41ba9>;
         rel="last"
       Server:
       - WSGIServer/0.2 CPython/3.11.9

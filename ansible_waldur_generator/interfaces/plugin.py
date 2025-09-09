@@ -1,3 +1,4 @@
+from graphlib import CycleError, TopologicalSorter
 import os
 import sys
 from abc import ABC, abstractmethod
@@ -744,3 +745,30 @@ class BasePlugin(ABC):
                     f"for the existence check operation '{op_id}'. "
                     f"Available filters are: {sorted(list(valid_filters))}"
                 )
+
+    def _get_sorted_resolvers(
+        self, resolvers: dict[str, PluginModuleResolver]
+    ) -> list[str]:
+        """
+        Performs a topological sort on a dictionary of resolvers to determine the correct
+        resolution order based on their `filter_by` dependencies.
+        """
+        # Build the dependency graph. The key is the parameter, and the set contains
+        # the parameters it depends on. `graphlib` expects {node: {successors}}.
+        graph = {name: set() for name in resolvers}
+        for name, resolver in resolvers.items():
+            if not getattr(resolver, "filter_by", None):
+                continue
+            for dep in resolver.filter_by:
+                source_param = dep.source_param
+                # An edge from source to name means 'name' depends on 'source'.
+                if source_param in graph:
+                    graph[source_param].add(name)
+
+        try:
+            ts = TopologicalSorter(graph)
+            return list(ts.static_order())
+        except CycleError as e:
+            raise ValueError(
+                f"A circular dependency was detected in the resolvers: {e}"
+            )

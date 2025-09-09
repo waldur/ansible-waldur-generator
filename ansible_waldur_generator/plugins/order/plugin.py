@@ -327,6 +327,27 @@ class OrderPlugin(BasePlugin):
         # The final, safe processing order is sorted resolvables first, then the rest.
         return sorted_resolvables + non_resolvable_params
 
+    def _get_sorted_resolvers(self, resolvers: Dict[str, Any]) -> List[str]:
+        """
+        Performs a topological sort on a dictionary of resolvers to determine the correct
+        resolution order based on their `filter_by` dependencies.
+        """
+        graph = {name: set() for name in resolvers}
+        for name, resolver in resolvers.items():
+            if not getattr(resolver, "filter_by", None):
+                continue
+            for dep in resolver.filter_by:
+                source_param = dep.source_param
+                if source_param in graph:
+                    graph[source_param].add(name)
+        try:
+            ts = TopologicalSorter(graph)
+            return list(ts.static_order())
+        except CycleError as e:
+            raise ValueError(
+                f"A circular dependency was detected in the resolvers: {e}"
+            )
+
     def _build_runner_context(
         self, module_config: OrderModuleConfig, api_parser
     ) -> Dict[str, Any]:
@@ -359,6 +380,9 @@ class OrderPlugin(BasePlugin):
             if resolver.check_filter_key:
                 check_filter_keys[name] = resolver.check_filter_key
 
+        # Get the sorted order of resolvers.
+        sorted_resolver_names = self._get_sorted_resolvers(module_config.resolvers)
+
         runner_context = {
             "resource_type": module_config.resource_type,
             "check_url": module_config.existence_check_op.path
@@ -372,6 +396,7 @@ class OrderPlugin(BasePlugin):
             "attribute_param_names": attribute_param_names,
             "termination_attributes_map": termination_attributes_map,
             "resolvers": resolvers,
+            "resolver_order": sorted_resolver_names,
             "update_actions": update_actions,
             # Determine the generic polling path for waiting.
             # Priority 1: The update path IS the detail view.

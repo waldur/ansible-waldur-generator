@@ -133,7 +133,7 @@ class TestSubnetModule:
         # --- ARRANGE ---
         user_params = {
             "state": "present",
-            "name": self.TEST_DATA["subnet_name"],
+            "name": "waldur-dev-farm-sub-net",
             "network": self.TEST_DATA["network"],
             "tenant": self.TEST_DATA["tenant"],
             "description": "Updated description for VCR test.",

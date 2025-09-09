@@ -107,6 +107,11 @@ class ParameterResolver:
             list_path = resolver_conf["url"].strip("/")
             return f"{api_url}/{list_path}/{value}/"
 
+        # Check cache first
+        cache_key = (param_name, value)
+        if cache_key in self.cache:
+            return self.cache[cache_key]["url"]
+
         # If it's a name, perform a search using the configured list endpoint.
         response, _ = self.runner.send_request(
             "GET", resolver_conf["url"], query_params={"name_exact": value}
@@ -127,7 +132,13 @@ class ParameterResolver:
             )
 
         # Return the 'url' field from the first matching resource.
-        return response[0]["url"]
+        # Cache the full object before returning the URL
+        resolved_object = response[0]
+        self.cache[cache_key] = resolved_object
+        if param_name in self.module.params:
+            self.cache[param_name] = resolved_object
+
+        return resolved_object["url"]
 
     def resolve(
         self, param_name: str, param_value: any, output_format: str = "create"
@@ -190,9 +201,16 @@ class ParameterResolver:
         # Case 3: The value is a primitive (string, int, etc.).
         # If a resolver exists for it, delegate the work to the single-value resolver.
         if resolver_conf:
-            return self._resolve_single_value(
+            resolved_value = self._resolve_single_value(
                 param_name, param_value, resolver_conf, output_format=output_format
             )
+            # Ensure the simple cache is populated if this was a top-level parameter
+            if (
+                param_name in self.module.params
+                and (param_name, param_value) in self.cache
+            ):
+                self.cache[param_name] = self.cache[(param_name, param_value)]
+            return resolved_value
 
         # If it's a primitive with no resolver, return it unchanged.
         return param_value
@@ -252,6 +270,11 @@ class ParameterResolver:
             resolved_object = resource_list[0]
             # Populate the tuple-key cache to avoid re-fetching this specific item.
             self.cache[cache_key] = resolved_object
+
+            # Also populate the simple cache key for dependency lookups
+            # if this is a top-level parameter, making the cache robust.
+            if param_name in self.module.params:
+                self.cache[param_name] = resolved_object
 
         # Step 3: Populate the simple cache key for dependency lookups.
         # This is the critical fix: ensure this happens on every call (cache hit or miss)

@@ -91,6 +91,8 @@ class CrudPlugin(BasePlugin):
             if resolver.check_filter_key:
                 check_filter_keys[name] = resolver.check_filter_key
 
+        sorted_resolver_names = self._get_sorted_resolvers(conf.resolvers)
+
         # The final context dictionary passed to the runner.
         runner_context = {
             "resource_type": conf.resource_type,
@@ -116,6 +118,7 @@ class CrudPlugin(BasePlugin):
             # Dictionary of complex update actions (e.g., set_rules).
             "update_actions": update_actions_context,
             "resolvers": resolvers_data,
+            "resolver_order": sorted_resolver_names,
             # Add the generic polling path. The destroy path is the detail view.
             "resource_detail_path": conf.destroy_operation.path
             if conf.destroy_operation
@@ -128,19 +131,36 @@ class CrudPlugin(BasePlugin):
         return runner_context
 
     def _get_model_param_names(self, module_config: CrudModuleConfig) -> List[str]:
-        """Helper to get a list of parameter names from the create operation's request body schema."""
+        """
+        Helper to get a topologically sorted list of parameter names from the
+        create operation's request body schema. This ensures dependencies within
+        the payload are also handled correctly.
+        """
         if not module_config.create_operation:
             return []
         schema = module_config.create_operation.model_schema
         if not schema or "properties" not in schema:
             return []
-        # Exclude any fields marked as 'readOnly' as they are server-generated.
-        param_names = [
+
+        # This reuses the same powerful dependency sorting logic for payload parameters.
+        # It assumes that dependencies are implicitly defined by parameters that are
+        # also present in the resolvers map.
+        all_param_names = {
             name
             for name, prop in schema["properties"].items()
             if not prop.get("readOnly", False)
-        ]
-        return sorted(param_names)
+        }
+
+        # Filter resolvers to only those present in the model parameters
+        model_resolvers = {
+            k: v for k, v in module_config.resolvers.items() if k in all_param_names
+        }
+        sorted_resolved_params = self._get_sorted_resolvers(model_resolvers)
+
+        # Combine sorted resolved params with the remaining non-resolved params
+        unresolved_params = sorted(list(all_param_names - set(sorted_resolved_params)))
+
+        return sorted_resolved_params + unresolved_params
 
     def _build_parameters(
         self, module_config: CrudModuleConfig, api_parser: ApiSpecParser

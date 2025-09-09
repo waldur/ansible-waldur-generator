@@ -46,7 +46,7 @@ def auth_params():
     """Provides a dictionary with standard authentication and API URL parameters."""
     return {
         "access_token": os.environ.get("WALDUR_ACCESS_TOKEN", "dummy-token-for-replay"),
-        "api_url": os.environ.get("WALDUR_API_URL", "https://api.waldur.com/api/"),
+        "api_url": os.environ.get("WALDUR_API_URL", "http://127.0.0.1:8000/"),
     }
 
 

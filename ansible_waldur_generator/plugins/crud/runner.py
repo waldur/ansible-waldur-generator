@@ -60,16 +60,16 @@ class CrudRunner(BaseRunner):
             path_params[path_param_key] = resolved_url.strip("/").split("/")[-1]
 
         # --- Step 2: Assemble and Recursively Resolve the Request Body Payload ---
-        # Gather all parameters that are part of the resource's data model.
-        raw_payload = {
-            key: self.module.params[key]
-            for key in self.context["model_param_names"]
-            if key in self.module.params and self.module.params[key] is not None
-        }
-
+        # Get the topologically sorted list of model parameters from the context.
+        sorted_model_params = self.context.get("model_param_names", [])
         payload = {}
-        for key, value in raw_payload.items():
-            payload[key] = self.resolver.resolve(key, value)
+
+        # Iterate in the correct dependency order.
+        for key in sorted_model_params:
+            if key in self.module.params and self.module.params[key] is not None:
+                # The `resolve` method will use the cache, which has been populated
+                # by previous iterations of this loop, to satisfy dependencies.
+                payload[key] = self.resolver.resolve(key, self.module.params[key])
 
         return [
             Command(
@@ -125,17 +125,22 @@ class CrudRunner(BaseRunner):
                 if ansible_param_name == "name":
                     path_params[path_key] = self.resource["uuid"]
                 else:
-                    # Otherwise, it's a parent/context resource that must be resolved.
-                    parent_identifier = self.module.params.get(ansible_param_name)
-                    if parent_identifier is None:
+                    # For any other parameter (i.e., a parent resource
+                    # like 'network'), we extract its URL from the existing resource data.
+                    # We assume the key in `self.resource` (e.g., 'network') matches
+                    # the ansible_param_name. This is a standard REST API convention.
+                    parent_url = self.resource.get(ansible_param_name)
+                    if not parent_url or not isinstance(parent_url, str):
                         self.module.fail_json(
-                            msg=f"Parameter '{ansible_param_name}' is required for deletion."
+                            msg=(
+                                f"Internal error: Could not find parent resource URL for key "
+                                f"'{ansible_param_name}' in the existing resource data. "
+                                f"This is needed to build the deletion path."
+                            )
                         )
 
-                    resolved_url = self.resolver.resolve_to_url(
-                        ansible_param_name, parent_identifier
-                    )
-                    path_params[path_key] = resolved_url.strip("/").split("/")[-1]
+                    # Extract the UUID from the end of the parent's URL.
+                    path_params[path_key] = parent_url.strip("/").split("/")[-1]
 
         # --- Step 2: Return the Final Command ---
         return [

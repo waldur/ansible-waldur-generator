@@ -67,6 +67,7 @@ class TestNetworkRbacPolicyModule:
         user_params = {
             "state": "present",
             "name": self.TEST_DATA["policy_name"],
+            "tenant": self.TEST_DATA["tenant"],
             "network": self.TEST_DATA["network"],
             "target_tenant": self.TEST_DATA["target_tenant"],
             "policy_type": self.TEST_DATA["policy_type"],
@@ -95,6 +96,7 @@ class TestNetworkRbacPolicyModule:
         user_params = {
             "state": "absent",
             "name": self.TEST_DATA["policy_name"],  # Identifies the policy to delete.
+            "tenant": self.TEST_DATA["tenant"],
             "network": self.TEST_DATA["network"],  # Identifies the parent network.
             "wait": False,
             **auth_params,
@@ -123,6 +125,7 @@ class TestNetworkRbacPolicyModule:
         user_params = {
             "state": "absent",
             "name": self.TEST_DATA["policy_name"],
+            "tenant": self.TEST_DATA["tenant"],
             "network": self.TEST_DATA["network"],
             "wait": False,
             **auth_params,

@@ -27,6 +27,7 @@ class TestParameterResolverInitialization:
         # Arrange
         mock_runner = Mock()
         mock_runner.module = Mock()
+        mock_runner.module.params = {}
         mock_runner.context = {"resolvers": {}}
 
         # Act
@@ -45,6 +46,7 @@ class TestParameterResolverInitialization:
         mock_context = {"resolvers": {"test": {}}}
         mock_runner = Mock()
         mock_runner.module = mock_module
+        mock_runner.module.params = {}
         mock_runner.context = mock_context
 
         # Act
@@ -70,7 +72,7 @@ class TestCachePriming:
 
         resolver = ParameterResolver(mock_runner)
         resource = {
-            "offering": "https://api.waldur.com/api/marketplace-offerings/offering-123/"
+            "offering": "http://127.0.0.1:8000/api/marketplace-offerings/offering-123/"
         }
 
         # Act
@@ -78,7 +80,7 @@ class TestCachePriming:
 
         # Assert
         mock_runner.send_request.assert_called_once_with(
-            "GET", "https://api.waldur.com/api/marketplace-offerings/offering-123/"
+            "GET", "http://127.0.0.1:8000/api/marketplace-offerings/offering-123/"
         )
         assert "offering" in resolver.cache
         assert resolver.cache["offering"]["uuid"] == "offering-123"
@@ -109,8 +111,8 @@ class TestCachePriming:
 
         resolver = ParameterResolver(mock_runner)
         resource = {
-            "offering": "https://api.waldur.com/api/marketplace-offerings/offering-123/",
-            "project": "https://api.waldur.com/api/projects/project-789/",
+            "offering": "http://127.0.0.1:8000/api/marketplace-offerings/offering-123/",
+            "project": "http://127.0.0.1:8000/api/projects/project-789/",
         }
 
         # Act
@@ -134,7 +136,7 @@ class TestCachePriming:
         resolver = ParameterResolver(mock_runner)
         resolver.cache["offering"] = {"uuid": "cached-data"}
         resource = {
-            "offering": "https://api.waldur.com/api/marketplace-offerings/offering-123/"
+            "offering": "http://127.0.0.1:8000/api/marketplace-offerings/offering-123/"
         }
 
         # Act
@@ -154,7 +156,7 @@ class TestSimpleResolution:
         # Arrange
         mock_runner = Mock()
         mock_runner.module = Mock()
-        mock_runner.module.params = {"api_url": "https://api.waldur.com/"}
+        mock_runner.module.params = {"api_url": "http://127.0.0.1:8000/"}
         mock_runner.context = {
             "resolvers": {
                 "customer": {
@@ -174,7 +176,7 @@ class TestSimpleResolution:
 
         # Assert
         expected = (
-            "https://api.waldur.com/api/customers/123e4567-e89b-12d3-a456-426614174000/"
+            "http://127.0.0.1:8000/api/customers/123e4567-e89b-12d3-a456-426614174000/"
         )
         assert result == expected
         # Should not make any API calls for UUID resolution
@@ -185,6 +187,7 @@ class TestSimpleResolution:
         # Arrange
         mock_runner = Mock()
         mock_runner.module = Mock()
+        mock_runner.module.params = {}
         mock_runner.context = {
             "resolvers": {
                 "customer": {
@@ -198,7 +201,7 @@ class TestSimpleResolution:
             return_value=(
                 [
                     {
-                        "url": "https://api.waldur.com/api/customers/customer-123/",
+                        "url": "http://127.0.0.1:8000/api/customers/customer-123/",
                         "name": "test-customer",
                     },
                 ],
@@ -215,13 +218,14 @@ class TestSimpleResolution:
         mock_runner.send_request.assert_called_once_with(
             "GET", "/api/customers/", query_params={"name_exact": "test-customer"}
         )
-        assert result == "https://api.waldur.com/api/customers/customer-123/"
+        assert result == "http://127.0.0.1:8000/api/customers/customer-123/"
 
     def test_resolve_to_url_with_name_multiple_results(self):
         """Test resolving a name with multiple results (should warn and use first)."""
         # Arrange
         mock_runner = Mock()
         mock_runner.module = Mock()
+        mock_runner.module.params = {}
         mock_runner.context = {
             "resolvers": {
                 "project": {
@@ -235,11 +239,11 @@ class TestSimpleResolution:
             return_value=(
                 [
                     {
-                        "url": "https://api.waldur.com/api/projects/project-123/",
+                        "url": "http://127.0.0.1:8000/api/projects/project-123/",
                         "name": "test-project",
                     },
                     {
-                        "url": "https://api.waldur.com/api/projects/project-456/",
+                        "url": "http://127.0.0.1:8000/api/projects/project-456/",
                         "name": "test-project",
                     },
                 ],
@@ -305,6 +309,7 @@ class TestRecursiveResolution:
         # Arrange
         mock_runner = Mock()
         mock_runner.module = Mock()
+        mock_runner.module.params = {}
         mock_runner.context = {
             "resolvers": {
                 "subnet": {
@@ -317,7 +322,7 @@ class TestRecursiveResolution:
         resolver = ParameterResolver(mock_runner)
         # Mock the single value resolution
         resolver._resolve_single_value = Mock(
-            return_value="https://api.waldur.com/api/subnets/subnet-123/"
+            return_value="http://127.0.0.1:8000/api/subnets/subnet-123/"
         )
 
         # Act
@@ -330,13 +335,14 @@ class TestRecursiveResolution:
             resolver.context["resolvers"]["subnet"],
             output_format="create",
         )
-        assert result == "https://api.waldur.com/api/subnets/subnet-123/"
+        assert result == "http://127.0.0.1:8000/api/subnets/subnet-123/"
 
     def test_resolve_primitive_without_resolver(self):
         """Test resolving a primitive value with no resolver (should return unchanged)."""
         # Arrange
         mock_runner = Mock()
         mock_runner.module = Mock()
+        mock_runner.module.params = {}
         mock_runner.context = {"resolvers": {}}
 
         resolver = ParameterResolver(mock_runner)
@@ -352,6 +358,7 @@ class TestRecursiveResolution:
         # Arrange
         mock_runner = Mock()
         mock_runner.module = Mock()
+        mock_runner.module.params = {}
         mock_runner.context = {
             "resolvers": {
                 "subnet": {
@@ -363,7 +370,7 @@ class TestRecursiveResolution:
 
         resolver = ParameterResolver(mock_runner)
         resolver._resolve_single_value = Mock(
-            return_value="https://api.waldur.com/api/subnets/subnet-123/"
+            return_value="http://127.0.0.1:8000/api/subnets/subnet-123/"
         )
 
         input_dict = {
@@ -377,7 +384,7 @@ class TestRecursiveResolution:
 
         # Assert
         expected = {
-            "subnet": "https://api.waldur.com/api/subnets/subnet-123/",
+            "subnet": "http://127.0.0.1:8000/api/subnets/subnet-123/",
             "description": "Port description",
             "floating_ip": True,
         }
@@ -394,6 +401,7 @@ class TestRecursiveResolution:
         # Arrange
         mock_runner = Mock()
         mock_runner.module = Mock()
+        mock_runner.module.params = {}
         mock_runner.context = {
             "resolvers": {
                 "security_groups": {
@@ -407,8 +415,8 @@ class TestRecursiveResolution:
         resolver = ParameterResolver(mock_runner)
         resolver._resolve_single_value = Mock(
             side_effect=[
-                "https://api.waldur.com/api/security-groups/sg-123/",
-                "https://api.waldur.com/api/security-groups/sg-456/",
+                "http://127.0.0.1:8000/api/security-groups/sg-123/",
+                "http://127.0.0.1:8000/api/security-groups/sg-456/",
             ]
         )
 
@@ -419,8 +427,8 @@ class TestRecursiveResolution:
 
         # Assert
         expected = [
-            "https://api.waldur.com/api/security-groups/sg-123/",
-            "https://api.waldur.com/api/security-groups/sg-456/",
+            "http://127.0.0.1:8000/api/security-groups/sg-123/",
+            "http://127.0.0.1:8000/api/security-groups/sg-456/",
         ]
         assert result == expected
         assert resolver._resolve_single_value.call_count == 2
@@ -430,6 +438,7 @@ class TestRecursiveResolution:
         # Arrange
         mock_runner = Mock()
         mock_runner.module = Mock()
+        mock_runner.module.params = {}
         mock_runner.context = {
             "resolvers": {
                 "subnet": {
@@ -442,8 +451,8 @@ class TestRecursiveResolution:
         resolver = ParameterResolver(mock_runner)
         resolver._resolve_single_value = Mock(
             side_effect=[
-                "https://api.waldur.com/api/subnets/subnet-123/",
-                "https://api.waldur.com/api/subnets/subnet-456/",
+                "http://127.0.0.1:8000/api/subnets/subnet-123/",
+                "http://127.0.0.1:8000/api/subnets/subnet-456/",
             ]
         )
 
@@ -458,11 +467,11 @@ class TestRecursiveResolution:
         # Assert
         expected = [
             {
-                "subnet": "https://api.waldur.com/api/subnets/subnet-123/",
+                "subnet": "http://127.0.0.1:8000/api/subnets/subnet-123/",
                 "description": "Port 1",
             },
             {
-                "subnet": "https://api.waldur.com/api/subnets/subnet-456/",
+                "subnet": "http://127.0.0.1:8000/api/subnets/subnet-456/",
                 "description": "Port 2",
             },
         ]
@@ -473,6 +482,7 @@ class TestRecursiveResolution:
         # Arrange
         mock_runner = Mock()
         mock_runner.module = Mock()
+        mock_runner.module.params = {}
         mock_runner.context = {
             "resolvers": {
                 "subnet": {
@@ -490,9 +500,9 @@ class TestRecursiveResolution:
         resolver = ParameterResolver(mock_runner)
         resolver._resolve_single_value = Mock(
             side_effect=[
-                "https://api.waldur.com/api/subnets/subnet-123/",
-                "https://api.waldur.com/api/security-groups/sg-123/",
-                "https://api.waldur.com/api/security-groups/sg-456/",
+                "http://127.0.0.1:8000/api/subnets/subnet-123/",
+                "http://127.0.0.1:8000/api/security-groups/sg-123/",
+                "http://127.0.0.1:8000/api/security-groups/sg-456/",
             ]
         )
 
@@ -510,10 +520,10 @@ class TestRecursiveResolution:
         expected = {
             "ports": [
                 {
-                    "subnet": "https://api.waldur.com/api/subnets/subnet-123/",
+                    "subnet": "http://127.0.0.1:8000/api/subnets/subnet-123/",
                     "security_groups": [
-                        "https://api.waldur.com/api/security-groups/sg-123/",
-                        "https://api.waldur.com/api/security-groups/sg-456/",
+                        "http://127.0.0.1:8000/api/security-groups/sg-123/",
+                        "http://127.0.0.1:8000/api/security-groups/sg-456/",
                     ],
                 }
             ],
@@ -538,7 +548,7 @@ class TestSingleValueResolution:
         resolver._resolve_to_list = Mock(
             return_value=[
                 {
-                    "url": "https://api.waldur.com/api/subnets/subnet-123/",
+                    "url": "http://127.0.0.1:8000/api/subnets/subnet-123/",
                     "name": "test-subnet",
                 }
             ]
@@ -553,7 +563,7 @@ class TestSingleValueResolution:
         result = resolver._resolve_single_value("subnet", "test-subnet", resolver_conf)
 
         # Assert
-        assert result == "https://api.waldur.com/api/subnets/subnet-123/"
+        assert result == "http://127.0.0.1:8000/api/subnets/subnet-123/"
         resolver._build_dependency_filters.assert_called_once_with("subnet", [])
         resolver._resolve_to_list.assert_called_once_with(
             "/api/subnets/", "test-subnet", {}
@@ -574,7 +584,7 @@ class TestSingleValueResolution:
         resolver._resolve_to_list = Mock(
             return_value=[
                 {
-                    "url": "https://api.waldur.com/api/flavors/flavor-123/",
+                    "url": "http://127.0.0.1:8000/api/flavors/flavor-123/",
                     "name": "test-flavor",
                 }
             ]
@@ -596,7 +606,7 @@ class TestSingleValueResolution:
         result = resolver._resolve_single_value("flavor", "test-flavor", resolver_conf)
 
         # Assert
-        assert result == "https://api.waldur.com/api/flavors/flavor-123/"
+        assert result == "http://127.0.0.1:8000/api/flavors/flavor-123/"
         resolver._build_dependency_filters.assert_called_once_with(
             "flavor", resolver_conf["filter_by"]
         )
@@ -614,7 +624,7 @@ class TestSingleValueResolution:
 
         resolver = ParameterResolver(mock_runner)
         resolver.cache[("subnet", "test-subnet")] = {
-            "url": "https://api.waldur.com/api/subnets/subnet-123/",
+            "url": "http://127.0.0.1:8000/api/subnets/subnet-123/",
             "name": "test-subnet",
         }
         resolver._build_dependency_filters = Mock(return_value={})
@@ -629,7 +639,7 @@ class TestSingleValueResolution:
         result = resolver._resolve_single_value("subnet", "test-subnet", resolver_conf)
 
         # Assert
-        assert result == "https://api.waldur.com/api/subnets/subnet-123/"
+        assert result == "http://127.0.0.1:8000/api/subnets/subnet-123/"
         resolver._resolve_to_list.assert_not_called()
 
     def test_resolve_single_value_is_list_configuration(self):
@@ -645,7 +655,7 @@ class TestSingleValueResolution:
         resolver._resolve_to_list = Mock(
             return_value=[
                 {
-                    "url": "https://api.waldur.com/api/security-groups/sg-123/",
+                    "url": "http://127.0.0.1:8000/api/security-groups/sg-123/",
                     "name": "sg-web",
                 }
             ]
@@ -664,7 +674,7 @@ class TestSingleValueResolution:
         )
 
         # Assert
-        expected = {"url": "https://api.waldur.com/api/security-groups/sg-123/"}
+        expected = {"url": "http://127.0.0.1:8000/api/security-groups/sg-123/"}
         assert result == expected
 
     def test_resolve_single_value_no_results_fails(self):
@@ -703,11 +713,11 @@ class TestSingleValueResolution:
         resolver._resolve_to_list = Mock(
             return_value=[
                 {
-                    "url": "https://api.waldur.com/api/subnets/subnet-123/",
+                    "url": "http://127.0.0.1:8000/api/subnets/subnet-123/",
                     "name": "test-subnet",
                 },
                 {
-                    "url": "https://api.waldur.com/api/subnets/subnet-456/",
+                    "url": "http://127.0.0.1:8000/api/subnets/subnet-456/",
                     "name": "test-subnet",
                 },
             ]
@@ -739,7 +749,7 @@ class TestSingleValueResolution:
         resolver._resolve_to_list = Mock(
             return_value=[
                 {
-                    "url": "https://api.waldur.com/api/subnets/subnet-123/",
+                    "url": "http://127.0.0.1:8000/api/subnets/subnet-123/",
                     "name": "test-subnet",
                 }
             ]
@@ -754,7 +764,7 @@ class TestSingleValueResolution:
         result = resolver._resolve_single_value("subnet", "test-subnet", resolver_conf)
 
         # Assert
-        assert result == "https://api.waldur.com/api/subnets/subnet-123/"
+        assert result == "http://127.0.0.1:8000/api/subnets/subnet-123/"
         # Check that both cache entries are created
         assert ("subnet", "test-subnet") in resolver.cache
         assert "subnet" in resolver.cache  # Top-level parameter cache
@@ -772,7 +782,7 @@ class TestSingleValueResolution:
         resolver._resolve_to_list = Mock(
             return_value=[
                 {
-                    "url": "https://api.waldur.com/api/subnets/subnet-123/",
+                    "url": "http://127.0.0.1:8000/api/subnets/subnet-123/",
                     "name": "nested-subnet",
                 }
             ]
@@ -789,7 +799,7 @@ class TestSingleValueResolution:
         )
 
         # Assert
-        assert result == "https://api.waldur.com/api/subnets/subnet-123/"
+        assert result == "http://127.0.0.1:8000/api/subnets/subnet-123/"
         # Only tuple cache entry should exist, not top-level
         assert ("subnet", "nested-subnet") in resolver.cache
         assert "subnet" not in resolver.cache  # Should NOT create top-level cache entry
@@ -810,7 +820,7 @@ class TestResolveToList:
                 {
                     "uuid": "subnet-123",
                     "name": "test-subnet",
-                    "url": "https://api.waldur.com/api/subnets/subnet-123/",
+                    "url": "http://127.0.0.1:8000/api/subnets/subnet-123/",
                 },
                 200,
             )
@@ -833,7 +843,7 @@ class TestResolveToList:
             {
                 "uuid": "subnet-123",
                 "name": "test-subnet",
-                "url": "https://api.waldur.com/api/subnets/subnet-123/",
+                "url": "http://127.0.0.1:8000/api/subnets/subnet-123/",
             }
         ]
         assert result == expected
@@ -1119,6 +1129,7 @@ class TestComplexIntegrationScenarios:
         # Arrange
         mock_runner = Mock()
         mock_runner.module = Mock()
+        mock_runner.module.params = {}
         mock_runner.context = {
             "resolvers": {
                 "subnet": {
@@ -1217,6 +1228,7 @@ class TestEdgeCasesAndErrorHandling:
         # Arrange
         mock_runner = Mock()
         mock_runner.module = Mock()
+        mock_runner.module.params = {}
         mock_runner.context = {"resolvers": {}}
 
         resolver = ParameterResolver(mock_runner)
@@ -1232,6 +1244,7 @@ class TestEdgeCasesAndErrorHandling:
         # Arrange
         mock_runner = Mock()
         mock_runner.module = Mock()
+        mock_runner.module.params = {}
         mock_runner.context = {
             "resolvers": {
                 "subnet": {
@@ -1265,6 +1278,7 @@ class TestEdgeCasesAndErrorHandling:
         # Arrange
         mock_runner = Mock()
         mock_runner.module = Mock()
+        mock_runner.module.params = {}
         mock_runner.context = {
             "resolvers": {
                 "subnet": {
@@ -1300,6 +1314,7 @@ class TestEdgeCasesAndErrorHandling:
         # Arrange
         mock_runner = Mock()
         mock_runner.module = Mock()
+        mock_runner.module.params = {}
         mock_runner.context = {
             "resolvers": {
                 "subnet": {
@@ -1338,6 +1353,7 @@ class TestEdgeCasesAndErrorHandling:
         # Arrange
         mock_runner = Mock()
         mock_runner.module = Mock()
+        mock_runner.module.params = {}
         mock_runner.context = {"resolvers": {}}
 
         resolver = ParameterResolver(mock_runner)
@@ -1371,7 +1387,7 @@ class TestPerformanceAndOptimization:
         # Arrange
         mock_runner = Mock()
         mock_runner.module = Mock()
-        mock_runner.module.params = {"api_url": "https://api.waldur.com"}
+        mock_runner.module.params = {"api_url": "http://127.0.0.1:8000"}
         mock_runner.context = {
             "resolvers": {
                 "project": {
@@ -1392,7 +1408,7 @@ class TestPerformanceAndOptimization:
 
         # Assert
         expected = (
-            "https://api.waldur.com/api/projects/123e4567-e89b-12d3-a456-426614174000/"
+            "http://127.0.0.1:8000/api/projects/123e4567-e89b-12d3-a456-426614174000/"
         )
         assert result == expected
         # No API calls should have been made

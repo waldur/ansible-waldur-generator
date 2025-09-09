@@ -815,17 +815,34 @@ class BaseRunner:
         identifier_value = self.module.params["name"]
         query_params = {"name_exact": identifier_value}
 
-        # Add any additional context filters (e.g., project_uuid).
-        filter_keys = self.context.get("check_filter_keys", {})
-        for param_name, filter_key in filter_keys.items():
-            if self.module.params.get(param_name):
-                # Use the resolver to convert the context param (e.g., project name)
-                # into its UUID for the API filter.
-                resolved_url = self.resolver.resolve_to_url(
-                    param_name=param_name, value=self.module.params[param_name]
+        # Get the sorted list of resolver keys and the map of filter keys.
+        resolver_order = self.context.get("resolver_order", [])
+        filter_keys_map = self.context.get("check_filter_keys", {})
+
+        # Iterate through the resolvers in the topologically sorted order.
+        for param_name in resolver_order:
+            # We only process resolvers that are configured as context filters.
+            if param_name in filter_keys_map and self.module.params.get(param_name):
+                # Use the main `resolve` method. It is dependency-aware and populates
+                # the resolver's cache with the full object, which is essential for
+                # the next resolver in the chain.
+                resolved_object = self.resolver.resolve(
+                    param_name, self.module.params[param_name]
                 )
-                if resolved_url:
-                    query_params[filter_key] = resolved_url.strip("/").split("/")[-1]
+
+                if resolved_object:
+                    # The `resolve` method returns the full object. We need its UUID.
+                    if isinstance(resolved_object, str):
+                        resolved_uuid = resolved_object.strip("/").split("/")[-1]
+                    else:
+                        resolved_uuid = resolved_object.get("uuid")
+                    if not resolved_uuid:
+                        self.module.fail_json(
+                            msg=f"Could not extract UUID from resolved '{param_name}' object."
+                        )
+
+                    filter_key = filter_keys_map[param_name]
+                    query_params[filter_key] = resolved_uuid
 
         # --- Step 3: Execute the API call ---
         data, _ = self.send_request("GET", check_url, query_params=query_params)
