@@ -133,8 +133,12 @@ class ReturnBlockGenerator:
             return "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 
         # --- Networking ---
-        if "ip_address" in prop_name or "floating_ip" in prop_name:
+        if "floating_ip" in prop_name:
+            # Floating IPs are typically public.
             return "8.8.8.8"
+        if "ip_address" in prop_name:
+            # Fixed IPs are typically in a private range.
+            return "192.168.42.50"
         if "cidr" in prop_name:
             return "192.168.1.0/24"
         if "mac_address" in prop_name:
