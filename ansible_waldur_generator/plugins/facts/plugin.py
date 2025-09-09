@@ -222,14 +222,14 @@ class FactsPlugin(BasePlugin):
         """
         # To generate a good example, we first create a "virtual schema" that
         # represents the module's input parameters.
-        context_param_names = [
+        resolver_keys = [
             name
             for name, resolver in module_config.resolvers.items()
             if resolver.check_filter_key
         ]
         virtual_schema_props = {
             module_config.identifier_param: {"type": "string"},
-            **{p_name: {"type": "string"} for p_name in context_param_names},
+            **{p_name: {"type": "string"} for p_name in resolver_keys},
         }
         virtual_schema = {"type": "object", "properties": virtual_schema_props}
 
@@ -239,7 +239,7 @@ class FactsPlugin(BasePlugin):
             module_config.resource_type,
             # We pass the resolver keys so the generator creates helpful placeholders
             # instead of concrete values for these parameters.
-            resolver_keys=context_param_names,
+            resolver_keys=resolver_keys,
         )
 
         # Replace the auto-generated identifier with a more instructive placeholder.

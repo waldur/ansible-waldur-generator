@@ -456,7 +456,7 @@ class CrudPlugin(BasePlugin):
         if not module_config.create_operation:
             raise ValueError(f"Module '{module_key}' must have a 'create' operation.")
 
-        # Validate that any `context_params` are configured correctly against the
+        # Validate that any `resolvers` are configured correctly against the
         # OpenAPI spec for the `check_operation`.
         self._validate_resolvers(
             resolvers=module_config.resolvers,
