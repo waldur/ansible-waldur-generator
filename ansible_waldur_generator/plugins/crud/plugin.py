@@ -80,17 +80,16 @@ class CrudPlugin(BasePlugin):
 
         # Prepare resolver configurations for the runner.
         resolvers_data = {}
+        check_filter_keys = {}
         for name, resolver in conf.resolvers.items():
             resolvers_data[name] = {
                 "url": resolver.list_operation.path if resolver.list_operation else "",
                 "error_message": resolver.error_message,
                 "filter_by": [f.model_dump() for f in resolver.filter_by],
             }
-
-        # Build the map of context parameters to their API filter keys for the existence check.
-        check_filter_keys = {}
-        for p_conf in conf.context_params:
-            check_filter_keys[p_conf.name] = p_conf.filter_key
+            # If a resolver is marked as a context filter, add it to the check_filter_keys map.
+            if resolver.check_filter_key:
+                check_filter_keys[name] = resolver.check_filter_key
 
         # The final context dictionary passed to the runner.
         runner_context = {
@@ -177,17 +176,15 @@ class CrudPlugin(BasePlugin):
                     "description": f"The parent {ansible_param} name or UUID.",
                 }
 
-        # 3. Add any context parameters used for filtering the existence check.
-        for p_conf in conf.context_params:
-            # Only add the parameter if it hasn't been defined by a more specific
-            # configuration (like a path parameter).
-            if p_conf.name not in params:
-                params[p_conf.name] = {
-                    "description": p_conf.description
-                    or f"The name or UUID of the parent {p_conf.name} for filtering.",
-                    "type": "str",
-                    "required": p_conf.required,
-                }
+        # 3. Add any context parameters from resolvers.
+        for name, resolver in conf.resolvers.items():
+            if resolver.check_filter_key:
+                if name not in params:
+                    params[name] = {
+                        "description": f"The name or UUID of the parent {name} for filtering.",
+                        "type": "str",
+                        "required": True,  # Context filters are typically required
+                    }
 
         # 4. Infer parameters from the 'create' operation's request body schema.
         if conf.create_operation and conf.create_operation.model_schema:
@@ -426,7 +423,6 @@ class CrudPlugin(BasePlugin):
         # --- Step 4: Parse Resolvers ---
         # Process the 'resolvers' block, expanding shorthand where necessary.
         parsed_resolvers = self._parse_resolvers(raw_config, api_parser)
-        self._validate_resolvers(parsed_resolvers, api_parser, module_key)
         raw_config["resolvers"] = parsed_resolvers
 
         # --- Step 5: Final Validation and Instantiation ---
@@ -442,11 +438,11 @@ class CrudPlugin(BasePlugin):
 
         # Validate that any `context_params` are configured correctly against the
         # OpenAPI spec for the `check_operation`.
-        self._validate_context_params(
-            module_key=module_key,
-            context_params=module_config.context_params,
-            target_operation=module_config.check_operation,
+        self._validate_resolvers(
+            resolvers=module_config.resolvers,
             api_parser=api_parser,
+            module_key=module_key,
+            target_operation=module_config.check_operation,
         )
 
         return module_config

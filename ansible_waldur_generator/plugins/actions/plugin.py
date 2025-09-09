@@ -60,15 +60,19 @@ class ActionsPlugin(BasePlugin):
         # Replace the list in raw_config with the parsed dictionary before validation.
         raw_config["actions"] = parsed_actions
 
+        # Parse resolvers before final validation.
+        parsed_resolvers = self._parse_resolvers(raw_config, api_parser)
+        raw_config["resolvers"] = parsed_resolvers
+
         # Validate the configuration using the Pydantic model.
         module_config = ActionsModuleConfig(**raw_config)
 
         # Perform build-time validation of context parameters against the check operation's schema.
-        self._validate_context_params(
-            module_key=module_key,
-            context_params=module_config.context_params,
-            target_operation=module_config.check_operation,
+        self._validate_resolvers(
+            resolvers=module_config.resolvers,
             api_parser=api_parser,
+            module_key=module_key,
+            target_operation=module_config.check_operation,
         )
 
         return module_config
@@ -96,14 +100,14 @@ class ActionsPlugin(BasePlugin):
             "choices": action_choices,
         }
 
-        # Add any context parameters used for filtering the resource search.
-        for p_conf in conf.context_params:
-            params[p_conf.name] = {
-                "description": p_conf.description
-                or f"The name or UUID of the parent {p_conf.name} for filtering.",
-                "type": "str",
-                "required": p_conf.required,
-            }
+        # Add any context parameters from resolvers used for filtering.
+        for name, resolver in conf.resolvers.items():
+            if resolver.check_filter_key:
+                params[name] = {
+                    "description": f"The name or UUID of the parent {name} for filtering.",
+                    "type": "str",
+                    "required": True,
+                }
         return params
 
     def _build_return_block(
@@ -149,8 +153,9 @@ class ActionsPlugin(BasePlugin):
             module_config.identifier_param: f"My-Target-{module_config.resource_type.replace(' ', '-')}",
             **AUTH_FIXTURE,
         }
-        for p in module_config.context_params:
-            base_params[p.name] = f"Parent {p.name.capitalize()} Name or UUID"
+        for name, resolver in module_config.resolvers.items():
+            if resolver.check_filter_key:
+                base_params[name] = f"Parent {name.capitalize()} Name or UUID"
 
         # Create a distinct example for each available action.
         for action_name in module_config.actions.keys():
@@ -172,17 +177,15 @@ class ActionsPlugin(BasePlugin):
         conf = module_config
 
         # Build the resolver configurations for any context parameters.
-        resolvers = {}
-        for p_conf in conf.context_params:
-            if p_conf.name not in resolvers:
-                resolver_base_id = p_conf.resolver
-                list_op = api_parser.get_operation(f"{resolver_base_id}_list")
-                if list_op:
-                    resolvers[p_conf.name] = {
-                        "url": list_op.path,
-                        "error_message": f"{p_conf.name.capitalize()} '{{value}}' not found.",
-                        "filter_key": p_conf.filter_key,
-                    }
+        resolvers_data = {}
+        check_filter_keys = {}
+        for name, resolver in conf.resolvers.items():
+            resolvers_data[name] = {
+                "url": resolver.list_operation.path if resolver.list_operation else "",
+                "error_message": f"{name.capitalize()} '{{value}}' not found.",
+            }
+            if resolver.check_filter_key:
+                check_filter_keys[name] = resolver.check_filter_key
 
         # Create a simple map of action names to their API endpoint paths.
         actions_map = {name: op.path for name, op in conf.actions.items()}
@@ -190,8 +193,9 @@ class ActionsPlugin(BasePlugin):
         return {
             "resource_type": conf.resource_type,
             "check_url": conf.check_operation.path,
+            "check_filter_keys": check_filter_keys,
             "retrieve_url": conf.retrieve_operation.path,
             "identifier_param": conf.identifier_param,
-            "resolvers": resolvers,
+            "resolvers": resolvers_data,
             "actions": actions_map,
         }

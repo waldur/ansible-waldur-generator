@@ -1,11 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Dict, List
 
-from ansible_waldur_generator.models import (
-    ApiOperation,
-    ContextParam,
-    PluginModuleResolver,
-)
+from ansible_waldur_generator.models import ApiOperation, PluginModuleResolver
 
 
 class UpdateAction(BaseModel):
@@ -100,9 +96,6 @@ class CrudModuleConfig(BaseModel):
     # (e.g., 'tenant').
     # Example: path_param_maps: { create: { uuid: "tenant" } }
     path_param_maps: Dict[str, Dict[str, str]] = Field(default_factory=dict)
-
-    # A list of context parameters used to filter the existence check.
-    context_params: List[ContextParam] = Field(default_factory=list)
 
     # A dictionary of resolvers for any parameters that need to be converted
     # from names/UUIDs to full API URLs. The key is the parameter name.

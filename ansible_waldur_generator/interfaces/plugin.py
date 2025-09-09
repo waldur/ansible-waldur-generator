@@ -8,7 +8,6 @@ from ansible_waldur_generator.helpers import AUTH_FIXTURE
 from ansible_waldur_generator.models import (
     AnsibleModuleParams,
     ApiOperation,
-    ContextParam,
     GenerationContext,
     PluginModuleResolver,
 )
@@ -657,41 +656,6 @@ class BasePlugin(ABC):
 
         return update_actions_context
 
-    def _validate_context_params(
-        self,
-        module_key: str,
-        context_params: list[ContextParam],
-        target_operation: ApiOperation | None,
-        api_parser: ApiSpecParser,
-    ):
-        """
-        A shared, reusable method to validate the `filter_key` of context parameters
-        against the OpenAPI schema of a target API operation.
-
-        This prevents build-time configuration errors from becoming runtime errors
-        in the generated Ansible module.
-
-        Args:
-            module_key: The name of the module being generated (for error messages).
-            context_params: The list of context parameters to validate.
-            target_operation: The ApiOperation (e.g., list or check) to validate against.
-            api_parser: The shared ApiSpecParser instance.
-        """
-        if not (target_operation and context_params):
-            return  # Nothing to validate.
-
-        op_id = target_operation.operation_id
-        valid_filters = api_parser.get_query_parameters_for_operation(op_id)
-
-        for p_conf in context_params:
-            if p_conf.filter_key not in valid_filters:
-                raise ValueError(
-                    f"Validation Error in module '{module_key}', context_param '{p_conf.name}': "
-                    f"The specified filter_key '{p_conf.filter_key}' is not a valid query parameter "
-                    f"for the operation '{op_id}'. "
-                    f"Available filters are: {sorted(list(valid_filters))}"
-                )
-
     def _parse_resolvers(
         self, raw_config: dict[str, Any], api_parser: ApiSpecParser
     ) -> dict[str, PluginModuleResolver]:
@@ -730,11 +694,13 @@ class BasePlugin(ABC):
         resolvers: dict[str, Any],
         api_parser: ApiSpecParser,
         module_key: str,
+        target_operation: ApiOperation | None,
     ):
         """
-        A shared, reusable method to validate the `filter_by` configuration of resolvers
+        A shared, reusable method to validate the resolver configurations
         against the OpenAPI schema of their target API operations.
         """
+        # --- Validation Part 1: `filter_by` configuration ---
         for resolver_name, resolver_config in resolvers.items():
             if not getattr(resolver_config, "filter_by", None):
                 continue
@@ -758,3 +724,23 @@ class BasePlugin(ABC):
                         f"The specified target_key '{target_key}' is not a valid filter parameter for the list operation '{list_op_id}'. "
                         f"Available filters are: {sorted(list(valid_query_params))}"
                     )
+
+        # --- Validation Part 2: `check_filter_key` configuration ---
+        if not target_operation:
+            return  # No existence check operation to validate against.
+
+        op_id = target_operation.operation_id
+        valid_filters = api_parser.get_query_parameters_for_operation(op_id)
+
+        for resolver_name, resolver_config in resolvers.items():
+            if not resolver_config.check_filter_key:
+                continue
+
+            filter_key = resolver_config.check_filter_key
+            if filter_key not in valid_filters:
+                raise ValueError(
+                    f"Validation Error in module '{module_key}', resolver '{resolver_name}': "
+                    f"The specified check_filter_key '{filter_key}' is not a valid query parameter "
+                    f"for the existence check operation '{op_id}'. "
+                    f"Available filters are: {sorted(list(valid_filters))}"
+                )

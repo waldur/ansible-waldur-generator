@@ -1,5 +1,6 @@
 import re
 from typing import Dict, Any, List
+from graphlib import TopologicalSorter, CycleError
 
 from ansible_waldur_generator.api_parser import ApiSpecParser
 from ansible_waldur_generator.schema_parser import ReturnBlockGenerator
@@ -193,6 +194,16 @@ class OrderPlugin(BasePlugin):
             "description": f"A description for the {module_config.resource_type}.",
         }
 
+        # Add any context parameters from resolvers used for filtering the existence check.
+        for name, resolver in module_config.resolvers.items():
+            if resolver.check_filter_key:
+                if name not in params:
+                    params[name] = {
+                        "description": f"The name or UUID of the parent {name} for filtering.",
+                        "type": "str",
+                        "required": True,
+                    }
+
         # Iterate through all configured attribute parameters and build their
         # full Ansible specification using our recursive helper.
         for p_conf in module_config.attribute_params:
@@ -264,6 +275,58 @@ class OrderPlugin(BasePlugin):
             }
         return resolvers_data
 
+    def _get_sorted_attribute_params(
+        self, module_config: OrderModuleConfig
+    ) -> List[str]:
+        """
+        Determines the correct order for resolving attribute parameters by performing
+        a topological sort on their dependency graph. This prevents runtime errors
+        caused by trying to resolve a parameter before its dependencies are ready.
+
+        Returns:
+            A list of attribute parameter names in a valid resolution order.
+
+        Raises:
+            ValueError: If a circular dependency is detected in the resolvers.
+        """
+        # 1. Gather all attribute parameters.
+        all_params = {p.name for p in module_config.attribute_params}
+        all_params.add("description")  # 'description' is a standard attribute
+
+        # 2. Build a dependency graph for parameters that have resolvers.
+        # The graph format {node: {successors}} is exactly what graphlib expects.
+        resolvers = module_config.resolvers
+        all_resolvable_params = {
+            name for name in resolvers.keys() if name in all_params
+        }
+        graph = {name: set() for name in all_resolvable_params}
+
+        for name in all_resolvable_params:
+            resolver_config = resolvers[name]
+            for dep in resolver_config.filter_by:
+                source = dep.source_param
+                # An edge exists from the source to the current parameter (source -> name),
+                # meaning 'name' depends on 'source'.
+                if source in all_resolvable_params:
+                    graph[source].add(name)
+
+        # 3. Perform a topological sort using graphlib.
+        try:
+            ts = TopologicalSorter(graph)
+            # The static_order method returns a linear ordering of the nodes.
+            sorted_resolvables = list(ts.static_order())
+        except CycleError as e:
+            # graphlib's CycleError provides a much cleaner way to detect and report cycles.
+            raise ValueError(
+                f"A circular dependency was detected in the resolvers configuration: {e}"
+            )
+
+        # 4. Combine the sorted list of resolvable parameters with the non-resolvable ones.
+        non_resolvable_params = sorted(list(all_params - all_resolvable_params))
+
+        # The final, safe processing order is sorted resolvables first, then the rest.
+        return sorted_resolvables + non_resolvable_params
+
     def _build_runner_context(
         self, module_config: OrderModuleConfig, api_parser
     ) -> Dict[str, Any]:
@@ -279,31 +342,34 @@ class OrderPlugin(BasePlugin):
                 module_config.update_actions, api_parser
             )
 
+        # Determine the correct parameter resolution order using a topological sort.
+        # This is critical for preventing runtime dependency failures.
+        attribute_param_names = self._get_sorted_attribute_params(module_config)
+
         # Consolidate and sort lists for stable, deterministic output.
-        attribute_param_names = [p.name for p in module_config.attribute_params]
-        attribute_param_names.append("description")
-        stable_attribute_param_names = sorted(
-            list(dict.fromkeys(attribute_param_names))
-        )
         stable_update_fields = sorted(list(dict.fromkeys(module_config.update_fields)))
 
         termination_attributes_map = {
             p.name: p.maps_to or p.name for p in module_config.termination_attributes
         }
 
+        # Dynamically build the existence check filters from the resolvers.
+        check_filter_keys = {}
+        for name, resolver in module_config.resolvers.items():
+            if resolver.check_filter_key:
+                check_filter_keys[name] = resolver.check_filter_key
+
         runner_context = {
             "resource_type": module_config.resource_type,
             "check_url": module_config.existence_check_op.path
             if module_config.existence_check_op
             else "",
-            "check_filter_keys": {
-                "project": "project_uuid"
-            },  # Order modules require project context
+            "check_filter_keys": check_filter_keys,
             "update_url": module_config.update_op.path
             if module_config.update_op
             else None,
             "update_fields": stable_update_fields,
-            "attribute_param_names": stable_attribute_param_names,
+            "attribute_param_names": attribute_param_names,
             "termination_attributes_map": termination_attributes_map,
             "resolvers": resolvers,
             "update_actions": update_actions,
@@ -713,11 +779,18 @@ class OrderPlugin(BasePlugin):
 
         # Parse the resolver configurations, expanding shorthand where needed
         parsed_resolvers = self._parse_resolvers(raw_config, api_parser)
-        self._validate_resolvers(parsed_resolvers, api_parser, module_key)
         raw_config["resolvers"] = parsed_resolvers
 
         # Create the initial config object.
         module_config = OrderModuleConfig(**raw_config)
+
+        # Validate resolvers against the existence check operation.
+        self._validate_resolvers(
+            resolvers=module_config.resolvers,
+            api_parser=api_parser,
+            module_key=module_key,
+            target_operation=module_config.existence_check_op,
+        )
 
         # Infer additional parameters from the offering type schema.
         inferred_params = self._infer_offering_params(module_config, api_parser)

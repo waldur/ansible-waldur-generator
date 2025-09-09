@@ -16,23 +16,6 @@ from pydantic import BaseModel, Field
 AnsibleModuleParams = Dict[str, Dict[str, Any]]
 
 
-@dataclass
-class ContextParam:
-    """
-    Configuration for a context parameter used for filtering existence checks.
-    These parameters (e.g., project, tenant) help narrow down the search for a
-    resource to a specific scope.
-    """
-
-    name: str
-    required: bool = False
-    description: Optional[str] = None
-    resolver: str = (
-        ""  # The base_operation_id of the parent resource (e.g., "openstack_tenants")
-    )
-    filter_key: str = ""  # The API query parameter key (e.g., "tenant_uuid")
-
-
 @dataclass(frozen=True)
 class ApiOperation:
     """
@@ -101,3 +84,7 @@ class PluginModuleResolver(BaseModel):
     error_message: str | None = None
     # A list of dependencies used to filter the 'list' operation call.
     filter_by: list[FilterByConfig] = Field(default_factory=list)
+
+    # If set, this resolver also acts as a context filter for the main resource's existence check.
+    # The value is the API query parameter key (e.g., "project_uuid").
+    check_filter_key: str | None = None

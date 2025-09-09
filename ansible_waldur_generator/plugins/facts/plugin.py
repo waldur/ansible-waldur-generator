@@ -75,15 +75,19 @@ class FactsPlugin(BasePlugin):
         if retrieve_op_id:
             raw_config["retrieve_operation"] = api_parser.get_operation(retrieve_op_id)
 
-        # 4. Instantiate the Pydantic model, which validates the final structure.
+        # 4. Parse resolvers before validation.
+        parsed_resolvers = self._parse_resolvers(raw_config, api_parser)
+        raw_config["resolvers"] = parsed_resolvers
+
+        # 5. Instantiate the Pydantic model, which validates the final structure.
         module_config = FactsModuleConfig(**raw_config)
 
-        # 5. Perform build-time validation of context parameter filter keys.
-        self._validate_context_params(
-            module_key=module_key,
-            context_params=module_config.context_params,
-            target_operation=module_config.list_operation,
+        # 6. Perform build-time validation of resolver filter keys.
+        self._validate_resolvers(
+            resolvers=module_config.resolvers,
             api_parser=api_parser,
+            module_key=module_key,
+            target_operation=module_config.list_operation,
         )
         return module_config
 
@@ -109,8 +113,9 @@ class FactsPlugin(BasePlugin):
             "o",
             "field",
         }
-        for p in module_config.context_params:
-            skip_params.add(p.filter_key)
+        for resolver in module_config.resolvers.values():
+            if resolver.check_filter_key:
+                skip_params.add(resolver.check_filter_key)
 
         for name, schema_def in query_params.items():
             if name in skip_params:
@@ -152,15 +157,14 @@ class FactsPlugin(BasePlugin):
             "required": not conf.many,
         }
 
-        # Add any context parameters used for filtering (e.g., 'tenant', 'project').
-        # These allow the user to narrow the search scope.
-        for p_conf in conf.context_params:
-            params[p_conf.name] = {
-                "description": p_conf.description
-                or f"The name or UUID of the parent {p_conf.name}.",
-                "type": "str",
-                "required": p_conf.required,
-            }
+        # Add any context parameters from resolvers used for filtering.
+        for name, resolver in conf.resolvers.items():
+            if resolver.check_filter_key:
+                params[name] = {
+                    "description": f"The name or UUID of the parent {name}.",
+                    "type": "str",
+                    "required": True,
+                }
 
         # Add inferred parameters.
         inferred_params = self._infer_filter_params(module_config, api_parser)
@@ -218,9 +222,14 @@ class FactsPlugin(BasePlugin):
         """
         # To generate a good example, we first create a "virtual schema" that
         # represents the module's input parameters.
+        context_param_names = [
+            name
+            for name, resolver in module_config.resolvers.items()
+            if resolver.check_filter_key
+        ]
         virtual_schema_props = {
             module_config.identifier_param: {"type": "string"},
-            **{p.name: {"type": "string"} for p in module_config.context_params},
+            **{p_name: {"type": "string"} for p_name in context_param_names},
         }
         virtual_schema = {"type": "object", "properties": virtual_schema_props}
 
@@ -230,7 +239,7 @@ class FactsPlugin(BasePlugin):
             module_config.resource_type,
             # We pass the resolver keys so the generator creates helpful placeholders
             # instead of concrete values for these parameters.
-            resolver_keys=[p.name for p in module_config.context_params],
+            resolver_keys=context_param_names,
         )
 
         # Replace the auto-generated identifier with a more instructive placeholder.
@@ -279,19 +288,13 @@ class FactsPlugin(BasePlugin):
         # user-provided names/UUIDs for context parameters into the filter keys
         # required by the API.
         resolvers = {}
-        for p_conf in conf.context_params:
-            if p_conf.name not in resolvers:
-                # The resolver for a context param needs the list URL of the parent
-                # resource and the query parameter key to use for filtering.
-                resolver_base_id = p_conf.resolver
-                list_op_id = f"{resolver_base_id}_list"
-                list_op = api_parser.get_operation(list_op_id)
-                if list_op:
-                    resolvers[p_conf.name] = {
-                        "url": list_op.path,
-                        "error_message": f"{p_conf.name.capitalize()} '{{value}}' not found.",
-                        "filter_key": p_conf.filter_key,
-                    }
+        for name, resolver in conf.resolvers.items():
+            if resolver.check_filter_key:
+                resolvers[name] = {
+                    "url": resolver.list_operation.path,
+                    "error_message": f"{name.capitalize()} '{{value}}' not found.",
+                    "filter_key": resolver.check_filter_key,
+                }
 
         # Get the names of the inferred parameters to pass to the runner.
         inferred_params = self._infer_filter_params(module_config, api_parser)

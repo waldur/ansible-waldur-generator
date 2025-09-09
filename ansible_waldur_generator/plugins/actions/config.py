@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, field_validator
 
-from ansible_waldur_generator.models import ApiOperation, ContextParam
+from ansible_waldur_generator.models import ApiOperation, PluginModuleResolver
 
 
 class ActionsModuleConfig(BaseModel):
@@ -11,7 +11,7 @@ class ActionsModuleConfig(BaseModel):
     check_operation: ApiOperation
     retrieve_operation: ApiOperation
     actions: dict[str, ApiOperation] = Field(default_factory=dict)
-    context_params: list[ContextParam] = Field(default_factory=list)
+    resolvers: dict[str, PluginModuleResolver] = Field(default_factory=dict)
     identifier_param: str = "name"
 
     @field_validator("description", mode="before")
