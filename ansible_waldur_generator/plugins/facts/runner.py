@@ -113,6 +113,10 @@ class FactsRunner(BaseRunner):
         # Add inferred filter parameters to the query.
         inferred_filter_params = self.context.get("inferred_filter_params", [])
         for param_name in inferred_filter_params:
+            # This is the crucial check to prevent duplication.
+            if param_name in resolvers_config:
+                continue
+
             param_value = self.module.params.get(param_name)
             if param_value is not None:
                 query_params[param_name] = param_value

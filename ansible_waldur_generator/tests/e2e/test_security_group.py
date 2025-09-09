@@ -2,6 +2,7 @@ import pytest
 
 from ansible_collections.waldur.openstack.plugins.modules import (
     security_group as security_group_module,
+    security_group_facts as security_group_facts_module,
 )
 from ansible_waldur_generator.tests.e2e.conftest import run_module_harness
 
@@ -178,3 +179,27 @@ class TestSecurityGroupModule:
 
         # 3. Verify that a change occurred.
         assert exit_result["changed"] is False
+
+    def test_fetch_security_group(self, auth_params):
+        # --- ARRANGE ---
+        user_params = {
+            "name": "E2E-VCR-Test-SG",
+            "tenant": "waldur-dev-farm",
+            **auth_params,
+        }
+
+        # --- ACT ---
+        # Use the generic harness to run the module with the defined parameters.
+        exit_result, fail_result = run_module_harness(
+            security_group_facts_module, user_params
+        )
+
+        # --- ASSERT ---
+        # 1. Ensure the module did not fail unexpectedly.
+        assert fail_result is None, f"Module failed unexpectedly with: {fail_result}"
+
+        # 2. Ensure the module exited successfully.
+        assert exit_result is not None
+
+        # 3. Verify that a change occurred.
+        assert len(exit_result["resources"]) == 1
