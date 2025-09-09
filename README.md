@@ -1084,3 +1084,233 @@ class TestProjectModule:
         assert exit_result['changed'] is True
         assert exit_result['resource']['name'] == "E2E New Project"
 ```
+
+## Migration and Usage Guide for Playbook Authors
+
+This guide is for users migrating playbooks from the previous, manually-written Waldur modules to the new, auto-generated collections defined in this project.
+
+The new collections offer significant advantages in consistency, predictability, and feature coverage. The migration process primarily involves updating module names to their **Fully Qualified Collection Names (FQCN)** and, in some cases, adjusting parameters to align with the new standardized approach.
+
+### Core Conceptual Changes
+
+1.  **Collections are Mandatory:** All modules now live inside a collection (e.g., `waldur.openstack`, `waldur.structure`) and **must** be called using their FQCN.
+2.  **Consistent Naming:** All data-gathering modules are now consistently named with a `_facts` suffix (e.g., `security_group_facts`).
+3.  **Predictable Return Values:**
+    *   Modules with `state: present` **always** return the result in a `resource` key.
+    *   `_facts` modules **always** return a list of results in a `resources` key.
+
+### Practical Migration & Usage Patterns
+
+The following examples are based directly on the modules defined in `generator_config.yaml` and demonstrate the primary usage patterns.
+
+#### Pattern 1: Managing Simple Resources (`crud` plugin)
+
+Modules like `waldur.structure.project` and `waldur.openstack.security_group` manage resources with direct, synchronous API endpoints for create, update, and delete.
+
+**Before (`waldur_os_security_group`):**
+```yaml
+- name: Create an old-style security group
+  waldur_os_security_group:
+    access_token: "{{ waldur_access_token }}"
+    api_url: "{{ waldur_api_url }}"
+    state: present
+    tenant: "My-Cloud-Tenant"
+    name: "web-server-sg"
+```
+
+**After (`waldur.openstack.security_group`):**
+```yaml
+  - name: "Ensure 'web-server-sg' exists"
+    waldur.openstack.security_group:
+      api_url: "{{ waldur_api_url }}"
+      access_token: "{{ waldur_access_token }}"
+      state: present
+      project: "Cloud Project"
+      customer: "Big Corp Inc."
+      tenant: "My-Cloud-Tenant"
+      name: "web-server-sg"
+```
+* **Key Change:** The new `security_group` module is more robust and requires the full context (`project`, `customer`, `tenant`) for unambiguous lookups, as defined in its `resolvers` configuration.
+
+---
+
+#### Pattern 2: High-Level Resource Provisioning (`order` plugin)
+
+This is the **recommended pattern** for provisioning cloud resources like VMs and volumes. Modules like `waldur.openstack.instance` abstract away the asynchronous marketplace order workflow entirely.
+
+*   **You define the final resource** (e.g., a VM with a specific flavor and image).
+*   The module handles creating the order, waiting for it to complete, and returns the final, provisioned **resource object**.
+
+**Before (`waldur_marketplace_os_instance`):**
+```yaml
+- name: Provision an old-style VM
+  waldur_marketplace_os_instance:
+    access_token: "{{ waldur_access_token }}"
+    api_url: "{{ waldur_api_url }}"
+    state: present
+    project: "Cloud Project"
+    offering: "Instance in Tenant"
+    name: "My Legacy VM"
+    # ... other VM-specific parameters
+```
+
+**After (`waldur.openstack.instance`):**
+```yaml
+- name: Provision an OpenStack VM
+  hosts: localhost
+  collections:
+    - waldur.openstack
+
+  tasks:
+    - name: "Provision a new VM by creating an order"
+      instance:
+        api_url: "{{ waldur_api_url }}"
+        access_token: "{{ waldur_access_token }}"
+        state: present
+        project: "Cloud Project"
+        offering: "VM in MyCloud"
+        name: "ci-runner-01"
+        flavor: "g-standard-2"
+        image: "Ubuntu 22.04"
+        system_volume_size: 20
+      register: vm_creation
+
+    - name: "Show the final provisioned VM resource"
+      ansible.builtin.debug:
+        var: vm_creation.resource # This contains the VM details, not the order details
+```
+
+---
+
+#### Pattern 3: Low-Level Order Management (`crud` plugin on orders)
+
+This is an **advanced pattern** for users who need to interact directly with the order object itself, similar to the old generic `waldur_marketplace` module. The `waldur.marketplace.order` module is used for this.
+
+*   You define the **order itself**, passing all resource-specific details in the `attributes` dictionary.
+*   The module creates the order and returns the **order object**. It does *not* wait for the resource to be provisioned.
+
+**Before (`waldur_marketplace`):**
+```yaml
+- name: Create a generic old-style order
+  waldur_marketplace:
+    access_token: "{{ waldur_access_token }}"
+    api_url: "{{ waldur_api_url }}"
+    project: "Cloud Project"
+    offering: "VM in MyCloud"
+    plan: "Standard Plan"
+    attributes:
+      name: "my-vm-from-generic-order"
+      flavor: "g-standard-2"
+      image: "Ubuntu 22.04"
+      system_volume_size: 10240
+```
+
+**After (`waldur.marketplace.order`):**
+```yaml
+- name: Create a generic new-style order
+  hosts: localhost
+  collections:
+    - waldur.marketplace
+
+  tasks:
+    - name: "Create a marketplace order object"
+      order:
+        api_url: "{{ waldur_api_url }}"
+        access_token: "{{ waldur_access_token }}"
+        state: present
+        project: "Cloud Project"
+        offering: "VM in MyCloud"
+        plan: "Standard Plan"
+        # The 'name' parameter is for the order object itself
+        name: "Order for my-vm-from-generic-order"
+        attributes:
+          name: "my-vm-from-generic-order"
+          flavor: http://api.example.com/api/openstack-flavors/flavor-uuid/
+          image: http://api.example.com/api/openstack-images/image-uuid/
+          system_volume_size: 10240
+      register: order_result
+
+    - name: "Show the created order object"
+      ansible.builtin.debug:
+        var: order_result.resource # This contains the order details
+```
+
+---
+
+#### Pattern 4: Fetching Information (`facts` modules)
+
+Use a `_facts` module like `waldur.openstack.security_group_facts` to retrieve information without making changes.
+
+**Before (`waldur_os_security_group_gather_facts`):**
+```yaml
+- name: Get old-style security group facts
+  waldur_os_security_group_gather_facts:
+    access_token: "{{ waldur_access_token }}"
+    api_url: "{{ waldur_api_url }}"
+    tenant: "My-Cloud-Tenant"
+  register: sg_facts
+```
+
+**After (`waldur.openstack.security_group_facts`):**
+```yaml
+- name: Get new-style security group facts
+  hosts: localhost
+  collections:
+    - waldur.openstack
+
+  tasks:
+    - name: "Get facts for all security groups in a tenant"
+      security_group_facts:
+        api_url: "{{ waldur_api_url }}"
+        access_token: "{{ waldur_access_token }}"
+        project: "Cloud Project"
+        customer: "Big Corp Inc."
+        tenant: "My-Cloud-Tenant"
+      register: sg_info
+
+    - name: "Display the results"
+      ansible.builtin.debug:
+        var: sg_info.resources # Result is always in the 'resources' key (a list)
+```
+
+---
+
+#### Pattern 5: Executing One-Off Actions (`action` modules)
+
+Modules like `waldur.openstack.instance_action` trigger a specific action on an existing resource (e.g., `start`, `stop`).
+
+**Example: Stop a VM.**
+```yaml
+- name: Perform an Action on an OpenStack VM
+  hosts: localhost
+  collections:
+    - waldur.openstack
+
+  tasks:
+    - name: "Stop the 'ci-runner-01' VM"
+      instance_action:
+        api_url: "{{ waldur_api_url }}"
+        access_token: "{{ waldur_access_token }}"
+        project: "Cloud Project"
+        name: "ci-runner-01"
+        action: stop
+      register: stop_action
+```
+
+---
+
+### Quick Reference: Module Name Changes
+
+| Old Module Name                          | New Module Name (FQCN)                                                                       | Plugin Type |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------- | ----------- |
+| `waldur_marketplace_os_instance`         | `waldur.openstack.instance`                                                                  | `order`     |
+| `waldur_marketplace_os_volume`           | `waldur.openstack.volume`                                                                    | `order`     |
+| `waldur_marketplace` (generic order)     | **Recommended:** `waldur.openstack.instance`, etc. / **Advanced:** `waldur.marketplace.order` | `order`/`crud` |
+| `waldur_os_security_group`               | `waldur.openstack.security_group`                                                            | `crud`      |
+| `waldur_os_subnet`                       | `waldur.openstack.subnet`                                                                    | `crud`      |
+| `waldur_os_floating_ip`                  | `waldur.openstack.floating_ip`                                                               | `crud`      |
+| `waldur_os_snapshot`                     | *Not in config; would be `waldur.openstack.snapshot`*                                        | `crud`      |
+| `waldur_os_instance_volume`              | *Deprecated; manage via `volume` module*                                                     | N/A         |
+| `waldur_os_security_group_gather_facts`  | `waldur.openstack.security_group_facts`                                                      | `facts`     |
+| `waldur_os_subnet_gather_facts`          | `waldur.openstack.subnet_facts`                                                              | `facts`     |
+| `waldur_marketplace_os_get_instance`     | `waldur.openstack.instance_facts`                                                            | `facts`     |
