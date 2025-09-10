@@ -126,15 +126,36 @@ class FactsPlugin(BasePlugin):
                 param_schema.get("type"), "str"
             )
 
+            param_type = OPENAPI_TO_ANSIBLE_TYPE_MAP.get(
+                param_schema.get("type"), "str"
+            )
+
             description = schema_def.get("description")
             if not description:
                 description = f"Filter by {name.replace('_', ' ')}."
 
-            inferred_params[name] = {
+            # Build the parameter spec dictionary incrementally
+            param_spec: Dict[str, Any] = {
                 "description": description.strip(),
                 "type": param_type,
                 "required": False,  # All inferred filters are optional
             }
+
+            # For list types, specify the type of the elements.
+            if param_type == "list":
+                items_schema = param_schema.get("items", {})
+                item_type = OPENAPI_TO_ANSIBLE_TYPE_MAP.get(
+                    items_schema.get("type"), "str"
+                )
+                param_spec["elements"] = item_type
+
+            # Call the shared helper to extract choices. It correctly handles
+            # unwrapping array schemas to look inside 'items'.
+            choices = self._extract_choices_from_prop(param_schema, api_parser)
+            if choices:
+                param_spec["choices"] = choices
+
+            inferred_params[name] = param_spec
 
         return inferred_params
 

@@ -490,8 +490,10 @@ class BasePlugin(ABC):
         """
         Extracts a list of enum choices from a property schema.
 
-        It correctly handles both direct `enum` fields and complex `oneOf`
-        constructs that reference other schema components containing enums.
+        It correctly handles:
+        - Direct `enum` fields.
+        - Complex `oneOf` or `allOf` constructs that reference other schemas.
+        - **Arrays of enums**, by inspecting the `items` schema.
 
         Args:
             prop_schema: The OpenAPI schema for a single property.
@@ -500,6 +502,9 @@ class BasePlugin(ABC):
         Returns:
             A list of choice strings, or None if no choices are found.
         """
+        if prop_schema.get("type") == "array" and "items" in prop_schema:
+            prop_schema = prop_schema["items"]
+
         choices = []
         if "enum" in prop_schema:
             choices.extend(prop_schema["enum"])
