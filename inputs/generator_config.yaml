@@ -223,16 +223,16 @@ collections:
             attributes:
               - name: termination_action
                 maps_to: action
-                type: str
+                type: string
                 description: Force destroy avoids to bypass standard validations and directly deletes the instance.
                 choices:
                   - destroy
                   - force_destroy
               - name: delete_volumes
-                type: bool
+                type: boolean
                 description: "If true, delete attached volumes on termination."
               - name: release_floating_ips
-                type: bool
+                type: boolean
                 description: "If true, release associated floating IPs on termination."
         wait_config: *default_wait_config
         resolvers:
