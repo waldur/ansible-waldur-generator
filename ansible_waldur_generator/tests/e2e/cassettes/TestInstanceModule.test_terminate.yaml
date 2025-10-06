@@ -97,7 +97,7 @@ interactions:
       code: 200
       message: OK
 - request:
-    body: '{"attributes": {"action": "force_destroy"}}'
+    body: '{"attributes": {"action": "force_destroy", "release_floating_ips": false}}'
     headers:
       Connection:
       - close

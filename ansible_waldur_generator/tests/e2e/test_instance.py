@@ -58,6 +58,7 @@ class TestInstanceModule:
             "project": "Self-Service dev infrastructure",
             "wait": False,
             "termination_action": "force_destroy",
+            "release_floating_ips": False,
             **auth_params,  # Unpack the auth fixture here
         }
 
