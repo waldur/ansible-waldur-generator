@@ -1,0 +1,185 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/openstack-tenants/?name_exact=os-tenant-agnes-ku-12-antelope-1
+  response:
+    body:
+      string: "[{\"url\":\"http://127.0.0.1:8000/api/openstack-tenants/fdc10baab4664b158a3fa338a4d8bf2b/\",\"uuid\":\"fdc10baab4664b158a3fa338a4d8bf2b\",\"name\":\"os-tenant-agnes-ku-12-antelope-1\",\"description\":\"\",\"service_name\":\"Antelope\",\"service_settings\":\"http://127.0.0.1:8000/api/service-settings/81766dac4e1b416a9cf3c3b89b37c17b/\",\"service_settings_uuid\":\"81766dac4e1b416a9cf3c3b89b37c17b\",\"service_settings_state\":\"OK\",\"service_settings_error_message\":\"\",\"project\":\"http://127.0.0.1:8000/api/projects/5573c3487f3b456891409e3b3f906fa5/\",\"project_name\":\"Agnes
+        K\xFCtt (University of Tartu) / Naked azanide as an aminating agent and a
+        superbase / test-2025-06-12-04\",\"project_uuid\":\"5573c3487f3b456891409e3b3f906fa5\",\"customer\":\"http://127.0.0.1:8000/api/customers/1fb1f539aa6a4b38a33a5f121f4ac5b8/\",\"customer_name\":\"ETAIS\",\"customer_native_name\":\"\",\"customer_abbreviation\":\"\",\"error_message\":\"\",\"error_traceback\":\"\",\"resource_type\":\"OpenStack.Tenant\",\"state\":\"OK\",\"created\":\"2025-06-12T18:57:38.390134+00:00\",\"modified\":\"2025-06-12T18:58:05.896906+00:00\",\"backend_id\":\"249b82b1b0b644aabdf57ad34ebca8d9\",\"availability_zone\":\"\",\"internal_network_id\":\"256e58e8-cf7a-478f-b466-0435fd61a24e\",\"external_network_id\":\"73ed9a94-acf0-43c1-9c1f-b3428801f994\",\"quotas\":[{\"name\":\"snapshots\",\"usage\":0,\"limit\":10},{\"name\":\"gigabytes_lvm\",\"usage\":0,\"limit\":-1},{\"name\":\"instances\",\"usage\":1,\"limit\":10},{\"name\":\"network_count\",\"usage\":1,\"limit\":100},{\"name\":\"port_count\",\"usage\":2,\"limit\":500},{\"name\":\"floating_ip_count\",\"usage\":0,\"limit\":50},{\"name\":\"ram\",\"usage\":1024,\"limit\":5120},{\"name\":\"volumes_size\",\"usage\":6144,\"limit\":-1},{\"name\":\"security_group_rule_count\",\"usage\":10,\"limit\":100},{\"name\":\"security_group_count\",\"usage\":8,\"limit\":10},{\"name\":\"storage\",\"usage\":6144,\"limit\":14336},{\"name\":\"volumes\",\"usage\":2,\"limit\":10},{\"name\":\"gigabytes_low-iops\",\"usage\":0,\"limit\":-1},{\"name\":\"gigabytes_high-iops\",\"usage\":0,\"limit\":-1},{\"name\":\"gigabytes_ultra-high-iops\",\"usage\":0,\"limit\":-1},{\"name\":\"gigabytes___DEFAULT__\",\"usage\":6,\"limit\":-1},{\"name\":\"vcpu\",\"usage\":1,\"limit\":5},{\"name\":\"subnet_count\",\"usage\":1,\"limit\":100}],\"default_volume_type_name\":\"\",\"marketplace_offering_uuid\":\"7e2115284a114641b4334bd56f1e9edd\",\"marketplace_offering_name\":\"Antelope\",\"marketplace_offering_plugin_options\":{\"order_supports_comments_and_metadata\":true},\"marketplace_category_uuid\":\"06e45986252244218bd062149fc3b5b5\",\"marketplace_category_name\":\"Private
+        clouds\",\"marketplace_resource_uuid\":\"11e5c1a2a7344bdeac508be608a7ff1c\",\"marketplace_plan_uuid\":\"c7fe38aa7038428e81a484784cf7005c\",\"marketplace_resource_state\":\"OK\",\"is_usage_based\":false,\"is_limit_based\":true}]"
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '2620'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 08 Oct 2025 17:07:01 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/openstack-tenants/?name_exact=os-tenant-agnes-ku-12-antelope-1>;
+        rel="first", <http://127.0.0.1:8000/api/openstack-tenants/?name_exact=os-tenant-agnes-ku-12-antelope-1>;
+        rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/openstack-networks/?tenant_uuid=fdc10baab4664b158a3fa338a4d8bf2b&name_exact=os-tenant-agnes-ku-12-ant-int-net
+  response:
+    body:
+      string: "[{\"url\":\"http://127.0.0.1:8000/api/openstack-networks/1746208f6261483b8bbb5a6c925994cf/\",\"uuid\":\"1746208f6261483b8bbb5a6c925994cf\",\"name\":\"os-tenant-agnes-ku-12-ant-int-net\",\"description\":\"\",\"service_name\":\"Antelope\",\"service_settings\":\"http://127.0.0.1:8000/api/service-settings/81766dac4e1b416a9cf3c3b89b37c17b/\",\"service_settings_uuid\":\"81766dac4e1b416a9cf3c3b89b37c17b\",\"service_settings_state\":\"OK\",\"service_settings_error_message\":\"\",\"project\":\"http://127.0.0.1:8000/api/projects/5573c3487f3b456891409e3b3f906fa5/\",\"project_name\":\"Agnes
+        K\xFCtt (University of Tartu) / Naked azanide as an aminating agent and a
+        superbase / test-2025-06-12-04\",\"project_uuid\":\"5573c3487f3b456891409e3b3f906fa5\",\"customer\":\"http://127.0.0.1:8000/api/customers/1fb1f539aa6a4b38a33a5f121f4ac5b8/\",\"customer_name\":\"ETAIS\",\"customer_native_name\":\"\",\"customer_abbreviation\":\"\",\"error_message\":\"\",\"error_traceback\":\"\",\"resource_type\":\"OpenStack.Network\",\"state\":\"OK\",\"created\":\"2025-06-12T18:57:38.399579+00:00\",\"modified\":\"2025-06-12T18:58:04.378066+00:00\",\"backend_id\":\"256e58e8-cf7a-478f-b466-0435fd61a24e\",\"access_url\":null,\"tenant\":\"http://127.0.0.1:8000/api/openstack-tenants/fdc10baab4664b158a3fa338a4d8bf2b/\",\"tenant_name\":\"os-tenant-agnes-ku-12-antelope-1\",\"tenant_uuid\":\"fdc10baab4664b158a3fa338a4d8bf2b\",\"is_external\":false,\"type\":\"vxlan\",\"segmentation_id\":611,\"subnets\":[{\"uuid\":\"246cb9a7131d4b6a9cde4565aa6068a1\",\"name\":\"os-tenant-agnes-ku-12-ant-sub-net\",\"description\":\"\",\"cidr\":\"192.168.42.0/24\",\"gateway_ip\":\"192.168.42.1\",\"allocation_pools\":[{\"start\":\"192.168.42.11\",\"end\":\"192.168.42.200\"}],\"ip_version\":4,\"enable_dhcp\":true}],\"mtu\":1450,\"rbac_policies\":[],\"marketplace_offering_uuid\":null,\"marketplace_offering_name\":null,\"marketplace_offering_plugin_options\":null,\"marketplace_category_uuid\":null,\"marketplace_category_name\":null,\"marketplace_resource_uuid\":null,\"marketplace_plan_uuid\":null,\"marketplace_resource_state\":null,\"is_usage_based\":null,\"is_limit_based\":null}]"
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '1970'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 08 Oct 2025 17:07:02 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/openstack-networks/?name_exact=os-tenant-agnes-ku-12-ant-int-net&tenant_uuid=fdc10baab4664b158a3fa338a4d8bf2b>;
+        rel="first", <http://127.0.0.1:8000/api/openstack-networks/?name_exact=os-tenant-agnes-ku-12-ant-int-net&tenant_uuid=fdc10baab4664b158a3fa338a4d8bf2b>;
+        rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/openstack-ports/?name_exact=E2E-VCR-Test-port-new&tenant_uuid=fdc10baab4664b158a3fa338a4d8bf2b
+  response:
+    body:
+      string: '[]'
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '2'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 08 Oct 2025 17:07:02 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/openstack-ports/?name_exact=E2E-VCR-Test-port-new&tenant_uuid=fdc10baab4664b158a3fa338a4d8bf2b>;
+        rel="first", <http://127.0.0.1:8000/api/openstack-ports/?name_exact=E2E-VCR-Test-port-new&tenant_uuid=fdc10baab4664b158a3fa338a4d8bf2b>;
+        rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"network": "http://127.0.0.1:8000/api/openstack-networks/1746208f6261483b8bbb5a6c925994cf/",
+      "description": "Port created by an end-to-end VCR test.", "name": "E2E-VCR-Test-port-new"}'
+    headers:
+      Connection:
+      - close
+      Content-Length:
+      - '184'
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: POST
+    uri: http://127.0.0.1:8000/api/openstack-ports/
+  response:
+    body:
+      string: "{\"url\":\"http://127.0.0.1:8000/api/openstack-ports/a26aaf9bbc1140e4bd3441ce4a438c04/\",\"uuid\":\"a26aaf9bbc1140e4bd3441ce4a438c04\",\"name\":\"E2E-VCR-Test-port-new\",\"description\":\"Port
+        created by an end-to-end VCR test.\",\"service_name\":\"Antelope\",\"service_settings\":\"http://127.0.0.1:8000/api/service-settings/81766dac4e1b416a9cf3c3b89b37c17b/\",\"service_settings_uuid\":\"81766dac4e1b416a9cf3c3b89b37c17b\",\"service_settings_state\":\"OK\",\"service_settings_error_message\":\"\",\"project\":\"http://127.0.0.1:8000/api/projects/5573c3487f3b456891409e3b3f906fa5/\",\"project_name\":\"Agnes
+        K\xFCtt (University of Tartu) / Naked azanide as an aminating agent and a
+        superbase / test-2025-06-12-04\",\"project_uuid\":\"5573c3487f3b456891409e3b3f906fa5\",\"customer\":\"http://127.0.0.1:8000/api/customers/1fb1f539aa6a4b38a33a5f121f4ac5b8/\",\"customer_name\":\"ETAIS\",\"customer_native_name\":\"\",\"customer_abbreviation\":\"\",\"error_message\":\"\",\"error_traceback\":\"\",\"resource_type\":\"OpenStack.Port\",\"state\":\"CREATION_SCHEDULED\",\"created\":\"2025-10-08T17:07:02.083911+00:00\",\"modified\":\"2025-10-08T17:07:02.083911+00:00\",\"backend_id\":null,\"access_url\":null,\"fixed_ips\":[],\"mac_address\":\"\",\"allowed_address_pairs\":[],\"tenant\":\"http://127.0.0.1:8000/api/openstack-tenants/fdc10baab4664b158a3fa338a4d8bf2b/\",\"tenant_name\":\"os-tenant-agnes-ku-12-antelope-1\",\"tenant_uuid\":\"fdc10baab4664b158a3fa338a4d8bf2b\",\"network\":\"http://127.0.0.1:8000/api/openstack-networks/1746208f6261483b8bbb5a6c925994cf/\",\"network_name\":\"os-tenant-agnes-ku-12-ant-int-net\",\"network_uuid\":\"1746208f6261483b8bbb5a6c925994cf\",\"floating_ips\":[],\"device_id\":null,\"device_owner\":null,\"port_security_enabled\":true,\"security_groups\":[],\"admin_state_up\":null,\"status\":null,\"marketplace_offering_uuid\":null,\"marketplace_offering_name\":null,\"marketplace_offering_plugin_options\":null,\"marketplace_category_uuid\":null,\"marketplace_category_name\":null,\"marketplace_resource_uuid\":null,\"marketplace_plan_uuid\":null,\"marketplace_resource_state\":null,\"is_usage_based\":null,\"is_limit_based\":null}"
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '2003'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 08 Oct 2025 17:07:02 GMT
+      Location:
+      - http://127.0.0.1:8000/api/openstack-ports/a26aaf9bbc1140e4bd3441ce4a438c04/
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+    status:
+      code: 201
+      message: Created
+version: 1

@@ -97,7 +97,9 @@ class CrudRunner(BaseRunner):
         """
         plan = []
         plan.extend(self._build_simple_update_command())
-        plan.extend(self._build_action_update_commands())
+        plan.extend(
+            self._build_action_update_commands(resolve_output_format="update_action")
+        )
         return plan
 
     def plan_deletion(self) -> list[Command]:

@@ -361,6 +361,28 @@ collections:
         resolvers:
           <<: *base_openstack_resolvers
 
+      - name: port
+        plugin: crud
+        wait_config: *default_wait_config
+        resource_type: "OpenStack port"
+        description: "Manage OpenStack Ports in Waldur."
+        base_operation_id: "openstack_ports"
+        operations:
+          update:
+            actions:
+              update_security_groups:
+                operation: "openstack_ports_update_security_groups"
+                param: "security_groups"
+                compare_key: "security_groups"
+        resolvers:
+          <<: *tenant_context_resolver
+          network:
+            base: "openstack_networks"
+            filter_by: *tenant_filter
+          security_groups:
+            base: "openstack_security_groups"
+            filter_by: *tenant_filter
+
       # --- Action Modules ---
       - name: subnet_action
         plugin: actions
@@ -414,3 +436,19 @@ collections:
           - unlink
         resolvers:
           <<: *project_customer_resolvers
+
+      - name: port_action
+        plugin: actions
+        resource_type: "OpenStack port"
+        description: "Perform actions on an OpenStack Port."
+        wait_config: *default_wait_config
+        base_operation_id: "openstack_ports"
+        actions:
+          - enable_port
+          - disable_port
+          - enable_port_security
+          - disable_port_security
+          - pull
+          - unlink
+        resolvers:
+          <<: *tenant_context_resolver
