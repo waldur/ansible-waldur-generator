@@ -563,6 +563,14 @@ class BaseRunner:
         for field in update_fields:
             # Get the value for this field from the user's Ansible playbook parameters.
             new_value = self.module.params.get(field)
+
+            # --- 2a. RESOLVE Desired State ---
+            # Delegate to the ParameterResolver to convert the user's input (e.g., `['sg-web']`)
+            # into the final, API-ready data structure (e.g., `[{'url': '...'}]`).
+            # The `resolve_output_format` hint is crucial for context-dependent formatting.
+            if new_value is not None:
+                new_value = self.resolver.resolve(field, new_value)
+
             # Get the current value for this field from the existing resource data.
             old_value = self.resource.get(field)
 
