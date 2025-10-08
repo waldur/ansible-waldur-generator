@@ -38948,6 +38948,15 @@ paths:
         schema:
           type: string
           format: uuid
+      - in: query
+        name: tenant
+        schema:
+          type: string
+      - in: query
+        name: tenant_uuid
+        schema:
+          type: string
+          format: uuid
       tags:
       - openstack-network-rbac-policies
       security:
@@ -39018,6 +39027,15 @@ paths:
           type: string
       - in: query
         name: target_tenant_uuid
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: tenant
+        schema:
+          type: string
+      - in: query
+        name: tenant_uuid
         schema:
           type: string
           format: uuid

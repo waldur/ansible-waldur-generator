@@ -476,7 +476,7 @@ interactions:
       code: 200
       message: OK
 - request:
-    body: '{"policy_type": "access_as_shared", "target_tenant": "http://127.0.0.1:8000/api/openstack-tenants/05e5dc3d75c74b969bbd794f6f8ce1c2/"}'
+    body: '{"policy_type": "access_as_shared", "target_tenant": "http://127.0.0.1:8000/api/openstack-tenants/05e5dc3d75c74b969bbd794f6f8ce1c2/", "network": "http://127.0.0.1:8000/api/openstack-networks/24a91363451349a2b78b2c48bb09e80a"}'
     headers:
       Connection:
       - close
@@ -491,7 +491,7 @@ interactions:
       authorization:
       - DUMMY
     method: POST
-    uri: http://127.0.0.1:8000/api/openstack-networks/24a91363451349a2b78b2c48bb09e80a/rbac_policy_create/
+    uri: http://127.0.0.1:8000/api/openstack-network-rbac-policies/
   response:
     body:
       string: '{"url":"http://127.0.0.1:8000/api/openstack-network-rbac-policies/230dab8461ef419d922f54bd330d41c3/","uuid":"230dab8461ef419d922f54bd330d41c3","network":"http://127.0.0.1:8000/api/openstack-networks/24a91363451349a2b78b2c48bb09e80a/","network_name":"waldur-dev-farm-int-net","target_tenant":"http://127.0.0.1:8000/api/openstack-tenants/05e5dc3d75c74b969bbd794f6f8ce1c2/","target_tenant_name":"91809","backend_id":"9fb427c8-bc80-45a8-a91b-c1fa6836e6d3","policy_type":"access_as_shared","created":"2025-09-08T18:57:17.442563+00:00"}'
