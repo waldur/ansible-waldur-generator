@@ -37,6 +37,7 @@ build-backend = "poetry.core.masonry.api"
 "facts" = "ansible_waldur_generator.plugins.facts.plugin:FactsPlugin"
 "order" = "ansible_waldur_generator.plugins.order.plugin:OrderPlugin"
 "actions" = "ansible_waldur_generator.plugins.actions.plugin:ActionsPlugin"
+"link" = "ansible_waldur_generator.plugins.link.plugin:LinkPlugin"
 
 [tool.pytest.ini_options]
 pythonpath = [
