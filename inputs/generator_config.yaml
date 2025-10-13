@@ -175,6 +175,11 @@ collections:
         base_operation_id: "openstack_volume_types"
         many: true
 
+      - name: port_facts
+        plugin: facts
+        base_operation_id: "openstack_ports"
+        many: true
+
       # --- Order Modules (Marketplace Resources) ---
       - name: vpc
         plugin: order
