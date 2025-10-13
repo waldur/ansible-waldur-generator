@@ -173,7 +173,7 @@ class OrderPlugin(BasePlugin):
         }
         params["offering"] = {
             "type": "str",
-            "required": True,
+            "required": False,  # Required only for creation, validated by runner
             "description": "The name or UUID of the marketplace offering.",
         }
         params["plan"] = {
@@ -204,12 +204,54 @@ class OrderPlugin(BasePlugin):
                         "required": True,
                     }
 
-        # Iterate through all configured attribute parameters and build their
-        # full Ansible specification using our recursive helper.
+        # Determine the set of updatable parameters.
+        updatable_params = set(module_config.update_fields)
+        updatable_params.update(
+            action.param for action in module_config.update_actions.values()
+        )
+
+        # Augment core parameter documentation.
+        core_create_params = {
+            "offering": True,  # True means it's required for create
+            "plan": False,
+            "limits": False,
+            "description": False,
+            "name": False,  # Name is handled separately but check for immutability
+        }
+        for name, is_required_for_create in core_create_params.items():
+            if name in params:
+                desc = params[name]["description"]
+                desc_list = [desc] if isinstance(desc, str) else desc or []
+                if is_required_for_create:
+                    desc_list.append("Required when C(state) is 'present'.")
+                if name not in updatable_params:
+                    desc_list.append("This attribute cannot be updated.")
+
+                unique_desc = list(dict.fromkeys(desc_list))
+                params[name]["description"] = (
+                    unique_desc[0] if len(unique_desc) == 1 else unique_desc
+                )
+
+        # Iterate through all configured attribute parameters.
         for p_conf in module_config.attribute_params:
-            params[p_conf.name] = self._build_spec_for_param(
-                p_conf, api_parser, module_config
+            param_spec = self._build_spec_for_param(p_conf, api_parser, module_config)
+
+            current_desc = param_spec.get("description", "")
+            desc_list = (
+                [current_desc] if isinstance(current_desc, str) else current_desc or []
             )
+
+            if p_conf.required:
+                desc_list.append("Required when C(state) is 'present'.")
+            if p_conf.name not in updatable_params:
+                desc_list.append("This attribute cannot be updated.")
+
+            unique_desc = list(dict.fromkeys(desc_list))
+            param_spec["description"] = (
+                unique_desc[0] if len(unique_desc) == 1 else unique_desc
+            )
+            param_spec["required"] = False  # Validation is handled by the runner.
+            params[p_conf.name] = param_spec
 
         # Add termination-specific parameters.
         for p_conf in module_config.termination_attributes:
@@ -383,6 +425,13 @@ class OrderPlugin(BasePlugin):
         # Get the sorted order of resolvers.
         sorted_resolver_names = self._get_sorted_resolvers(module_config.resolvers)
 
+        # A list of attribute parameter names that are required for creation,
+        # used for runtime validation by the runner.
+        required_for_create = [
+            p.name for p in module_config.attribute_params if p.required
+        ]
+        required_for_create.append("offering")
+
         runner_context = {
             "resource_type": module_config.resource_type,
             "check_url": module_config.existence_check_op.path
@@ -394,6 +443,7 @@ class OrderPlugin(BasePlugin):
             else None,
             "update_fields": stable_update_fields,
             "attribute_param_names": attribute_param_names,
+            "required_for_create": sorted(list(set(required_for_create))),
             "termination_attributes_map": termination_attributes_map,
             "resolvers": resolvers,
             "resolver_order": sorted_resolver_names,

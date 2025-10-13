@@ -93,6 +93,11 @@ class CrudPlugin(BasePlugin):
 
         sorted_resolver_names = self._get_sorted_resolvers(conf.resolvers)
 
+        # Get the list of parameters required for the create operation from its schema.
+        required_for_create = []
+        if conf.create_operation and conf.create_operation.model_schema:
+            required_for_create = conf.create_operation.model_schema.get("required", [])
+
         # The final context dictionary passed to the runner.
         runner_context = {
             "resource_type": conf.resource_type,
@@ -109,6 +114,8 @@ class CrudPlugin(BasePlugin):
             "update_path": conf.update_operation.path
             if conf.update_operation
             else None,
+            # List of parameters required for creation, for runtime validation.
+            "required_for_create": required_for_create,
             # List of parameter names expected in the 'create' request body.
             "model_param_names": self._get_model_param_names(module_config),
             # Mapping for nested endpoint path parameters.
@@ -206,7 +213,23 @@ class CrudPlugin(BasePlugin):
                         "required": True,  # Context filters are typically required
                     }
 
-        # 4. Infer parameters from the 'create' operation's request body schema.
+        # 4. Determine the set of updatable parameters.
+        updatable_params = set()
+        if conf.update_config:
+            if conf.update_config.fields:
+                updatable_params.update(conf.update_config.fields)
+            updatable_params.update(
+                action.param for action in conf.update_config.actions.values()
+            )
+
+        # 5. Augment the 'name' parameter's documentation.
+        if "name" not in updatable_params:
+            desc = params["name"]["description"]
+            desc_list = [desc] if isinstance(desc, str) else desc
+            desc_list.append("This attribute cannot be updated.")
+            params["name"]["description"] = desc_list
+
+        # 6. Infer parameters from the 'create' operation's request body schema.
         if conf.create_operation and conf.create_operation.model_schema:
             schema = conf.create_operation.model_schema
             required_fields = schema.get("required", [])
@@ -215,16 +238,12 @@ class CrudPlugin(BasePlugin):
                 if prop.get("readOnly", False) or name in params:
                     continue
 
-                # Resolve the property schema if it's a reference. This is crucial
-                # for correctly finding enums, descriptions, and types that are
-                # defined in separate, reusable schema components.
+                # Resolve the property schema if it's a reference.
                 resolved_prop = prop
                 if "$ref" in prop:
                     try:
                         resolved_prop = api_parser.get_schema_by_ref(prop["$ref"])
                     except ValueError:
-                        # If the reference is invalid, we proceed with the original
-                        # property, but it will likely lack details. This prevents a crash.
                         pass
 
                 is_resolved = name in conf.resolvers
@@ -232,28 +251,42 @@ class CrudPlugin(BasePlugin):
                     "description", capitalize_first(name.replace("_", " "))
                 )
 
-                # If the parameter needs to be resolved, update its description to guide the user.
                 if is_resolved:
                     description = f"The name or UUID of the {name}. {description}"
 
                 choices = self._extract_choices_from_prop(resolved_prop, api_parser)
+
+                # Augment the description with conditional requirements and immutability notes.
+                desc_list = (
+                    [description.strip()]
+                    if isinstance(description, str)
+                    else description or []
+                )
+                if name in required_fields:
+                    desc_list.append("Required when C(state) is 'present'.")
+                if name not in updatable_params:
+                    desc_list.append("This attribute cannot be updated.")
+
+                unique_desc = list(dict.fromkeys(desc_list))
+                final_description = (
+                    unique_desc[0] if len(unique_desc) == 1 else unique_desc
+                )
 
                 params[name] = {
                     "name": name,
                     "type": OPENAPI_TO_ANSIBLE_TYPE_MAP.get(
                         resolved_prop.get("type", "string"), "str"
                     ),
-                    "required": name in required_fields,
-                    "description": description.strip(),
+                    "required": False,  # Validation is handled by the runner.
+                    "description": final_description,
                     "is_resolved": is_resolved,
                     "choices": choices,
                 }
 
-        # 5. Add parameters required for any special update actions.
+        # 7. Add parameters required for any special update actions.
         if conf.update_config:
             for action_key, action_conf in conf.update_config.actions.items():
                 param_name = action_conf.param
-                # Add the parameter if it's not already defined and has a schema.
                 if param_name not in params and action_conf.operation.model_schema:
                     schema = action_conf.operation.model_schema
                     params[param_name] = {

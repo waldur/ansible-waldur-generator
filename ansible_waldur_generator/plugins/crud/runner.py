@@ -44,7 +44,15 @@ class CrudRunner(BaseRunner):
         Returns:
             A list containing one `CreateCommand` object.
         """
-        # --- Step 1: Resolve Path Parameters using the (now populated) Cache ---
+        # --- Step 1: Validate required parameters for creation ---
+        required_for_create = self.context.get("required_for_create", [])
+        for key in required_for_create:
+            if self.module.params.get(key) is None:
+                self.module.fail_json(
+                    msg=f"Parameter '{key}' is required when state is 'present' for a new resource."
+                )
+
+        # --- Step 2: Resolve Path Parameters using the (now populated) Cache ---
         path_params = {}
         create_path_maps = self.context.get("path_param_maps", {}).get("create", {})
 
@@ -59,7 +67,7 @@ class CrudRunner(BaseRunner):
             resolved_url = self.resolver.resolve(ansible_param_name, parent_identifier)
             path_params[path_param_key] = resolved_url.strip("/").split("/")[-1]
 
-        # --- Step 2: Assemble and Recursively Resolve the Request Body Payload ---
+        # --- Step 3: Assemble and Recursively Resolve the Request Body Payload ---
         # Get the topologically sorted list of model parameters from the context.
         sorted_model_params = self.context.get("model_param_names", [])
         payload = {}

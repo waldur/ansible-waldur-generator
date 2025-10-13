@@ -64,6 +64,14 @@ class OrderRunner(BaseRunner):
             self.has_changed = True
             return []  # Return an empty plan.
 
+        # --- 1. Validate required parameters ---
+        required_for_create = self.context.get("required_for_create", [])
+        for key in required_for_create:
+            if self.module.params.get(key) is None:
+                self.module.fail_json(
+                    msg=f"Parameter '{key}' is required when state is 'present' for a new resource."
+                )
+
         project_url = self.resolver.resolve("project", self.module.params["project"])
         offering_url = self.resolver.resolve("offering", self.module.params["offering"])
 
