@@ -216,7 +216,7 @@ class OrderPlugin(BasePlugin):
             "plan": False,
             "limits": False,
             "description": False,
-            "name": False,  # Name is handled separately but check for immutability
+            "name": True,  # Name is handled separately but check for immutability
         }
         for name, is_required_for_create in core_create_params.items():
             if name in params:
