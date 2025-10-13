@@ -1,0 +1,244 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/openstack-tenants/?name_exact=Thesis+Analyzer+VM
+  response:
+    body:
+      string: '[{"url":"http://127.0.0.1:8000/api/openstack-tenants/35242f8bd68b448cbc10cb7761ed7b55/","uuid":"35242f8bd68b448cbc10cb7761ed7b55","name":"Thesis
+        Analyzer VM","description":"","service_name":"UT HPC (Public)","service_settings":"http://127.0.0.1:8000/api/service-settings/e14fcb1cc7dc423397fd0224e5f5ed93/","service_settings_uuid":"e14fcb1cc7dc423397fd0224e5f5ed93","service_settings_state":"OK","service_settings_error_message":"","project":"http://127.0.0.1:8000/api/projects/6c442c4fa5144e42a7d90a06ddbae940/","project_name":"Thesis
+        Analyzer","project_uuid":"6c442c4fa5144e42a7d90a06ddbae940","customer":"http://127.0.0.1:8000/api/customers/3defbbb357ef46928661b547cc21281c/","customer_name":"CGVR","customer_native_name":"","customer_abbreviation":"","error_message":"","error_traceback":"","resource_type":"OpenStack.Tenant","state":"UPDATING","created":"2023-11-06T15:38:04.466839+00:00","modified":"2024-07-17T16:26:32.876641+00:00","backend_id":"32c1dcd8a5914ca38f306f77d8d2d088","availability_zone":"","internal_network_id":"8423889a-bc79-4a01-a5de-ab140698e9ad","external_network_id":"b4a5d5b9-ac5c-48d8-8427-16ee06325a85","quotas":[{"name":"gigabytes_prod2","usage":300,"limit":-1},{"name":"snapshots","usage":0,"limit":10},{"name":"storage","usage":307200,"limit":307200},{"name":"gigabytes_prod3","usage":0,"limit":-1},{"name":"security_group_rule_count","usage":11,"limit":100},{"name":"gigabytes_prod","usage":0,"limit":-1},{"name":"security_group_count","usage":6,"limit":20},{"name":"gigabytes___DEFAULT__","usage":0,"limit":-1},{"name":"volumes_size","usage":307200,"limit":-1},{"name":"subnet_count","usage":1,"limit":100},{"name":"instances","usage":1,"limit":10},{"name":"floating_ip_count","usage":1,"limit":50},{"name":"gigabytes_scratch","usage":0,"limit":-1},{"name":"network_count","usage":1,"limit":100},{"name":"port_count","usage":4,"limit":500},{"name":"gigabytes_gpfs","usage":0,"limit":-1},{"name":"volumes","usage":4,"limit":10},{"name":"ram","usage":8192,"limit":16384},{"name":"vcpu","usage":8,"limit":16},{"name":"gigabytes_rbd","usage":0,"limit":-1}],"default_volume_type_name":"","marketplace_offering_uuid":"c183adfc4d7a422badcc84e0b198bfff","marketplace_offering_name":"UT
+        HPC (Public)","marketplace_offering_plugin_options":{"storage_mode":"fixed"},"marketplace_category_uuid":"06e45986252244218bd062149fc3b5b5","marketplace_category_name":"Private
+        clouds","marketplace_resource_uuid":"5945c4168184403391a284c4b2247da7","marketplace_plan_uuid":"30107c930449426388aa7d07b1c0602d","marketplace_resource_state":"OK","is_usage_based":false,"is_limit_based":true}]'
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '2599'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Mon, 13 Oct 2025 15:17:15 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/openstack-tenants/?name_exact=Thesis+Analyzer+VM>;
+        rel="first", <http://127.0.0.1:8000/api/openstack-tenants/?name_exact=Thesis+Analyzer+VM>;
+        rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/openstack-instances/?tenant_uuid=35242f8bd68b448cbc10cb7761ed7b55&name_exact=ThesisAnalyzer
+  response:
+    body:
+      string: '[{"url":"http://127.0.0.1:8000/api/openstack-instances/286a65dc82454d2583046ce5b77089c6/","uuid":"286a65dc82454d2583046ce5b77089c6","name":"ThesisAnalyzer","description":"","service_name":"UT
+        HPC (Public)","service_settings":"http://127.0.0.1:8000/api/service-settings/e14fcb1cc7dc423397fd0224e5f5ed93/","service_settings_uuid":"e14fcb1cc7dc423397fd0224e5f5ed93","service_settings_state":"OK","service_settings_error_message":"","project":"http://127.0.0.1:8000/api/projects/6c442c4fa5144e42a7d90a06ddbae940/","project_name":"Thesis
+        Analyzer","project_uuid":"6c442c4fa5144e42a7d90a06ddbae940","customer":"http://127.0.0.1:8000/api/customers/3defbbb357ef46928661b547cc21281c/","customer_name":"CGVR","customer_native_name":"","customer_abbreviation":"","error_message":"","error_traceback":"","resource_type":"OpenStack.Instance","state":"OK","created":"2023-11-06T15:45:45.112185+00:00","modified":"2024-08-29T00:18:24.274200+00:00","backend_id":"efd0cf72-9ea3-4c72-b227-bf8eb5979c6b","access_url":["193.40.154.249"],"start_time":"2024-08-29T00:18:24.277888+00:00","cores":8,"ram":8192,"disk":153600,"min_ram":1024,"min_disk":10240,"user_data":"","external_ips":["193.40.154.249"],"internal_ips":["192.168.42.80"],"latitude":null,"longitude":null,"key_name":"19f5edc72efd4001a0de66a0f6ac9df9-Thesis
+        Analyzer K","key_fingerprint":"91:9a:d3:d2:79:67:ff:ab:5f:25:92:07:9b:5d:22:7e","image_name":"ubuntu22.04","flavor_disk":10240,"flavor_name":"c1.large","volumes":[{"url":"http://127.0.0.1:8000/api/openstack-volumes/c14f421348714cbf851b9d8a7f37d1b7/","uuid":"c14f421348714cbf851b9d8a7f37d1b7","name":"Test-data","image_name":"","state":"OK","bootable":false,"size":102400,"device":"","resource_type":"OpenStack.Volume","type":null,"marketplace_resource_uuid":"2390102d787a4883b981f16a399e0b3d"},{"url":"http://127.0.0.1:8000/api/openstack-volumes/eb1b1fdf11a148efa0e832d93bb0410a/","uuid":"eb1b1fdf11a148efa0e832d93bb0410a","name":"ThesisAnalyzer-system","image_name":"ubuntu22.04","state":"OK","bootable":true,"size":51200,"device":"/dev/sda","resource_type":"OpenStack.Volume","type":null,"marketplace_resource_uuid":"948fba85a0ea444dac358a46830d073c"},{"url":"http://127.0.0.1:8000/api/openstack-volumes/d890142d857642b2966915502da5b86a/","uuid":"d890142d857642b2966915502da5b86a","name":"ThesisAnalyzer-data","image_name":"","state":"OK","bootable":false,"size":102400,"device":"/dev/sdb","resource_type":"OpenStack.Volume","type":null,"marketplace_resource_uuid":"06b9c29dcc9e47d0901437e95f6d33a6"}],"security_groups":[{"url":"http://127.0.0.1:8000/api/openstack-security-groups/de8f34d2966948b7ad44216493424dad/","name":"default","rules":[{"ethertype":"IPv6","direction":"egress","protocol":"","from_port":-1,"to_port":-1,"cidr":null,"description":"","id":57457},{"ethertype":"IPv6","direction":"ingress","protocol":"","from_port":-1,"to_port":-1,"cidr":null,"description":"","remote_group_name":"default","remote_group_uuid":"de8f34d2966948b7ad44216493424dad","id":57458},{"ethertype":"IPv4","direction":"egress","protocol":"","from_port":-1,"to_port":-1,"cidr":null,"description":"","id":57459},{"ethertype":"IPv4","direction":"ingress","protocol":"","from_port":-1,"to_port":-1,"cidr":null,"description":"","remote_group_name":"default","remote_group_uuid":"de8f34d2966948b7ad44216493424dad","id":57456}],"description":"Default
+        security group","state":"OK"},{"url":"http://127.0.0.1:8000/api/openstack-security-groups/3ff89472feba4624b1d4107826cf783a/","name":"web","rules":[{"ethertype":"IPv4","direction":"ingress","protocol":"tcp","from_port":443,"to_port":443,"cidr":"0.0.0.0/0","description":"","id":57455},{"ethertype":"IPv4","direction":"ingress","protocol":"tcp","from_port":80,"to_port":80,"cidr":"0.0.0.0/0","description":"","id":57454}],"description":"Security
+        group for http and https access","state":"OK"},{"url":"http://127.0.0.1:8000/api/openstack-security-groups/eaae584d217244ca8839a00585be8d49/","name":"ping","rules":[{"ethertype":"IPv4","direction":"ingress","protocol":"icmp","from_port":-1,"to_port":-1,"cidr":"0.0.0.0/0","description":"","id":57452}],"description":"Security
+        group for ping","state":"OK"},{"url":"http://127.0.0.1:8000/api/openstack-security-groups/5b3f899629f74681ae57b771d6e86ad1/","name":"ssh","rules":[{"ethertype":"IPv4","direction":"ingress","protocol":"tcp","from_port":22,"to_port":22,"cidr":"0.0.0.0/0","description":"","id":57451}],"description":"Security
+        group for secure shell access","state":"OK"}],"server_group":null,"floating_ips":[{"url":"http://127.0.0.1:8000/api/openstack-floating-ips/a7b84b7f95fa47ef99715ffa970c492e/","uuid":"a7b84b7f95fa47ef99715ffa970c492e","address":"193.40.154.249","port_fixed_ips":[{"subnet_id":"d692dbaa-4efd-4fd4-8d89-b1434d9396bb","ip_address":"192.168.42.80"}],"port_mac_address":"fa:16:3e:1a:81:41","subnet":"http://127.0.0.1:8000/api/openstack-subnets/579649f894494ef4945edc004f09ba0a/","subnet_uuid":"579649f894494ef4945edc004f09ba0a","subnet_name":"thesis-analyzer-vm-sub-net","subnet_description":"","subnet_cidr":"192.168.42.0/24"}],"ports":[{"url":"http://127.0.0.1:8000/api/openstack-ports/23a376972ec3413dba27aaa518c147be/","fixed_ips":[{"subnet_id":"d692dbaa-4efd-4fd4-8d89-b1434d9396bb","ip_address":"192.168.42.80"}],"mac_address":"fa:16:3e:1a:81:41","subnet":"http://127.0.0.1:8000/api/openstack-subnets/579649f894494ef4945edc004f09ba0a/","subnet_uuid":"579649f894494ef4945edc004f09ba0a","subnet_name":"thesis-analyzer-vm-sub-net","subnet_description":"","subnet_cidr":"192.168.42.0/24","allowed_address_pairs":[],"device_id":"efd0cf72-9ea3-4c72-b227-bf8eb5979c6b","device_owner":"compute:nova","security_groups":[{"url":"http://127.0.0.1:8000/api/openstack-security-groups/de8f34d2966948b7ad44216493424dad/","uuid":"de8f34d2966948b7ad44216493424dad","name":"default","description":"Default
+        security group","service_name":"UT HPC (Public)","service_settings":"http://127.0.0.1:8000/api/service-settings/e14fcb1cc7dc423397fd0224e5f5ed93/","service_settings_uuid":"e14fcb1cc7dc423397fd0224e5f5ed93","service_settings_state":"OK","service_settings_error_message":"","project":"http://127.0.0.1:8000/api/projects/6c442c4fa5144e42a7d90a06ddbae940/","project_name":"Thesis
+        Analyzer","project_uuid":"6c442c4fa5144e42a7d90a06ddbae940","customer":"http://127.0.0.1:8000/api/customers/3defbbb357ef46928661b547cc21281c/","customer_name":"CGVR","customer_native_name":"","customer_abbreviation":"","error_message":"","error_traceback":"","resource_type":"OpenStack.SecurityGroup","state":"OK","created":"2023-11-06T15:38:17.441744+00:00","modified":"2023-11-06T15:38:17.441744+00:00","backend_id":"7c7b35b8-fa63-46a4-98c1-2e562ac4fa07","access_url":null,"tenant":"http://127.0.0.1:8000/api/openstack-tenants/35242f8bd68b448cbc10cb7761ed7b55/","tenant_name":"Thesis
+        Analyzer VM","tenant_uuid":"35242f8bd68b448cbc10cb7761ed7b55","rules":[{"ethertype":"IPv6","direction":"egress","protocol":"","from_port":-1,"to_port":-1,"cidr":null,"description":"","id":57457,"remote_group":null},{"ethertype":"IPv6","direction":"ingress","protocol":"","from_port":-1,"to_port":-1,"cidr":null,"description":"","remote_group_name":"default","remote_group_uuid":"de8f34d2966948b7ad44216493424dad","id":57458,"remote_group":"http://127.0.0.1:8000/api/openstack-security-groups/de8f34d2966948b7ad44216493424dad/"},{"ethertype":"IPv4","direction":"egress","protocol":"","from_port":-1,"to_port":-1,"cidr":null,"description":"","id":57459,"remote_group":null},{"ethertype":"IPv4","direction":"ingress","protocol":"","from_port":-1,"to_port":-1,"cidr":null,"description":"","remote_group_name":"default","remote_group_uuid":"de8f34d2966948b7ad44216493424dad","id":57456,"remote_group":"http://127.0.0.1:8000/api/openstack-security-groups/de8f34d2966948b7ad44216493424dad/"}],"marketplace_offering_uuid":null,"marketplace_offering_name":null,"marketplace_offering_plugin_options":null,"marketplace_category_uuid":null,"marketplace_category_name":null,"marketplace_resource_uuid":null,"marketplace_plan_uuid":null,"marketplace_resource_state":null,"is_usage_based":null,"is_limit_based":null},{"url":"http://127.0.0.1:8000/api/openstack-security-groups/3ff89472feba4624b1d4107826cf783a/","uuid":"3ff89472feba4624b1d4107826cf783a","name":"web","description":"Security
+        group for http and https access","service_name":"UT HPC (Public)","service_settings":"http://127.0.0.1:8000/api/service-settings/e14fcb1cc7dc423397fd0224e5f5ed93/","service_settings_uuid":"e14fcb1cc7dc423397fd0224e5f5ed93","service_settings_state":"OK","service_settings_error_message":"","project":"http://127.0.0.1:8000/api/projects/6c442c4fa5144e42a7d90a06ddbae940/","project_name":"Thesis
+        Analyzer","project_uuid":"6c442c4fa5144e42a7d90a06ddbae940","customer":"http://127.0.0.1:8000/api/customers/3defbbb357ef46928661b547cc21281c/","customer_name":"CGVR","customer_native_name":"","customer_abbreviation":"","error_message":"","error_traceback":"","resource_type":"OpenStack.SecurityGroup","state":"OK","created":"2023-11-06T15:38:04.750540+00:00","modified":"2023-11-06T15:38:17.274836+00:00","backend_id":"bca6e18d-58b4-43bc-9a5a-6b8c9e9e13f5","access_url":null,"tenant":"http://127.0.0.1:8000/api/openstack-tenants/35242f8bd68b448cbc10cb7761ed7b55/","tenant_name":"Thesis
+        Analyzer VM","tenant_uuid":"35242f8bd68b448cbc10cb7761ed7b55","rules":[{"ethertype":"IPv4","direction":"ingress","protocol":"tcp","from_port":443,"to_port":443,"cidr":"0.0.0.0/0","description":"","id":57455,"remote_group":null},{"ethertype":"IPv4","direction":"ingress","protocol":"tcp","from_port":80,"to_port":80,"cidr":"0.0.0.0/0","description":"","id":57454,"remote_group":null}],"marketplace_offering_uuid":null,"marketplace_offering_name":null,"marketplace_offering_plugin_options":null,"marketplace_category_uuid":null,"marketplace_category_name":null,"marketplace_resource_uuid":null,"marketplace_plan_uuid":null,"marketplace_resource_state":null,"is_usage_based":null,"is_limit_based":null},{"url":"http://127.0.0.1:8000/api/openstack-security-groups/eaae584d217244ca8839a00585be8d49/","uuid":"eaae584d217244ca8839a00585be8d49","name":"ping","description":"Security
+        group for ping","service_name":"UT HPC (Public)","service_settings":"http://127.0.0.1:8000/api/service-settings/e14fcb1cc7dc423397fd0224e5f5ed93/","service_settings_uuid":"e14fcb1cc7dc423397fd0224e5f5ed93","service_settings_state":"OK","service_settings_error_message":"","project":"http://127.0.0.1:8000/api/projects/6c442c4fa5144e42a7d90a06ddbae940/","project_name":"Thesis
+        Analyzer","project_uuid":"6c442c4fa5144e42a7d90a06ddbae940","customer":"http://127.0.0.1:8000/api/customers/3defbbb357ef46928661b547cc21281c/","customer_name":"CGVR","customer_native_name":"","customer_abbreviation":"","error_message":"","error_traceback":"","resource_type":"OpenStack.SecurityGroup","state":"OK","created":"2023-11-06T15:38:04.682639+00:00","modified":"2023-11-06T15:38:15.495556+00:00","backend_id":"5000d765-db2e-4706-adab-995d025f96e3","access_url":null,"tenant":"http://127.0.0.1:8000/api/openstack-tenants/35242f8bd68b448cbc10cb7761ed7b55/","tenant_name":"Thesis
+        Analyzer VM","tenant_uuid":"35242f8bd68b448cbc10cb7761ed7b55","rules":[{"ethertype":"IPv4","direction":"ingress","protocol":"icmp","from_port":-1,"to_port":-1,"cidr":"0.0.0.0/0","description":"","id":57452,"remote_group":null}],"marketplace_offering_uuid":null,"marketplace_offering_name":null,"marketplace_offering_plugin_options":null,"marketplace_category_uuid":null,"marketplace_category_name":null,"marketplace_resource_uuid":null,"marketplace_plan_uuid":null,"marketplace_resource_state":null,"is_usage_based":null,"is_limit_based":null},{"url":"http://127.0.0.1:8000/api/openstack-security-groups/5b3f899629f74681ae57b771d6e86ad1/","uuid":"5b3f899629f74681ae57b771d6e86ad1","name":"ssh","description":"Security
+        group for secure shell access","service_name":"UT HPC (Public)","service_settings":"http://127.0.0.1:8000/api/service-settings/e14fcb1cc7dc423397fd0224e5f5ed93/","service_settings_uuid":"e14fcb1cc7dc423397fd0224e5f5ed93","service_settings_state":"OK","service_settings_error_message":"","project":"http://127.0.0.1:8000/api/projects/6c442c4fa5144e42a7d90a06ddbae940/","project_name":"Thesis
+        Analyzer","project_uuid":"6c442c4fa5144e42a7d90a06ddbae940","customer":"http://127.0.0.1:8000/api/customers/3defbbb357ef46928661b547cc21281c/","customer_name":"CGVR","customer_native_name":"","customer_abbreviation":"","error_message":"","error_traceback":"","resource_type":"OpenStack.SecurityGroup","state":"OK","created":"2023-11-06T15:38:04.641623+00:00","modified":"2023-11-06T15:38:14.692020+00:00","backend_id":"0eb494d4-9013-4d67-95ee-ef2d2ebe141c","access_url":null,"tenant":"http://127.0.0.1:8000/api/openstack-tenants/35242f8bd68b448cbc10cb7761ed7b55/","tenant_name":"Thesis
+        Analyzer VM","tenant_uuid":"35242f8bd68b448cbc10cb7761ed7b55","rules":[{"ethertype":"IPv4","direction":"ingress","protocol":"tcp","from_port":22,"to_port":22,"cidr":"0.0.0.0/0","description":"","id":57451,"remote_group":null}],"marketplace_offering_uuid":null,"marketplace_offering_name":null,"marketplace_offering_plugin_options":null,"marketplace_category_uuid":null,"marketplace_category_name":null,"marketplace_resource_uuid":null,"marketplace_plan_uuid":null,"marketplace_resource_state":null,"is_usage_based":null,"is_limit_based":null}]}],"availability_zone":null,"connect_directly_to_external_network":false,"runtime_state":"ACTIVE","action":"","action_details":{},"tenant_uuid":"35242f8bd68b448cbc10cb7761ed7b55","hypervisor_hostname":"booster2.openstack.local","tenant":"http://127.0.0.1:8000/api/openstack-tenants/35242f8bd68b448cbc10cb7761ed7b55/","external_address":[null],"rancher_cluster":null,"marketplace_offering_uuid":"2396b7d7e07941d086061299f414d229","marketplace_offering_name":"Virtual
+        machine in Thesis Analyzer VM","marketplace_offering_plugin_options":{"storage_mode":"dynamic"},"marketplace_category_uuid":"e5a5e7651f394d10958328bbc3e967eb","marketplace_category_name":"VMs","marketplace_resource_uuid":"9fc51a28c56e4f5caeaf5916bcbf0245","marketplace_plan_uuid":"30107c930449426388aa7d07b1c0602d","marketplace_resource_state":"OK","is_usage_based":false,"is_limit_based":false}]'
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '14153'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Mon, 13 Oct 2025 15:17:15 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/openstack-instances/?name_exact=ThesisAnalyzer&tenant_uuid=35242f8bd68b448cbc10cb7761ed7b55>;
+        rel="first", <http://127.0.0.1:8000/api/openstack-instances/?name_exact=ThesisAnalyzer&tenant_uuid=35242f8bd68b448cbc10cb7761ed7b55>;
+        rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/openstack-volumes/?tenant_uuid=35242f8bd68b448cbc10cb7761ed7b55&name_exact=Test-data
+  response:
+    body:
+      string: '[{"url":"http://127.0.0.1:8000/api/openstack-volumes/c14f421348714cbf851b9d8a7f37d1b7/","uuid":"c14f421348714cbf851b9d8a7f37d1b7","name":"Test-data","description":"","service_name":"UT
+        HPC (Public)","service_settings":"http://127.0.0.1:8000/api/service-settings/e14fcb1cc7dc423397fd0224e5f5ed93/","service_settings_uuid":"e14fcb1cc7dc423397fd0224e5f5ed93","service_settings_state":"OK","service_settings_error_message":"","project":"http://127.0.0.1:8000/api/projects/6c442c4fa5144e42a7d90a06ddbae940/","project_name":"Thesis
+        Analyzer","project_uuid":"6c442c4fa5144e42a7d90a06ddbae940","customer":"http://127.0.0.1:8000/api/customers/3defbbb357ef46928661b547cc21281c/","customer_name":"CGVR","customer_native_name":"","customer_abbreviation":"","error_message":"","error_traceback":"","resource_type":"OpenStack.Volume","state":"OK","created":"2023-11-08T11:47:23.190973+00:00","modified":"2025-10-13T15:17:00.196785+00:00","backend_id":"9b6927c3-89ee-4d71-bf8f-47517b60aacb","access_url":null,"source_snapshot":null,"size":102400,"bootable":false,"metadata":{},"image":null,"image_metadata":"","image_name":"","type":null,"runtime_state":"in-use","availability_zone":null,"device":"","action":"Attach","action_details":{"message":"Attach
+        volume to instance ThesisAnalyzer"},"instance":"http://127.0.0.1:8000/api/openstack-instances/286a65dc82454d2583046ce5b77089c6/","instance_name":"ThesisAnalyzer","instance_marketplace_uuid":"9fc51a28c56e4f5caeaf5916bcbf0245","tenant":"http://127.0.0.1:8000/api/openstack-tenants/35242f8bd68b448cbc10cb7761ed7b55/","tenant_uuid":"35242f8bd68b448cbc10cb7761ed7b55","extend_enabled":false,"marketplace_offering_uuid":"816fa258fed74f818b7d48d8180e1367","marketplace_offering_name":"Volume
+        in Thesis Analyzer VM","marketplace_offering_plugin_options":{},"marketplace_category_uuid":"6dfcdbe3c18241dc87526ef411bf6064","marketplace_category_name":"Storage","marketplace_resource_uuid":"2390102d787a4883b981f16a399e0b3d","marketplace_plan_uuid":null,"marketplace_resource_state":"OK","is_usage_based":false,"is_limit_based":false}]'
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '2062'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Mon, 13 Oct 2025 15:17:15 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/openstack-volumes/?name_exact=Test-data&tenant_uuid=35242f8bd68b448cbc10cb7761ed7b55>;
+        rel="first", <http://127.0.0.1:8000/api/openstack-volumes/?name_exact=Test-data&tenant_uuid=35242f8bd68b448cbc10cb7761ed7b55>;
+        rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/projects/?name_exact=Thesis+Analyzer
+  response:
+    body:
+      string: '[{"url":"http://127.0.0.1:8000/api/projects/6c442c4fa5144e42a7d90a06ddbae940/","uuid":"6c442c4fa5144e42a7d90a06ddbae940","name":"Thesis
+        Analyzer","slug":"thesis-a-1","customer":"http://127.0.0.1:8000/api/customers/3defbbb357ef46928661b547cc21281c/","customer_uuid":"3defbbb357ef46928661b547cc21281c","customer_name":"CGVR","customer_slug":"cgvr-1","customer_native_name":"","customer_abbreviation":"","description":"","customer_display_billing_info_in_projects":true,"created":"2023-11-06T15:35:33.609072+00:00","type":null,"type_name":null,"type_uuid":null,"backend_id":"","start_date":null,"end_date":null,"end_date_requested_by":null,"oecd_fos_2007_code":null,"oecd_fos_2007_label":null,"is_industry":false,"image":null,"resources_count":6,"max_service_accounts":0,"kind":"default","project_credit":null,"marketplace_resource_count":{"06e45986252244218bd062149fc3b5b5":1,"6dfcdbe3c18241dc87526ef411bf6064":4,"e5a5e7651f394d10958328bbc3e967eb":1},"billing_price_estimate":{"total":60.07,"current":"0.00","tax":"0.00","tax_current":"0.00"}}]'
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '1042'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Mon, 13 Oct 2025 15:17:15 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/projects/?name_exact=Thesis+Analyzer>; rel="first",
+        <http://127.0.0.1:8000/api/projects/?name_exact=Thesis+Analyzer>; rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: POST
+    uri: http://127.0.0.1:8000/api/openstack-volumes/c14f421348714cbf851b9d8a7f37d1b7/detach/
+  response:
+    body:
+      string: '{"status":"detach was scheduled"}'
+    headers:
+      Allow:
+      - POST, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '33'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Mon, 13 Oct 2025 15:17:16 GMT
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+    status:
+      code: 202
+      message: Accepted
+version: 1
