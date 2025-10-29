@@ -124,7 +124,7 @@ class Generator:
             self.collection_name,
         )
 
-    def _setup_collection_skeleton(self, output_dir: str):
+    def _setup_collection_skeleton(self, output_dir: str, module_names: list[str]):
         """
         Creates the basic directory structure and metadata files required for a valid
         Ansible Collection. This is called once at the start of generation.
@@ -168,6 +168,19 @@ class Generator:
         runtime_data = {
             "requires_ansible": ">=2.14",
         }
+
+        # If modules are being generated for this collection, create an action group.
+        if module_names:
+            # The group name within the collection is just the collection's name.
+            # When used in a playbook, Ansible automatically qualifies it to
+            # `namespace.collection.collection` (e.g., `waldur.openstack.openstack`).
+            group_name = self.collection_name
+
+            runtime_data["action_groups"] = {
+                # We sort the module names for a deterministic, clean output in the YAML file.
+                group_name: sorted(module_names)
+            }
+
         with open(os.path.join(meta_dir, "runtime.yml"), "w") as f:
             yaml.dump(runtime_data, f, sort_keys=False, default_flow_style=False)
 
@@ -314,7 +327,16 @@ class Generator:
             self.copied_runners = set()
 
             # --- 2b. Create the Directory Structure for This Collection ---
-            self._setup_collection_skeleton(output_dir)
+
+            # Extract all module names defined in the config for the current collection.
+            # This list will be passed to the skeleton setup to create the action_group.
+            module_names = [
+                module.get("name")
+                for module in collection_config.get("modules", [])
+                if module.get("name")
+            ]
+
+            self._setup_collection_skeleton(output_dir, module_names)
 
             collection_root = self._get_collection_root(output_dir)
             modules_dir = os.path.join(collection_root, "plugins", "modules")
