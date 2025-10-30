@@ -17,6 +17,11 @@ class FactsModuleConfig(BaseModel):
     @field_validator("description", mode="before")
     def set_description(cls, v, values):
         if v is None:
-            resource_type = values.data.get("resource_type", "").replace("_", " ")
-            return f"Get an existing {resource_type}."
+            data = values.data
+            resource_type = data.get("resource_type", "").replace("_", " ")
+            # Check the 'many' flag to generate a more accurate description.
+            if data.get("many", False):
+                return f"Get a list of {resource_type}s."
+            else:
+                return f"Get facts about a single {resource_type}."
         return v

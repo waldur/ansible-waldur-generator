@@ -61,7 +61,7 @@ class TestFactsRunner:
             "GET", "/api/security-groups/", query_params={"name_exact": "default-sg"}
         )
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=False, resources=[found_resource]
+            changed=False, resource=found_resource
         )
         mock_ansible_module.fail_json.assert_not_called()
 
@@ -90,7 +90,7 @@ class TestFactsRunner:
             "GET", "/api/security-groups/{uuid}/", path_params={"uuid": test_uuid}
         )
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=False, resources=[found_resource]
+            changed=False, resource=found_resource
         )
         mock_ansible_module.fail_json.assert_not_called()
 
@@ -136,7 +136,7 @@ class TestFactsRunner:
             },
         )
         mock_ansible_module.exit_json.assert_called_once_with(
-            changed=False, resources=[found_resource]
+            changed=False, resource=found_resource
         )
         mock_ansible_module.fail_json.assert_not_called()
 

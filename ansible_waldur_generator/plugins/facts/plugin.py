@@ -203,7 +203,8 @@ class FactsPlugin(BasePlugin):
     ) -> Dict[str, Any]:
         """
         Builds the `RETURN` block for the module's documentation. This section
-        describes the data structure that the module returns on success.
+        describes the data structure that the module returns on success, adapting
+        its output based on the 'many' flag.
         """
         # The 'retrieve' operation is the source of truth for the structure of a
         # single resource, so we use its response schema to generate the documentation.
@@ -220,15 +221,33 @@ class FactsPlugin(BasePlugin):
         if not return_content:
             return {}
 
-        return {
-            "resource": {
-                "description": f"A list of dictionaries, where each dictionary represents a {module_config.resource_type}.",
-                "type": "list",
-                "returned": "always",
-                "elements": "dict",
-                "contains": return_content,  # Describes the structure of a single item in the list.
+        if module_config.many:
+            # Case 1: many=true. The module returns a LIST of resources.
+            return {
+                "resources": {
+                    "description": (
+                        f"A list of dictionaries, where each dictionary represents "
+                        f"a {module_config.resource_type}."
+                    ),
+                    "type": "list",
+                    "returned": "always",
+                    "elements": "dict",
+                    "contains": return_content,
+                }
             }
-        }
+        else:
+            # Case 2: many=false. The module returns a SINGLE resource.
+            return {
+                "resource": {
+                    "description": (
+                        f"A dictionary representing the facts of a single "
+                        f"{module_config.resource_type}."
+                    ),
+                    "type": "dict",
+                    "returned": "on success",  # A single resource is only returned if found
+                    "contains": return_content,
+                }
+            }
 
     def _build_examples(
         self,

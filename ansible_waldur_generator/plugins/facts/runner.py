@@ -164,10 +164,14 @@ class FactsRunner(BaseRunner):
         # match the filter. An empty list is a valid, successful result.
 
         # The final result payload for Ansible. 'changed' is always false for facts modules.
-        result_payload = {
-            "changed": False,
-            # The result is always a list, providing a consistent data structure for users.
-            "resources": resources,
-        }
+        result_payload = {"changed": False}
+
+        if self.context.get("many", False):
+            # For many=true, return a list under the 'resources' key.
+            result_payload["resources"] = resources
+        else:
+            # For many=false, we've already validated there is exactly one item.
+            # Return the single dictionary under the 'resource' key.
+            result_payload["resource"] = resources[0] if resources else None
 
         self.module.exit_json(**result_payload)
