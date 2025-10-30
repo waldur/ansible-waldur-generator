@@ -202,4 +202,4 @@ class TestSecurityGroupModule:
         assert exit_result is not None
 
         # 3. Verify that a change occurred.
-        assert len(exit_result["resources"]) == 1
+        assert exit_result["resource"] is not None
