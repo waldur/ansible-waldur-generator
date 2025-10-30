@@ -1759,3 +1759,16 @@ For the `waldur.openstack` collection, the group name is `waldur.openstack.opens
 
 This approach leverages standard Ansible features to provide the exact convenience you're looking for,
 making the generated collections a pleasure to use in complex, real-world scenarios.
+
+### Mapping UI Terms to Ansible Parameters
+
+To provide the best possible user experience, Ansible playbook parameters are designed to be intuitive.
+However, terminology can sometimes differ between the Waldur Web UI and the underlying cloud platform (like OpenStack).
+This guide provides a mapping for the most common terms to help you write your playbooks with confidence.
+
+| Waldur UI Term | Ansible Parameter | OpenStack Term | Notes |
+| :--- | :--- |:--- | :--- |
+| **Organization** | `customer` | N/A | This is the top-level entity in Waldur that holds projects and cloud resources. |
+| **Project** | `project` | N/A | Waldur project is a container for organizing resources and teams. |
+| **Virtual Private Cloud / VPC** | `tenant` | Project / Tenant | In Ansible term Tenant is used. |
+| **Instance / VM** | `instance` | Server | OpenStack refer to this as a "Server". |
