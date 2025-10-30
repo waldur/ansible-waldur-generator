@@ -210,7 +210,7 @@ class CrudPlugin(BasePlugin):
                     params[name] = {
                         "description": f"The name or UUID of the parent {name} for filtering.",
                         "type": "str",
-                        "required": True,  # Context filters are typically required
+                        "required": False,
                     }
 
         # 4. Determine the set of updatable parameters.

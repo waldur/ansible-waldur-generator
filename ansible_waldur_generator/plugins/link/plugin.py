@@ -72,8 +72,7 @@ class LinkPlugin(BasePlugin):
                 "required": p_conf.required,
             }
 
-        # Add context parameters from resolvers. Any resolver that is NOT the primary
-        # source or target is treated as a required context parameter for filtering.
+        # Add context parameters from resolvers.
         for name in conf.resolvers:
             if name not in params and name not in [
                 conf.source.param,
@@ -82,7 +81,7 @@ class LinkPlugin(BasePlugin):
                 params[name] = {
                     "description": f"The name or UUID of the parent {name} for filtering.",
                     "type": "str",
-                    "required": True,
+                    "required": False,
                 }
         return params
 

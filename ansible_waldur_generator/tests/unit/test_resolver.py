@@ -1446,3 +1446,191 @@ class TestPerformanceAndOptimization:
         # Assert
         assert result == "/api/subnets/subnet-123/"
         resolver._resolve_to_list.assert_not_called()
+
+
+class TestOptionalDependencyResolution:
+    """
+    Test scenarios involving optional dependencies, ensuring the resolver
+    applies filters when a dependency is provided but does not fail when it is omitted.
+    """
+
+    def setup_method(self):
+        """A helper to set up a common mock runner and resolver for these tests."""
+        self.mock_runner = Mock()
+        self.mock_runner.module = Mock()
+        # Make params dict-like for .get() calls
+        self.mock_runner.module.params = {}
+        self.mock_runner.context = {
+            "resolvers": {
+                "customer": {
+                    "url": "/api/customers/",
+                    "error_message": "Customer '{value}' not found",
+                },
+                "project": {
+                    "url": "/api/projects/",
+                    "error_message": "Project '{value}' not found",
+                    "filter_by": [
+                        {
+                            "source_param": "customer",
+                            "source_key": "uuid",
+                            "target_key": "customer_uuid",
+                        }
+                    ],
+                },
+            }
+        }
+        self.mock_runner._is_uuid = Mock(return_value=False)
+        self.resolver = ParameterResolver(self.mock_runner)
+
+    def test_resolve_dependent_param_with_dependency_provided(self):
+        """
+        Test that when the optional dependency ('customer') is provided,
+        the filter is correctly applied to the dependent parameter ('project').
+        """
+        # Arrange
+        # User provides both customer and project
+        self.mock_runner.module.params = {
+            "customer": "test-customer",
+            "project": "test-project",
+        }
+
+        # Mock the API responses for both customer and project lookups
+        def mock_resolve_to_list(path, value, query_params=None):
+            if "customers" in path and value == "test-customer":
+                return [
+                    {
+                        "uuid": "customer-123",
+                        "url": "/api/customers/customer-122/",
+                        "name": "test-customer",
+                    }
+                ]
+            if "projects" in path and value == "test-project":
+                # This is the key assertion: the query MUST contain the customer filter
+                assert query_params is not None
+                assert query_params.get("customer_uuid") == "customer-123"
+                return [
+                    {
+                        "uuid": "project-789",
+                        "url": "/api/projects/project-789/",
+                        "name": "test-project",
+                    }
+                ]
+            return []
+
+        self.resolver._resolve_to_list = Mock(side_effect=mock_resolve_to_list)
+
+        # Act
+        # We only need to resolve the final parameter; the dependency should be
+        # resolved automatically ("just-in-time").
+        result = self.resolver.resolve("project", "test-project")
+
+        # Assert
+        assert result == "/api/projects/project-789/"
+        # Verify that two lookups were made: one for customer, one for project.
+        assert self.resolver._resolve_to_list.call_count == 2
+        # Check the specific calls
+        self.resolver._resolve_to_list.assert_any_call(
+            "/api/customers/", "test-customer", {}
+        )
+        self.resolver._resolve_to_list.assert_any_call(
+            "/api/projects/", "test-project", {"customer_uuid": "customer-123"}
+        )
+
+    def test_resolve_dependent_param_without_dependency(self):
+        """
+        Test that when the optional dependency ('customer') is NOT provided,
+        the dependent parameter ('project') is resolved without the filter, and
+        the module does NOT fail.
+        """
+        # Arrange
+        # User provides only the project
+        self.mock_runner.module.params = {"project": "test-project"}
+
+        # Mock the API response for the project lookup (no customer lookup needed)
+        def mock_resolve_to_list(path, value, query_params=None):
+            if "projects" in path and value == "test-project":
+                # Key assertion: the query must NOT contain the customer filter
+                assert query_params is not None
+                assert "customer_uuid" not in query_params
+                return [
+                    {
+                        "uuid": "project-789",
+                        "url": "/api/projects/project-789/",
+                        "name": "test-project",
+                    }
+                ]
+            return []
+
+        self.resolver._resolve_to_list = Mock(side_effect=mock_resolve_to_list)
+
+        # Act
+        result = self.resolver.resolve("project", "test-project")
+
+        # Assert
+        assert result == "/api/projects/project-789/"
+        # Verify that only ONE lookup was made (for project).
+        self.resolver._resolve_to_list.assert_called_once_with(
+            "/api/projects/", "test-project", {}
+        )
+
+    def test_update_scenario_with_optional_dependency_in_cache(self):
+        """
+        Test an update scenario where an optional dependency is satisfied
+        from a primed cache, even when not provided by the user.
+        """
+        # Arrange
+        # User provides only the parameter they want to update
+        self.mock_runner.module.params = {"project": "new-project"}
+
+        # Mock the API response for priming the customer cache
+        self.mock_runner.send_request = Mock(
+            return_value=(
+                {
+                    "uuid": "customer-123",
+                    "url": "/api/customers/customer-123/",
+                    "name": "test-customer",
+                },
+                200,
+            )
+        )
+
+        def mock_resolve_to_list(path, value, query_params=None):
+            if "projects" in path and value == "new-project":
+                # Assert that the filter was correctly applied from the cached customer
+                assert query_params is not None
+                assert query_params.get("customer_uuid") == "customer-123"
+                return [
+                    {
+                        "uuid": "project-new",
+                        "url": "/api/projects/project-new/",
+                        "name": "new-project",
+                    }
+                ]
+            return []
+
+        self.resolver._resolve_to_list = Mock(side_effect=mock_resolve_to_list)
+
+        # This represents an existing resource that has a customer
+        existing_resource = {
+            "uuid": "vm-abc",
+            "customer": "/api/customers/customer-123/",
+            "project": "/api/projects/project-old/",
+        }
+
+        # Act
+        # 1. Prime the cache. This will fetch the customer and store it.
+        self.resolver.prime_cache_from_resource(existing_resource, ["customer"])
+        # 2. Resolve the new project. The resolver should find 'customer' in the
+        #    cache and use it to filter this resolution.
+        result = self.resolver.resolve("project", "new-project")
+
+        # Assert
+        assert result == "/api/projects/project-new/"
+        # Verify that the cache priming made one API call
+        self.mock_runner.send_request.assert_called_once_with(
+            "GET", "/api/customers/customer-123/"
+        )
+        # Verify that the final resolution made one call with the correct filter
+        self.resolver._resolve_to_list.assert_called_once_with(
+            "/api/projects/", "new-project", {"customer_uuid": "customer-123"}
+        )

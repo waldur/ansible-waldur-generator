@@ -171,6 +171,16 @@ class OrderPlugin(BasePlugin):
             "required": True,
             "description": "The name or UUID of the project.",
         }
+
+        # Conditionally add the 'customer' parameter if a resolver for it is defined.
+        # This makes the feature opt-in and driven by the generator_config.
+        if "customer" in module_config.resolvers:
+            params["customer"] = {
+                "type": "str",
+                "required": False,  # It's an optional filter
+                "description": "The name or UUID of the customer to filter the project lookup. This is useful when a project name is not unique across all customers.",
+            }
+
         params["offering"] = {
             "type": "str",
             "required": False,  # Required only for creation, validated by runner

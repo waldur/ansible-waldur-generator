@@ -293,9 +293,12 @@ class ParameterResolver:
 
     def _build_dependency_filters(self, name: str, dependencies: list) -> dict:
         """
-        Builds a query parameter dictionary from resolver dependencies by looking
-        up previously resolved objects in the cache. If a dependency is not in the
-        cache, it attempts to resolve it "just-in-time".
+        Builds a query parameter dictionary from resolver dependencies. This method
+        handles both create and update scenarios.
+
+        It prioritizes satisfying dependencies from the cache (for updates) before
+        falling back to resolving them from user-provided parameters (for creates).
+        If a dependency cannot be satisfied by either, it is skipped.
 
         Args:
             name: The name of the parameter currently being resolved (for error messages).
@@ -307,40 +310,36 @@ class ParameterResolver:
         query_params = {}
         for dep in dependencies:
             source_param = dep["source_param"]
+            source_object = None
 
-            # If the dependency (e.g., 'tenant') is not
-            # in the cache, we attempt to resolve it now.
-            if source_param not in self.cache:
-                # Check if the user has provided the dependency parameter.
-                if self.module.params.get(source_param):
-                    # Trigger a recursive resolution for the dependency. This will
-                    # populate the cache via the side-effect in `_resolve_single_value`.
-                    self.resolve(source_param, self.module.params[source_param])
-                else:
-                    # If the user didn't provide the dependency, we cannot proceed.
+            # Priority 1: Check the cache first. This is critical for update scenarios
+            # where the dependency info comes from the existing resource, not the user.
+            if source_param in self.cache:
+                source_object = self.cache[source_param]
+
+            # Priority 2: If not in cache, check if the user provided the parameter.
+            # This handles the "create" or "just-in-time" resolution scenario.
+            elif self.module.params.get(source_param) is not None:
+                # The act of resolving will populate the cache for subsequent lookups.
+                self.resolve(source_param, self.module.params[source_param])
+                source_object = self.cache.get(source_param)
+
+            # If we satisfied the dependency from either source, build the filter.
+            if source_object:
+                source_value = source_object.get(dep["source_key"])
+
+                if source_value is None:
                     self.module.fail_json(
-                        msg=f"Configuration error: Resolver for '{name}' depends on parameter '{source_param}', which was not provided."
+                        msg=(
+                            f"Could not find key '{dep['source_key']}' in the cached "
+                            f"response for '{source_param}'. Available keys: {list(source_object.keys())}"
+                        )
                     )
                     return {}  # Unreachable
 
-            # At this point, the dependency must be in the cache.
-            if source_param not in self.cache:
-                self.module.fail_json(
-                    msg=f"Internal resolver error: Failed to resolve and cache dependency '{source_param}' for parameter '{name}'."
-                )
-                return {}  # Unreachable
+                # Map the extracted value to the target query parameter key.
+                query_params[dep["target_key"]] = source_value
 
-            source_object = self.cache[source_param]
-            source_value = source_object.get(dep["source_key"])
-
-            if source_value is None:
-                self.module.fail_json(
-                    msg=f"Could not find key '{dep['source_key']}' in the cached response for '{source_param}'. Available keys: {list(source_object.keys())}"
-                )
-                return {}
-
-            # Map the extracted value to the target query parameter key.
-            query_params[dep["target_key"]] = source_value
         return query_params
 
     def _resolve_to_list(

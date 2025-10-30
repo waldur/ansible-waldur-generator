@@ -9,6 +9,10 @@ definitions:
     project:
       base: "projects"
       check_filter_key: "project_uuid"
+      filter_by:
+        - source_param: "customer"
+          source_key: "uuid"
+          target_key: "customer"
 
   customer_context_resolver: &customer_context_resolver
     customer:
@@ -187,7 +191,7 @@ collections:
         base_operation_id: "openstack_tenants"
         has_limits: true
         resolvers:
-          <<: *project_context_resolver
+          <<: *project_customer_resolvers
 
       - name: volume
         plugin: order
@@ -196,7 +200,7 @@ collections:
         transformations:
           size: "gb_to_mb"
         resolvers:
-          <<: *project_context_resolver
+          <<: *project_customer_resolvers
           type: *volume_type_resolver
           image: *image_resolver
           availability_zone:
@@ -242,7 +246,7 @@ collections:
                 description: "If true, release associated floating IPs on termination."
         wait_config: *default_wait_config
         resolvers:
-          <<: *project_context_resolver
+          <<: *project_customer_resolvers
           flavor:
             base: "openstack_flavors"
             filter_by: *filter_by_offering_tenant

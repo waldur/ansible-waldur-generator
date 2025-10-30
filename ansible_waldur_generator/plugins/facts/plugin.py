@@ -184,7 +184,7 @@ class FactsPlugin(BasePlugin):
                 params[name] = {
                     "description": f"The name or UUID of the parent {name}.",
                     "type": "str",
-                    "required": True,
+                    "required": False,
                 }
 
         # Add inferred parameters.
