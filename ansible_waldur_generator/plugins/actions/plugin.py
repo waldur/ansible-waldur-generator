@@ -106,7 +106,7 @@ class ActionsPlugin(BasePlugin):
                 params[name] = {
                     "description": f"The name or UUID of the parent {name} for filtering.",
                     "type": "str",
-                    "required": True,
+                    "required": False,
                 }
         return params
 

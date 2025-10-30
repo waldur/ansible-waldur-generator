@@ -211,7 +211,7 @@ class OrderPlugin(BasePlugin):
                     params[name] = {
                         "description": f"The name or UUID of the parent {name} for filtering.",
                         "type": "str",
-                        "required": True,
+                        "required": False,
                     }
 
         # Determine the set of updatable parameters.
@@ -223,6 +223,7 @@ class OrderPlugin(BasePlugin):
         # Augment core parameter documentation.
         core_create_params = {
             "offering": True,  # True means it's required for create
+            "project": True,
             "plan": False,
             "limits": False,
             "description": False,
