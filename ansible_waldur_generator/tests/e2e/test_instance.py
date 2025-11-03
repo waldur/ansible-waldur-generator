@@ -42,6 +42,33 @@ class TestInstanceModule:
         assert exit_result is not None
         assert exit_result["changed"] is True
 
+    def test_create_instance_with_existing_ports(self, auth_params):
+        """End-to-end test for creating instance with existing ports."""
+        user_params = {
+            "state": "present",
+            "name": "VCR-test",
+            "offering": "Virtual machine in waldur-dev",
+            "project": "waldur-test",
+            "ports": [
+                {
+                    "port": "http://localhost:8000/api/openstack-ports/6b785c10e80b49c9b2e02cceacf856fa/",
+                }
+            ],
+            "flavor": "m1.small",
+            "image": "cirros",
+            "system_volume_size": "1024",
+            "wait": False,
+            **auth_params,  # Unpack the auth fixture here
+        }
+
+        # ACT: Use the generic harness, passing the instance module object
+        exit_result, fail_result = run_module_harness(instance_module, user_params)
+
+        # ASSERT
+        assert fail_result is None, f"Module failed unexpectedly with: {fail_result}"
+        assert exit_result is not None
+        assert exit_result["changed"] is True
+
     def test_update_security_groups_skipped(self, auth_params):
         """End-to-end test for updating the security groups of an existing instance."""
         user_params = {
