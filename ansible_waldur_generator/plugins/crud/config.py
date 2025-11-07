@@ -22,6 +22,10 @@ class UpdateAction(BaseModel):
     # to the value of 'param'.
     compare_key: str | None = None
 
+    # An optional field to map the Ansible parameter name to a different
+    # key in the API request body.
+    maps_to: str | None = None
+
 
 class UpdateConfig(BaseModel):
     """

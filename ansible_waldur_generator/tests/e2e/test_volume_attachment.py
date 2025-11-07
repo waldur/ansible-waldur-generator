@@ -1,6 +1,5 @@
 import pytest
 
-# Import the module under test with a clear alias
 from ansible_collections.waldur.openstack.plugins.modules import (
     volume_attachment as volume_attachment_module,
 )

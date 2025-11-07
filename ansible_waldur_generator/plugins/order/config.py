@@ -12,6 +12,7 @@ class UpdateActionConfig(BaseModel):
     compare_key: (
         str  # The key on the existing resource to compare against for idempotency.
     )
+    maps_to: str | None = None
 
 
 class ParameterConfig(BaseModel):

@@ -648,12 +648,14 @@ class BasePlugin(ABC):
             # --- End of Idempotency Key Inference ---
 
             compare_key = getattr(action, "compare_key", None) or param_name
+            maps_to_key = getattr(action, "maps_to", None)
 
             # Build the final context dictionary for this specific action.
             update_actions_context[action_name] = {
                 "path": action.operation.path,
                 "param": param_name,
                 "compare_key": compare_key,
+                "maps_to": maps_to_key,
                 "wrap_in_object": is_wrapped,
                 # Provide the inferred keys, sorted for deterministic output.
                 "idempotency_keys": sorted(idempotency_keys),

@@ -762,7 +762,8 @@ class BaseRunner:
                     # others expect it to be wrapped in an object (e.g., `{"rules": [...]}`).
                     # The generator infers this and provides the 'wrap_in_object' flag.
                     if action_info.get("wrap_in_object"):
-                        final_api_payload = {param_name: resolved_payload}
+                        api_key = action_info.get("maps_to") or param_name
+                        final_api_payload = {api_key: resolved_payload}
                     else:
                         final_api_payload = resolved_payload
 
