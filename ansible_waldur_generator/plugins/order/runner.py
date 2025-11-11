@@ -2,12 +2,6 @@ from ansible_waldur_generator.interfaces.resolver import ParameterResolver
 from ansible_waldur_generator.interfaces.runner import BaseRunner
 from ansible_waldur_generator.interfaces.command import Command
 
-# A map of transformation functions, allowing the generator to configure
-# data conversions (e.g., from user-friendly GiB to API-required MiB).
-TRANSFORMATION_MAP = {
-    "gb_to_mb": lambda x: int(x) * 1024,
-}
-
 
 class OrderRunner(BaseRunner):
     """
@@ -196,26 +190,3 @@ class OrderRunner(BaseRunner):
                 description=f"Terminate {self.context['resource_type']} '{self.resource.get('name', self.resource.get('uuid'))}'",
             )
         ]
-
-    def _apply_transformations(self, payload: dict) -> dict:
-        """
-        Applies configured value transformations to a payload dictionary.
-        """
-        transformations = self.context.get("transformations", {})
-        if not transformations:
-            return payload
-
-        transformed_payload = payload.copy()
-        for param_name, transform_type in transformations.items():
-            if (
-                param_name in transformed_payload
-                and transformed_payload[param_name] is not None
-            ):
-                transform_func = TRANSFORMATION_MAP.get(transform_type)
-                if transform_func:
-                    try:
-                        original_value = transformed_payload[param_name]
-                        transformed_payload[param_name] = transform_func(original_value)
-                    except (ValueError, TypeError):
-                        pass
-        return transformed_payload

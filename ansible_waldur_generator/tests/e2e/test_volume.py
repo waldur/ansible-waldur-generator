@@ -50,7 +50,7 @@ class TestVolumeModule:
             "name": self.TEST_DATA["volume_name"],
             "project": self.TEST_DATA["project"],
             "offering": self.TEST_DATA["offering"],
-            "size": 30720,
+            "size": 30,  # Extend to 30 GiB
             "wait": False,
             **auth_params,
         }

@@ -9,6 +9,10 @@ from ansible.module_utils.urls import fetch_url
 
 from .command import Command
 
+# A map of transformation functions, allowing the generator to configure
+# data conversions (e.g., from user-friendly GiB to API-required MiB).
+TRANSFORMATION_MAP = {"gb_to_mb": lambda x: int(x) * 1024}
+
 
 class BaseRunner:
     """
@@ -662,12 +666,18 @@ class BaseRunner:
             # An action is only planned if the user has provided its corresponding parameter.
             # If the parameter is `None`, we skip this action entirely.
             if param_value is not None:
+                # Apply transformation to the user's input before resolution and comparison.
+                # Wrap the single value in a temporary dict to use the helper.
+                temp_payload = {param_name: param_value}
+                transformed_payload_dict = self._apply_transformations(temp_payload)
+                transformed_value = transformed_payload_dict[param_name]
+
                 # --- 2a. RESOLVE Desired State ---
                 # Delegate to the ParameterResolver to convert the user's input (e.g., `['sg-web']`)
                 # into the final, API-ready data structure (e.g., `[{'url': '...'}]`).
                 # The `resolve_output_format` hint is crucial for context-dependent formatting.
                 resolved_payload = self.resolver.resolve(
-                    param_name, param_value, output_format=resolve_output_format
+                    param_name, transformed_value, output_format=resolve_output_format
                 )
 
                 # --- 2b. NORMALIZE Current and Desired States ---
@@ -797,6 +807,29 @@ class BaseRunner:
         # Return the list of generated commands. This list will be empty if no
         # actions needed to be triggered.
         return commands
+
+    def _apply_transformations(self, payload: dict) -> dict:
+        """
+        Applies configured value transformations to a payload dictionary.
+        """
+        transformations = self.context.get("transformations", {})
+        if not transformations:
+            return payload
+
+        transformed_payload = payload.copy()
+        for param_name, transform_type in transformations.items():
+            if (
+                param_name in transformed_payload
+                and transformed_payload[param_name] is not None
+            ):
+                transform_func = TRANSFORMATION_MAP.get(transform_type)
+                if transform_func:
+                    try:
+                        original_value = transformed_payload[param_name]
+                        transformed_payload[param_name] = transform_func(original_value)
+                    except (ValueError, TypeError):
+                        pass
+        return transformed_payload
 
     def check_existence(self):
         """
