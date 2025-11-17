@@ -67,7 +67,7 @@ This guide covers everything you need to know to write effective and clean playb
 - Using `_facts` modules for dynamic resource lookups.
 - Mapping terms from the Waldur UI to Ansible parameters.
 
-➡️ **See the full [Best Practices Guide](best-practices.md) for detailed examples.**
+➡️ **See the full [Best Practices Guide](docs/best-practices.md) for detailed examples.**
 
 ### For Module Authors (Using the Generator)
 
@@ -82,7 +82,7 @@ This guide provides a deep dive into the generator's configuration and plugin sy
 - Using YAML anchors to keep your configuration DRY.
 - Testing and publishing a generated collection.
 
-➡️ **Dive into the [Module Author Guide](modules.md) to get started.**
+➡️ **Dive into the [Module Author Guide](docs/modules.md) to get started.**
 
 ### For Generator Developers (Contributing to this Project)
 
@@ -97,7 +97,8 @@ These guides explain the internal architecture and testing strategy of the gener
 - **Test Author Guide:** Details our end-to-end testing strategy using `pytest`
   and `VCR.py`, explaining how to run tests and how to record new "cassettes" for new or modified tests.
 
-➡️ **Start with the [Plugin Author Guide](plugins.md) and the [Test Author Guide](tests.md).**
+➡️ **Start with the [Plugin Author Guide](docs/plugins.md) and the
+[Test Author Guide](docs/tests.md).**
 
 ## License
 
