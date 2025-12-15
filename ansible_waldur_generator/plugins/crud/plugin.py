@@ -6,6 +6,7 @@ from ansible_waldur_generator.models import (
     AnsibleModuleParams,
 )
 from ansible_waldur_generator.helpers import (
+    AUTH_FIXTURE,
     AUTH_OPTIONS,
     OPENAPI_TO_ANSIBLE_TYPE_MAP,
     WAITER_OPTIONS,
@@ -43,21 +44,31 @@ class CrudPlugin(BasePlugin):
         resource representation.
         """
         return_block = None
+        return_block = None
         # Get the raw OpenAPI specification for the 'create' operation.
-        create_op_spec = module_config.create_operation.raw_spec
-        # Use the ReturnBlockGenerator to parse the schema and generate the documentation structure.
-        return_content = return_generator.generate_for_operation(create_op_spec)
+        create_op_spec = (
+            module_config.create_operation.raw_spec
+            if module_config.create_operation
+            else None
+        )
+        if not create_op_spec and module_config.check_operation:
+            # Fallback: try to use the check operation (usually list/get) for return documentation
+            create_op_spec = module_config.check_operation.raw_spec
 
-        # Format the generated content into the standard Ansible RETURN structure.
-        if return_content:
-            return_block = {
-                "resource": {
-                    "description": f"The state of the {module_config.resource_type} after the operation.",
-                    "type": "dict",
-                    "returned": "on success",
-                    "contains": return_content,
+        if create_op_spec:
+            # Use the ReturnBlockGenerator to parse the schema and generate the documentation structure.
+            return_content = return_generator.generate_for_operation(create_op_spec)
+
+            # Format the generated content into the standard Ansible RETURN structure.
+            if return_content:
+                return_block = {
+                    "resource": {
+                        "description": f"The state of the {module_config.resource_type} after the operation.",
+                        "type": "dict",
+                        "returned": "on success",
+                        "contains": return_content,
+                    }
                 }
-            }
         return return_block
 
     def _build_runner_context(
@@ -321,16 +332,71 @@ class CrudPlugin(BasePlugin):
                 f"{ansible_param.replace('_', ' ').capitalize()} name or UUID"
             )
 
-        return super()._build_examples_from_schema(
+        create_schema = None
+        if module_config.create_operation:
+            create_schema = module_config.create_operation.model_schema or {}
+
+        delete_identifier_param = None
+        if module_config.destroy_operation:
+            delete_identifier_param = "name"
+
+        examples = super()._build_examples_from_schema(
             module_config=module_config,
             module_name=module_name,
             collection_namespace=collection_namespace,
             collection_name=collection_name,
             schema_parser=schema_parser,
-            create_schema=module_config.create_operation.model_schema or {},
+            create_schema=create_schema,
             base_params=base_params,
-            delete_identifier_param="name",
+            delete_identifier_param=delete_identifier_param,
         )
+
+        if module_config.update_config and module_config.update_config.actions:
+            fqcn = f"{collection_namespace}.{collection_name}.{module_name}"
+            for action_key, action in module_config.update_config.actions.items():
+                action_param_name = action.param
+                param_schema = {}
+                model_schema = action.operation.model_schema or {}
+
+                # Determine if we can get a specific schema for this parameter
+                if (
+                    model_schema.get("type") == "object"
+                    and "properties" in model_schema
+                ):
+                    if action_param_name in model_schema["properties"]:
+                        param_schema = model_schema["properties"][action_param_name]
+                elif model_schema:
+                    # Fallback: assume the whole body schema applies if it's not an object with props (e.g. array)
+                    param_schema = model_schema
+
+                sample_value = schema_parser._generate_sample_value(
+                    action_param_name, param_schema, module_config.resource_type
+                )
+
+                update_params = {
+                    "state": "present",
+                    "name": schema_parser._generate_sample_value(
+                        "name", {}, module_config.resource_type
+                    ),
+                    action_param_name: sample_value,
+                    **base_params,
+                    **AUTH_FIXTURE,
+                }
+
+                examples.append(
+                    {
+                        "name": f"Update {module_config.resource_type} - {action_key.replace('_', ' ')}",
+                        "hosts": "localhost",
+                        "tasks": [
+                            {
+                                "name": f"Update {module_config.resource_type}",
+                                fqcn: update_params,
+                            }
+                        ],
+                    }
+                )
+
+        return examples
 
     def _parse_configuration(
         self,
@@ -486,8 +552,6 @@ class CrudPlugin(BasePlugin):
         # Perform critical post-validation checks to prevent generating a broken module.
         if not module_config.check_operation:
             raise ValueError(f"Module '{module_key}' must have a 'check' operation.")
-        if not module_config.create_operation:
-            raise ValueError(f"Module '{module_key}' must have a 'create' operation.")
 
         # Validate that any `resolvers` are configured correctly against the
         # OpenAPI spec for the `check_operation`.

@@ -384,9 +384,9 @@ class BasePlugin(ABC):
         collection_namespace: str,
         collection_name: str,
         schema_parser: ReturnBlockGenerator,
-        create_schema: dict[str, Any],
+        create_schema: dict[str, Any] | None,
         base_params: dict[str, Any],
-        delete_identifier_param: str = "name",
+        delete_identifier_param: str | None = "name",
     ) -> list[dict]:
         """
         Builds realistic EXAMPLES using a hybrid of schema-inferred data
@@ -414,57 +414,68 @@ class BasePlugin(ABC):
         """
         fqcn = f"{collection_namespace}.{collection_name}.{module_name}"
 
-        # --- Create Example ---
-        create_params = {
-            "state": "present",
-            **AUTH_FIXTURE,
-            **base_params,
-        }
+        examples = []
+        if create_schema is not None:
+            # --- Create Example ---
+            create_params = {
+                "state": "present",
+                **AUTH_FIXTURE,
+                **base_params,
+            }
 
-        # The schema parser now handles placeholder generation for all resolvable
-        # fields, including nested ones, by being aware of the resolver keys.
-        inferred_payload = schema_parser.generate_example_from_schema(
-            create_schema,
-            module_config.resource_type,
-            resolver_keys=list(getattr(module_config, "resolvers", {}).keys()),
-        )
-        create_params.update(inferred_payload)
+            # The schema parser now handles placeholder generation for all resolvable
+            # fields, including nested ones, by being aware of the resolver keys.
+            inferred_payload = schema_parser.generate_example_from_schema(
+                create_schema,
+                module_config.resource_type,
+                resolver_keys=list(getattr(module_config, "resolvers", {}).keys()),
+            )
+            create_params.update(inferred_payload)
 
-        #  Post-process path parameters, which are not part of the create_schema.
-        path_param_maps = getattr(module_config, "path_param_maps", {})
-        for _, ansible_param in path_param_maps.get("create", {}).items():
-            display_name = ansible_param.replace("_", " ").capitalize()
-            create_params[ansible_param] = f"{display_name} name or UUID"
+            #  Post-process path parameters, which are not part of the create_schema.
+            path_param_maps = getattr(module_config, "path_param_maps", {})
+            for _, ansible_param in path_param_maps.get("create", {}).items():
+                display_name = ansible_param.replace("_", " ").capitalize()
+                create_params[ansible_param] = f"{display_name} name or UUID"
 
-        # --- Delete Example ---
-        delete_params = {
-            "state": "absent",
-            delete_identifier_param: schema_parser._generate_sample_value(
-                delete_identifier_param, {}, module_config.resource_type
-            ),
-            **AUTH_FIXTURE,
-            **base_params,
-        }
+            examples.append(
+                {
+                    "name": f"Create a new {module_config.resource_type}",
+                    "hosts": "localhost",
+                    "tasks": [
+                        {
+                            "name": f"Add {module_config.resource_type}",
+                            fqcn: create_params,
+                        }
+                    ],
+                }
+            )
 
-        return [
-            {
-                "name": f"Create a new {module_config.resource_type}",
-                "hosts": "localhost",
-                "tasks": [
-                    {"name": f"Add {module_config.resource_type}", fqcn: create_params}
-                ],
-            },
-            {
-                "name": f"Remove an existing {module_config.resource_type}",
-                "hosts": "localhost",
-                "tasks": [
-                    {
-                        "name": f"Remove {module_config.resource_type}",
-                        fqcn: delete_params,
-                    }
-                ],
-            },
-        ]
+        if delete_identifier_param is not None:
+            # --- Delete Example ---
+            delete_params = {
+                "state": "absent",
+                delete_identifier_param: schema_parser._generate_sample_value(
+                    delete_identifier_param, {}, module_config.resource_type
+                ),
+                **AUTH_FIXTURE,
+                **base_params,
+            }
+
+            examples.append(
+                {
+                    "name": f"Remove an existing {module_config.resource_type}",
+                    "hosts": "localhost",
+                    "tasks": [
+                        {
+                            "name": f"Remove {module_config.resource_type}",
+                            fqcn: delete_params,
+                        }
+                    ],
+                }
+            )
+
+        return examples
 
     def get_runner_path(self) -> str | None:
         """
