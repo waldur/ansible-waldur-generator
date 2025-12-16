@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from typing import Optional
 import json
 import time
 import uuid
@@ -99,7 +100,7 @@ class BaseRunner:
         # Step 5: Exit with the final state and a diff generated from the plan.
         self.exit(plan=self.plan)
 
-    def exit(self, plan: list | None = None, commands: list | None = None):
+    def exit(self, plan: Optional[list] = None, commands: Optional[list] = None):
         """
         Formats the final response for Ansible and exits the module.
         """
@@ -396,7 +397,10 @@ class BaseRunner:
         )
 
     def _normalize_for_comparison(
-        self, value: any, idempotency_keys: list[str], defaults_map: dict | None = None
+        self,
+        value: any,
+        idempotency_keys: list[str],
+        defaults_map: Optional[dict] = None,
     ) -> any:
         """
         Normalizes complex values (especially lists) into a canonical, order-insensitive,

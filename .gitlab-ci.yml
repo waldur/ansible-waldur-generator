@@ -46,15 +46,36 @@ Run unit tests:
       - coverage.xml
   coverage: '/TOTAL.*\s+(\d+%)$/'
 
-Run E2E tests:
+Generate Collection:
   extends: .base_job
   script:
-    # Generating Ansible Collections
     - poetry run ansible-waldur-generator
+  artifacts:
+    paths:
+      - outputs/
 
-    # Target only the E2E test directory
+Test Collection 3.11:
+  extends: .base_job
+  needs: ["Generate Collection"]
+  script:
     - poetry run pytest ansible_waldur_generator/tests/e2e/ --junitxml=e2e_report.xml --vcr-record=none
   artifacts:
     when: always
     reports:
       junit: e2e_report.xml
+
+Test Collection 3.9:
+  image: registry.hpc.ut.ee/mirror/library/python:3.9-bullseye
+  stage: test
+  interruptible: true
+  needs: ["Generate Collection"]
+  before_script:
+    - python --version
+    - pip install "ansible-core<2.16" pytest pytest-vcr
+  script:
+    - export PYTHONPATH=$PYTHONPATH:$(pwd):$(pwd)/outputs
+    - pytest ansible_waldur_generator/tests/e2e/ --junitxml=e2e_report_3.9.xml --vcr-record=none
+  artifacts:
+    when: always
+    reports:
+      junit: e2e_report_3.9.xml

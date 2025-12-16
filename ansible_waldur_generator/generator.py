@@ -167,6 +167,7 @@ class Generator:
         # modern collections should target more recent versions.
         runtime_data = {
             "requires_ansible": ">=2.14",
+            "requires_python": ">=3.9",
         }
 
         # If modules are being generated for this collection, create an action group.

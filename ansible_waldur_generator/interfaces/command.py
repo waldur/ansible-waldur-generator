@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional, Union
 
 
 class Command:
@@ -17,9 +17,9 @@ class Command:
         path: str,
         command_type: str,
         description: str,
-        data: Dict[str, Any] | None = None,
-        path_params: Dict[str, Any] | None = None,
-        wait_config: Dict[str, Any] | None = None,
+        data: Optional[Dict[str, Any]] = None,
+        path_params: Optional[Dict[str, Any]] = None,
+        wait_config: Optional[Dict[str, Any]] = None,
     ):
         """
         Initializes the command.
@@ -76,7 +76,7 @@ class Command:
         full_url = f"{api_url}/{final_path.lstrip('/')}"
 
         # Assemble the final dictionary.
-        serialized: dict[str, str | dict] = {
+        serialized: Dict[str, Union[str, dict]] = {
             "method": self.method,
             "url": full_url,
             "description": self.description,
