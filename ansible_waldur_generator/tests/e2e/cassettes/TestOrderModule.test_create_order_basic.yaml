@@ -1,0 +1,177 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/projects/?name_exact=d75
+  response:
+    body:
+      string: '[{"url":"http://127.0.0.1:8000/api/projects/9859d265d7574160bbf9d44232f8ed0b/","uuid":"9859d265d7574160bbf9d44232f8ed0b","name":"d75","slug":"d75","customer":"http://127.0.0.1:8000/api/customers/d2a968aaf4ea401c83a5276f7aab8c37/","customer_uuid":"d2a968aaf4ea401c83a5276f7aab8c37","customer_name":"TEST","customer_slug":"cscs","customer_native_name":"","customer_abbreviation":"CSCS","description":"TEST","customer_display_billing_info_in_projects":true,"created":"2025-12-05T09:12:16.741526+00:00","type":null,"type_name":null,"type_uuid":null,"backend_id":"d75","start_date":"2017-04-25","end_date":"2026-06-30","end_date_requested_by":null,"oecd_fos_2007_code":null,"oecd_fos_2007_label":null,"is_industry":false,"image":null,"resources_count":7,"max_service_accounts":0,"kind":"default","is_removed":false,"termination_metadata":null,"staff_notes":"","grace_period_days":null,"project_credit":null,"marketplace_resource_count":{"11df42b075dc4c1382c2664af4c9c14c":1,"26f0c1fa3341455cbdd40b3b0f4411bc":6},"billing_price_estimate":{"total":0.0,"current":"0.00","tax":"0.00","tax_current":"0.00"}}]'
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '1155'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 17 Dec 2025 19:11:44 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/projects/?name_exact=d75>; rel="first", <http://127.0.0.1:8000/api/projects/?name_exact=d75>;
+        rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/marketplace-orders/?resource_name=E2E+Test+Order+Resource&project_uuid=9859d265d7574160bbf9d44232f8ed0b
+  response:
+    body:
+      string: '[]'
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '2'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 17 Dec 2025 19:11:44 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/marketplace-orders/?project_uuid=9859d265d7574160bbf9d44232f8ed0b&resource_name=E2E+Test+Order+Resource>;
+        rel="first", <http://127.0.0.1:8000/api/marketplace-orders/?project_uuid=9859d265d7574160bbf9d44232f8ed0b&resource_name=E2E+Test+Order+Resource>;
+        rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/marketplace-public-offerings/fcf6fac7221f49c8b6a33011f5bfc1b6/
+  response:
+    body:
+      string: '{"url":"http://127.0.0.1:8000/api/marketplace-public-offerings/fcf6fac7221f49c8b6a33011f5bfc1b6/","uuid":"fcf6fac7221f49c8b6a33011f5bfc1b6","created":"2025-12-05T09:12:20.540724+00:00","name":"CAPSTOR","slug":"capstor","description":"HPC
+        Storage system CAPSTOR","full_description":"","privacy_policy_link":"","access_url":"","endpoints":[],"software_catalogs":[],"partitions":[],"roles":[],"customer":"http://127.0.0.1:8000/api/customers/d2a968aaf4ea401c83a5276f7aab8c37/","customer_uuid":"d2a968aaf4ea401c83a5276f7aab8c37","customer_name":"TEST","project":null,"project_uuid":null,"project_name":null,"category":"http://127.0.0.1:8000/api/marketplace-categories/11df42b075dc4c1382c2664af4c9c14c/","category_uuid":"11df42b075dc4c1382c2664af4c9c14c","category_title":"Storage","attributes":{},"options":{"order":["storage_data_type","permissions","hard_quota_space","soft_quota_inodes","hard_quota_inodes"],"options":{"permissions":{"type":"select_string","label":"Permissions","choices":["2770","2775","2777","770","775","777"],"default":"2770","required":true,"help_text":"Default:
+        store project -> 2770"},"hard_quota_space":{"type":"component_multiplier","label":"Hard
+        Quota (Space in TB)","required":false,"component_multiplier_config":{"factor":1,"component_type":"storage"}},"hard_quota_inodes":{"type":"component_multiplier","label":"Hard
+        Quota (inodes)","required":false,"component_multiplier_config":{"factor":7000,"component_type":"storage"}},"soft_quota_inodes":{"type":"component_multiplier","label":"Soft
+        Quota (inodes)","required":false,"component_multiplier_config":{"factor":7000,"component_type":"storage"}},"storage_data_type":{"type":"select_string","label":"Storage
+        Data Type","choices":["Archive","Store"],"required":true}}},"resource_options":{"order":["hard_quota_space","soft_quota_inodes","hard_quota_inodes","permissions"],"options":{"permissions":{"type":"select_string","label":"Permissions","choices":["2770","2775","2777","770","775","777"],"required":false,"help_text":"Default:
+        store project -> 2770"},"hard_quota_space":{"type":"integer","label":"Hard
+        Quota (Space in TB)","required":false,"help_text":"Default: 15TB"},"hard_quota_inodes":{"type":"integer","label":"Hard
+        Quota (inodes)","required":false,"help_text":"Default: space_quota * 50000"},"soft_quota_inodes":{"type":"integer","label":"Soft
+        Quota (inodes)","required":false,"help_text":"Default: space_quota * 50000"}}},"components":[{"uuid":"881e512cfa8343cea43c8e3780a8e8a6","billing_type":"limit","type":"storage","name":"Storage","description":"","measured_unit":"TB","unit_factor":1,"limit_period":null,"limit_amount":null,"article_code":"","max_value":null,"min_value":null,"max_available_limit":null,"is_boolean":false,"default_limit":null,"factor":null,"is_builtin":false,"is_prepaid":false,"overage_component":null,"min_prepaid_duration":null,"max_prepaid_duration":null}],"plugin_options":{"backend_id_display_label":"Path","highlight_backend_id_display":true,"maximal_resource_count_per_project":4,"is_resource_termination_date_required":true,"create_orders_on_resource_option_change":true,"max_resource_termination_offset_in_days":2000,"default_resource_termination_offset_in_days":90},"state":"Active","vendor_details":"","getting_started":"","integration_guide":"","thumbnail":null,"order_count":466,"plans":[{"url":"http://127.0.0.1:8000/api/marketplace-public-offerings/fcf6fac7221f49c8b6a33011f5bfc1b6/plans/b2fdf9491a1f4d09b2ecba79a479a949/","uuid":"b2fdf9491a1f4d09b2ecba79a479a949","name":"basic","description":"","article_code":"","max_amount":null,"archived":false,"is_active":true,"unit_price":"0.0000000000","unit":"month","init_price":0,"switch_price":0,"backend_id":"","organization_groups":[],"components":[{"type":"storage","name":"Storage","measured_unit":"TB","amount":0,"price":"0.0000000000","future_price":null,"discount_threshold":null,"discount_rate":null}],"prices":{"storage":"0E-10"},"future_prices":{"storage":null},"quotas":{"storage":0},"resources_count":4,"plan_type":null,"minimal_price":0}],"screenshots":[],"type":"Marketplace.Slurm","shared":true,"billable":true,"scope":null,"scope_uuid":null,"scope_name":null,"scope_state":null,"scope_error_message":null,"files":[],"quotas":[],"paused_reason":"","datacite_doi":"","citation_count":-1,"latitude":null,"longitude":null,"country":"","backend_id":"ump_storage_migration_capstor","organization_groups":[],"image":null,"total_customers":null,"total_cost":null,"total_cost_estimated":null,"parent_description":null,"parent_uuid":null,"parent_name":null,"backend_metadata":{},"has_compliance_requirements":false,"billing_type_classification":"limit_only","compliance_checklist":null,"user_has_consent":false,"google_calendar_is_public":null,"google_calendar_link":null,"promotion_campaigns":[]}'
+    headers:
+      Allow:
+      - GET, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '4809'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Wed, 17 Dec 2025 19:11:44 GMT
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"project": "http://127.0.0.1:8000/api/projects/9859d265d7574160bbf9d44232f8ed0b/",
+      "offering": "http://127.0.0.1:8000/api/marketplace-public-offerings/fcf6fac7221f49c8b6a33011f5bfc1b6/",
+      "accepting_terms_of_service": true, "attributes": {"permissions": "775", "storage_data_type":
+      "Store"}, "limits": {}, "plan": "http://127.0.0.1:8000/api/marketplace-public-offerings/fcf6fac7221f49c8b6a33011f5bfc1b6/plans/b2fdf9491a1f4d09b2ecba79a479a949/"}'
+    headers:
+      Connection:
+      - close
+      Content-Length:
+      - '444'
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: POST
+    uri: http://127.0.0.1:8000/api/marketplace-orders/
+  response:
+    body: {}
+    headers:
+      Content-Language:
+      - en
+      Content-Length:
+      - '336502'
+      Content-Type:
+      - text/html; charset=utf-8
+      Date:
+      - Wed, 17 Dec 2025 19:11:45 GMT
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+    status:
+      code: 201
+      message: Created
+version: 1
