@@ -115,6 +115,7 @@ class CrudPlugin(BasePlugin):
             "resource_type": conf.resource_type,
             "check_url": conf.check_operation.path if conf.check_operation else None,
             "check_filter_keys": check_filter_keys,
+            "name_query_param": conf.name_query_param,
             # API paths for each lifecycle stage.
             "list_path": conf.check_operation.path if conf.check_operation else None,
             "create_path": conf.create_operation.path

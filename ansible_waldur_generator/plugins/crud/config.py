@@ -111,3 +111,7 @@ class CrudModuleConfig(BaseModel):
 
     # Configuration for waiting on asynchronous actions.
     wait_config: WaitConfig | None = None
+
+    # The query parameter name to use for name-based lookups in check_existence.
+    # Defaults to "name_exact". Some API endpoints use different parameter names.
+    name_query_param: str = "name_exact"

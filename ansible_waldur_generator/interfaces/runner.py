@@ -857,9 +857,10 @@ class BaseRunner:
         check_url = self.context["check_url"]
 
         # --- Step 2: Build the query parameters ---
-        # Start with the primary identifier (e.g., 'name_exact').
+        # Start with the primary identifier using the configured query parameter name.
         identifier_value = self.module.params["name"]
-        query_params = {"name_exact": identifier_value}
+        name_query_param = self.context.get("name_query_param", "name_exact")
+        query_params = {name_query_param: identifier_value}
 
         # Get the sorted list of resolver keys and the map of filter keys.
         resolver_order = self.context.get("resolver_order", [])

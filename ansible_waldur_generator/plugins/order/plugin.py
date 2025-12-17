@@ -449,6 +449,7 @@ class OrderPlugin(BasePlugin):
             if module_config.existence_check_op
             else "",
             "check_filter_keys": check_filter_keys,
+            "name_query_param": module_config.name_query_param,
             "update_url": module_config.update_op.path
             if module_config.update_op
             else None,
