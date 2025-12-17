@@ -88,3 +88,7 @@ class PluginModuleResolver(BaseModel):
     # If set, this resolver also acts as a context filter for the main resource's existence check.
     # The value is the API query parameter key (e.g., "project_uuid").
     check_filter_key: str | None = None
+
+    # The query parameter name to use for name-based lookups (defaults to "name_exact").
+    # Some API endpoints use different parameter names like "name", "title", etc.
+    name_query_param: str = "name_exact"

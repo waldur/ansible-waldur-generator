@@ -12,6 +12,7 @@ The tests use pytest with mocking to isolate the resolver's logic from
 actual API calls and focus on the parameter transformation logic.
 """
 
+import unittest.mock
 from unittest.mock import Mock
 from copy import deepcopy
 
@@ -566,7 +567,7 @@ class TestSingleValueResolution:
         assert result == "http://127.0.0.1:8000/api/subnets/subnet-123/"
         resolver._build_dependency_filters.assert_called_once_with("subnet", [])
         resolver._resolve_to_list.assert_called_once_with(
-            "/api/subnets/", "test-subnet", {}
+            "/api/subnets/", "test-subnet", {}, resolver_conf
         )
 
     def test_resolve_single_value_with_dependencies(self):
@@ -611,7 +612,7 @@ class TestSingleValueResolution:
             "flavor", resolver_conf["filter_by"]
         )
         resolver._resolve_to_list.assert_called_once_with(
-            "/api/flavors/", "test-flavor", {"tenant_uuid": "tenant-456"}
+            "/api/flavors/", "test-flavor", {"tenant_uuid": "tenant-456"}, resolver_conf
         )
 
     def test_resolve_single_value_uses_cache(self):
@@ -983,7 +984,7 @@ class TestComplexIntegrationScenarios:
         }
 
         # Mock the API responses
-        def mock_resolve_to_list(path, value, query_params=None):
+        def mock_resolve_to_list(path, value, query_params=None, resolver_conf=None):
             if "offerings" in path:
                 return [
                     {
@@ -1091,7 +1092,7 @@ class TestComplexIntegrationScenarios:
                 )
             return None
 
-        def mock_resolve_to_list(path, value, query_params=None):
+        def mock_resolve_to_list(path, value, query_params=None, resolver_conf=None):
             if "subnets" in path and value == "new-subnet":
                 # Ensure the query includes the tenant filter
                 if query_params and query_params.get("tenant_uuid") == "tenant-456":
@@ -1121,7 +1122,10 @@ class TestComplexIntegrationScenarios:
         assert result == "/api/subnets/subnet-new/"
         # Verify that the dependency filter was applied correctly
         resolver._resolve_to_list.assert_called_with(
-            "/api/subnets/", "new-subnet", {"tenant_uuid": "tenant-456"}
+            "/api/subnets/",
+            "new-subnet",
+            {"tenant_uuid": "tenant-456"},
+            unittest.mock.ANY,
         )
 
     def test_error_propagation_through_nested_resolution(self):
@@ -1495,7 +1499,7 @@ class TestOptionalDependencyResolution:
         }
 
         # Mock the API responses for both customer and project lookups
-        def mock_resolve_to_list(path, value, query_params=None):
+        def mock_resolve_to_list(path, value, query_params=None, resolver_conf=None):
             if "customers" in path and value == "test-customer":
                 return [
                     {
@@ -1530,10 +1534,13 @@ class TestOptionalDependencyResolution:
         assert self.resolver._resolve_to_list.call_count == 2
         # Check the specific calls
         self.resolver._resolve_to_list.assert_any_call(
-            "/api/customers/", "test-customer", {}
+            "/api/customers/", "test-customer", {}, unittest.mock.ANY
         )
         self.resolver._resolve_to_list.assert_any_call(
-            "/api/projects/", "test-project", {"customer_uuid": "customer-123"}
+            "/api/projects/",
+            "test-project",
+            {"customer_uuid": "customer-123"},
+            unittest.mock.ANY,
         )
 
     def test_resolve_dependent_param_without_dependency(self):
@@ -1547,7 +1554,7 @@ class TestOptionalDependencyResolution:
         self.mock_runner.module.params = {"project": "test-project"}
 
         # Mock the API response for the project lookup (no customer lookup needed)
-        def mock_resolve_to_list(path, value, query_params=None):
+        def mock_resolve_to_list(path, value, query_params=None, resolver_conf=None):
             if "projects" in path and value == "test-project":
                 # Key assertion: the query must NOT contain the customer filter
                 assert query_params is not None
@@ -1570,7 +1577,7 @@ class TestOptionalDependencyResolution:
         assert result == "/api/projects/project-789/"
         # Verify that only ONE lookup was made (for project).
         self.resolver._resolve_to_list.assert_called_once_with(
-            "/api/projects/", "test-project", {}
+            "/api/projects/", "test-project", {}, unittest.mock.ANY
         )
 
     def test_update_scenario_with_optional_dependency_in_cache(self):
@@ -1594,7 +1601,7 @@ class TestOptionalDependencyResolution:
             )
         )
 
-        def mock_resolve_to_list(path, value, query_params=None):
+        def mock_resolve_to_list(path, value, query_params=None, resolver_conf=None):
             if "projects" in path and value == "new-project":
                 # Assert that the filter was correctly applied from the cached customer
                 assert query_params is not None
@@ -1632,5 +1639,8 @@ class TestOptionalDependencyResolution:
         )
         # Verify that the final resolution made one call with the correct filter
         self.resolver._resolve_to_list.assert_called_once_with(
-            "/api/projects/", "new-project", {"customer_uuid": "customer-123"}
+            "/api/projects/",
+            "new-project",
+            {"customer_uuid": "customer-123"},
+            unittest.mock.ANY,
         )

@@ -97,6 +97,7 @@ class CrudPlugin(BasePlugin):
                 "url": resolver.list_operation.path if resolver.list_operation else "",
                 "error_message": resolver.error_message,
                 "filter_by": [f.model_dump() for f in resolver.filter_by],
+                "name_query_param": resolver.name_query_param,
             }
             # If a resolver is marked as a context filter, add it to the check_filter_keys map.
             if resolver.check_filter_key:

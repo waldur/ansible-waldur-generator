@@ -113,8 +113,10 @@ class ParameterResolver:
             return self.cache[cache_key]["url"]
 
         # If it's a name, perform a search using the configured list endpoint.
+        # Use the configured query parameter name, defaulting to 'name_exact' for backward compatibility.
+        name_query_param = resolver_conf.get("name_query_param", "name_exact")
         response, _ = self.runner.send_request(
-            "GET", resolver_conf["url"], query_params={"name_exact": value}
+            "GET", resolver_conf["url"], query_params={name_query_param: value}
         )
 
         # Handle the results of the search.
@@ -256,7 +258,7 @@ class ParameterResolver:
         else:
             # If not in cache, perform the API lookup.
             resource_list = self._resolve_to_list(
-                resolver_conf["url"], value, query_params
+                resolver_conf["url"], value, query_params, resolver_conf
             )
 
             if not resource_list:
@@ -351,7 +353,11 @@ class ParameterResolver:
         return query_params
 
     def _resolve_to_list(
-        self, path: str, value: any, query_params: dict = None
+        self,
+        path: str,
+        value: any,
+        query_params: dict = None,
+        resolver_conf: dict = None,
     ) -> list:
         """
         A robust helper to resolve a name or UUID to a list of matching resources,
@@ -362,6 +368,7 @@ class ParameterResolver:
             path: The base API list path for the resource type.
             value: The user-provided name or UUID.
             query_params: A dictionary of pre-built query parameters (e.g., from dependency filters).
+            resolver_conf: Optional resolver configuration containing name_query_param.
 
         Returns:
             A list of matching resource dictionaries. Guarantees returning a list,
@@ -377,8 +384,13 @@ class ParameterResolver:
             return [resource] if resource else []
 
         # For name-based lookups, combine the name filter with any dependency filters.
+        # Use configurable query parameter name, defaulting to 'name_exact'.
+        name_query_param = "name_exact"
+        if resolver_conf:
+            name_query_param = resolver_conf.get("name_query_param", "name_exact")
+
         final_query = query_params.copy() if query_params else {}
-        final_query["name_exact"] = value
+        final_query[name_query_param] = value
 
         # The `send_request` helper is designed to return an empty list for 204 or empty
         # JSON array responses, which simplifies handling here.

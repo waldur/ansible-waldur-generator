@@ -166,6 +166,14 @@ corresponding resource's URL. This is common for top-level resources or parent-c
 
         # Another example for the project's 'type'.
         type: "project_types"
+
+        # Optional: customize the query parameter used for name-based lookups.
+        # By default, the resolver uses 'name_exact' to filter by name,
+        # but some API endpoints may use different parameter names like 'name' or 'title'.
+        # Example with custom query parameter:
+        # custom_resource:
+        #   base: "custom_resources"
+        #   name_query_param: "name"  # Use 'name' instead of default 'name_exact'
     ```
 
 - **Runtime Workflow:**
@@ -228,6 +236,10 @@ essential for the `order` plugin.
               #    The parameter key will be 'tenant_uuid', and its value will be the
               #    'scope_uuid' we just extracted.
               target_key: "tenant_uuid"
+
+          # Optional: Customize the query parameter for name-based lookups.
+          # By default 'name_exact' is used, but you can override it:
+          # name_query_param: "name"
     ```
 
 - **Runtime Workflow:** This is a multi-step process managed internally by the runner and resolver.

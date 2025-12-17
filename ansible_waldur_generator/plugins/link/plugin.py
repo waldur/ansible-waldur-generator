@@ -166,6 +166,7 @@ class LinkPlugin(BasePlugin):
                 "url": resolver.list_operation.path,
                 "error_message": resolver.error_message,
                 "filter_by": [f.model_dump() for f in resolver.filter_by],
+                "name_query_param": resolver.name_query_param,
             }
 
         sorted_resolver_names = self._get_sorted_resolvers(conf.resolvers)
