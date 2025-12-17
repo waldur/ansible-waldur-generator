@@ -128,7 +128,11 @@ class ParameterResolver:
 
         if len(response) > 1:
             self.module.fail_json(
-                msg=f"Multiple resources found for '{value}' for parameter '{param_name}'. Using the first one."
+                msg=(
+                    f"Multiple resources found for '{value}' (parameter '{param_name}'). "
+                    f"Found {len(response)} matches. This resource name is not unique. "
+                    f"Please use a UUID for precise identification, or ensure the resource name is unique."
+                )
             )
 
         # Return the 'url' field from the first matching resource.
@@ -264,7 +268,11 @@ class ParameterResolver:
                 return None  # Unreachable
             if len(resource_list) > 1:
                 self.module.fail_json(
-                    msg=f"Multiple resources found for '{value}' for parameter '{param_name}'. Using the first one."
+                    msg=(
+                        f"Multiple resources found for '{value}' (parameter '{param_name}'). "
+                        f"Found {len(resource_list)} matches. This resource name is not unique. "
+                        f"Please use a UUID for precise identification, or ensure the resource name is unique."
+                    )
                 )
 
             resolved_object = resource_list[0]

@@ -258,7 +258,7 @@ class TestSimpleResolution:
 
         # Assert
         mock_runner.module.fail_json.assert_called_once_with(
-            msg="Multiple resources found for 'test-project' for parameter 'project'. Using the first one."
+            msg="Multiple resources found for 'test-project' (parameter 'project'). Found 2 matches. This resource name is not unique. Please use a UUID for precise identification, or ensure the resource name is unique."
         )
 
     def test_resolve_to_url_no_results_fails(self):
@@ -733,7 +733,7 @@ class TestSingleValueResolution:
 
         # Assert
         mock_runner.module.fail_json.assert_called_once_with(
-            msg="Multiple resources found for 'test-subnet' for parameter 'subnet'. Using the first one."
+            msg="Multiple resources found for 'test-subnet' (parameter 'subnet'). Found 2 matches. This resource name is not unique. Please use a UUID for precise identification, or ensure the resource name is unique."
         )
 
     def test_resolve_single_value_caches_result(self):
