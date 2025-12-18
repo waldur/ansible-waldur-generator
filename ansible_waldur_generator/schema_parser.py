@@ -1,5 +1,5 @@
 import re
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from copy import deepcopy
 
 from ansible_waldur_generator.helpers import (
@@ -216,6 +216,92 @@ class ReturnBlockGenerator:
 
         # Final fallback if no rules match.
         return None
+
+    def generate_expanded_samples(
+        self,
+        schema: Dict[str, Any],
+        resource_type: str,
+        resolver_keys: list[str] | None = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Generates a list of sample dictionaries, one for each variation of the schema.
+        This is primarily used to handle 'oneOf' constructs where we want to distinct
+        examples for each possible subtype (e.g., specific offering attributes).
+        """
+        # If the top-level schema is itself a 'oneOf', we iterate through each option.
+        if "oneOf" in schema:
+            samples = []
+            for sub_schema in schema["oneOf"]:
+                # Resolve each reference to get the full schema for that variant.
+                resolved_sub = self._resolve_schema(sub_schema)
+                # Generate a single example for this resolved variant.
+                sample = self.generate_example_from_schema(
+                    resolved_sub, resource_type, resolver_keys
+                )
+                if sample:
+                    # Enrich the sample with a private metadata key to help name the example later.
+                    # We try to derive a meaningful name from the schema title or ref.
+                    ref_name = sub_schema.get("$ref", "").split("/")[-1]
+                    title = resolved_sub.get("title", ref_name)
+                    # Clean up the title for display
+                    if "CreateOrderAttributes" in title:
+                        title = title.replace("CreateOrderAttributes", "")
+                    # Inject a special key that the plugin can use to name the example task.
+                    # This key will be stripped out before writing the task.
+                    sample["_variant_title"] = capitalize_first(title)
+                    samples.append(sample)
+            return samples
+
+        # Check for nested 'oneOf' in properties (e.g. 'attributes' field)
+        properties = schema.get("properties", {})
+        one_of_prop_name = None
+        for name, prop_schema in properties.items():
+            # We need to resolve the property schema to check for oneOf
+            resolved_prop = self._resolve_schema(prop_schema)
+            if "oneOf" in resolved_prop:
+                one_of_prop_name = name
+                break
+
+        if one_of_prop_name:
+            # We found a property that needs expansion.
+            # We will generate a base example for everything else, and then
+            # override this specific property for each of its variants.
+
+            # 1. Generate base sample (using the first variant or default logic for the oneOf prop for now)
+            base_sample = self.generate_example_from_schema(
+                schema, resource_type, resolver_keys
+            )
+
+            # 2. Iterate variants of the specific property
+            prop_schema = self._resolve_schema(properties[one_of_prop_name])
+            expanded_samples = []
+
+            for sub_variant in prop_schema["oneOf"]:
+                # Resolve the variant
+                resolved_variant = self._resolve_schema(sub_variant)
+
+                # Generate sample for just this attribute variant
+                variant_sample = self.generate_example_from_schema(
+                    resolved_variant, resource_type, resolver_keys
+                )
+
+                # Clone the base sample
+                new_sample = deepcopy(base_sample)
+                new_sample[one_of_prop_name] = variant_sample
+
+                # Determine title
+                ref_name = sub_variant.get("$ref", "").split("/")[-1]
+                title = resolved_variant.get("title", ref_name)
+                if "CreateOrderAttributes" in title:
+                    title = title.replace("CreateOrderAttributes", "")
+
+                new_sample["_variant_title"] = capitalize_first(title)
+                expanded_samples.append(new_sample)
+
+            return expanded_samples
+
+        # If it's not a 'oneOf', we just return a single-item list with the standard generation.
+        return [self.generate_example_from_schema(schema, resource_type, resolver_keys)]
 
     def generate_example_from_schema(
         self,

@@ -285,11 +285,22 @@ class CrudPlugin(BasePlugin):
                     unique_desc[0] if len(unique_desc) == 1 else unique_desc
                 )
 
+                prop_type = resolved_prop.get("type", "string")
+                if prop_type == "string" and "oneOf" in resolved_prop:
+                    # HEURISTIC: If it's a 'oneOf' and we couldn't resolve a concrete type,
+                    # check if the variants are objects. If so, treat it as a dictionary.
+                    # This fixes the issue where 'attributes' is parsed as a string.
+                    variants_are_complex = False
+                    for variant in resolved_prop["oneOf"]:
+                        if "$ref" in variant or variant.get("type") == "object":
+                            variants_are_complex = True
+                            break
+                    if variants_are_complex:
+                        prop_type = "object"
+
                 params[name] = {
                     "name": name,
-                    "type": OPENAPI_TO_ANSIBLE_TYPE_MAP.get(
-                        resolved_prop.get("type", "string"), "str"
-                    ),
+                    "type": OPENAPI_TO_ANSIBLE_TYPE_MAP.get(prop_type, "str"),
                     "required": False,  # Validation is handled by the runner.
                     "description": final_description,
                     "is_resolved": is_resolved,

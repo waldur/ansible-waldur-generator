@@ -425,31 +425,45 @@ class BasePlugin(ABC):
 
             # The schema parser now handles placeholder generation for all resolvable
             # fields, including nested ones, by being aware of the resolver keys.
-            inferred_payload = schema_parser.generate_example_from_schema(
+            inferred_payloads = schema_parser.generate_expanded_samples(
                 create_schema,
                 module_config.resource_type,
                 resolver_keys=list(getattr(module_config, "resolvers", {}).keys()),
             )
-            create_params.update(inferred_payload)
 
-            #  Post-process path parameters, which are not part of the create_schema.
-            path_param_maps = getattr(module_config, "path_param_maps", {})
-            for _, ansible_param in path_param_maps.get("create", {}).items():
-                display_name = ansible_param.replace("_", " ").capitalize()
-                create_params[ansible_param] = f"{display_name} name or UUID"
+            for payload in inferred_payloads:
+                # Create a fresh copy of params for each example to avoid contamination
+                current_create_params = create_params.copy()
 
-            examples.append(
-                {
-                    "name": f"Create a new {module_config.resource_type}",
-                    "hosts": "localhost",
-                    "tasks": [
-                        {
-                            "name": f"Add {module_config.resource_type}",
-                            fqcn: create_params,
-                        }
-                    ],
-                }
-            )
+                # extracting the variant title if present
+                variant_title = payload.pop("_variant_title", "")
+
+                current_create_params.update(payload)
+
+                # Post-process path parameters, which are not part of the create_schema.
+                path_param_maps = getattr(module_config, "path_param_maps", {})
+                for _, ansible_param in path_param_maps.get("create", {}).items():
+                    display_name = ansible_param.replace("_", " ").capitalize()
+                    current_create_params[ansible_param] = (
+                        f"{display_name} name or UUID"
+                    )
+
+                task_name = f"Add {module_config.resource_type}"
+                if variant_title:
+                    task_name += f" ({variant_title})"
+
+                examples.append(
+                    {
+                        "name": f"Create a new {module_config.resource_type}{f' ({variant_title})' if variant_title else ''}",
+                        "hosts": "localhost",
+                        "tasks": [
+                            {
+                                "name": task_name,
+                                fqcn: current_create_params,
+                            }
+                        ],
+                    }
+                )
 
         if delete_identifier_param is not None:
             # --- Delete Example ---
