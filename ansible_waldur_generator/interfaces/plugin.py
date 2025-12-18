@@ -339,7 +339,7 @@ class BasePlugin(ABC):
             "description": full_description,
             "author": "Waldur Team",
             "options": self._clean_parameters_for_documentation(parameters),
-            "requirements": ["python >= 3.11"],
+            "requirements": ["python >= 3.9"],
         }
 
     def _clean_parameters_for_documentation(
