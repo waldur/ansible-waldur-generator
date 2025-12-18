@@ -68,10 +68,16 @@ class ReturnBlockGenerator:
             for sub_schema in schema["allOf"]:
                 # Recursively resolve the sub-schema to get its flattened properties.
                 resolved_sub_schema = self._resolve_schema(sub_schema)
-                # Merge the properties from the sub-schema into our final schema.
-                final_schema["properties"].update(
-                    resolved_sub_schema.get("properties", {})
-                )
+
+                # Merge all attributes from the sub-schema into our final schema.
+                # We prioritize the top-level schema's existing values (e.g., specific overrides).
+                for key, value in resolved_sub_schema.items():
+                    if key == "properties" and isinstance(value, dict):
+                        if "properties" not in final_schema:
+                            final_schema["properties"] = {}
+                        final_schema["properties"].update(value)
+                    elif key not in final_schema:
+                        final_schema[key] = value
 
             return final_schema
 
@@ -88,6 +94,10 @@ class ReturnBlockGenerator:
         # Rule 1: Highest priority. An explicit 'example' in the schema is always used.
         if "example" in prop_schema:
             return prop_schema["example"]
+
+        # Rule 1.5: If a default value is provided, use it.
+        if "default" in prop_schema:
+            return prop_schema["default"]
 
         # Rule 2: If the schema defines a list of choices, pick the first one.
         if "enum" in prop_schema and prop_schema["enum"]:
