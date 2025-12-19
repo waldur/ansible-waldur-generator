@@ -127,6 +127,9 @@ class CrudPlugin(BasePlugin):
             "update_path": conf.update_operation.path
             if conf.update_operation
             else None,
+            "retrieve_path": conf.retrieve_operation.path
+            if conf.retrieve_operation
+            else None,
             # List of parameters required for creation, for runtime validation.
             "required_for_create": required_for_create,
             # List of parameter names expected in the 'create' request body.
@@ -140,9 +143,17 @@ class CrudPlugin(BasePlugin):
             "resolvers": resolvers_data,
             "resolver_order": sorted_resolver_names,
             # Add the generic polling path. The destroy path is the detail view.
-            "resource_detail_path": conf.destroy_operation.path
-            if conf.destroy_operation
-            else None,
+            "resource_detail_path": (
+                conf.retrieve_operation.path
+                if conf.retrieve_operation
+                else (
+                    conf.update_operation.path
+                    if conf.update_operation
+                    else (
+                        conf.destroy_operation.path if conf.destroy_operation else None
+                    )
+                )
+            ),
         }
 
         if module_config.wait_config:
@@ -505,6 +516,22 @@ class CrudPlugin(BasePlugin):
             # ApiOperation object and add it to our raw_config for Pydantic validation.
             if op_id:
                 raw_config[field_name] = api_parser.get_operation(op_id)
+
+        # Infer 'retrieve' operation, which is used for polling resource state (detail view).
+        # This mirrors the logic in OrderPlugin.
+        retrieve_op = operations_config.get("retrieve")
+        retrieve_op_id = None
+        if isinstance(retrieve_op, str):
+            retrieve_op_id = retrieve_op
+        elif isinstance(retrieve_op, dict):
+            retrieve_op_id = retrieve_op.get("id")
+        elif base_id and not retrieve_op:
+            potential_retrieve_id = f"{base_id}_retrieve"
+            if api_parser.get_operation(potential_retrieve_id):
+                retrieve_op_id = potential_retrieve_id
+
+        if retrieve_op_id:
+            raw_config["retrieve_operation"] = api_parser.get_operation(retrieve_op_id)
 
         # Store the collected path parameter mappings.
         raw_config["path_param_maps"] = path_param_maps

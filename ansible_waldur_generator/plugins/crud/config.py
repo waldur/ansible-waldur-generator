@@ -80,6 +80,9 @@ class CrudModuleConfig(BaseModel):
     # This can be a nested endpoint (e.g., under a parent resource).
     create_operation: ApiOperation | None = None
 
+    # The API operation for retrieving a single resource's details using its UUID.
+    retrieve_operation: ApiOperation | None = None
+
     # The API operation for deleting a resource when `state: absent`.
     destroy_operation: ApiOperation | None = None
 
