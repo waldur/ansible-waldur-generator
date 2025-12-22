@@ -107,6 +107,10 @@ class ParameterResolver:
             list_path = resolver_conf["url"].strip("/")
             return f"{api_url}/{list_path}/{value}/"
 
+        # Optimization: If the user provides a full URL, we can use it directly.
+        if isinstance(value, str) and value.startswith(("http://", "https://")):
+            return value
+
         # Check cache first
         cache_key = (param_name, value)
         if cache_key in self.cache:
@@ -381,6 +385,11 @@ class ParameterResolver:
             resource, _ = self.runner.send_request(
                 "GET", f"{path.rstrip('/')}/{value}/"
             )
+            return [resource] if resource else []
+
+        # A direct GET by URL is also supported.
+        if isinstance(value, str) and value.startswith(("http://", "https://")):
+            resource, _ = self.runner.send_request("GET", value)
             return [resource] if resource else []
 
         # For name-based lookups, combine the name filter with any dependency filters.
