@@ -856,11 +856,32 @@ class BaseRunner:
         # --- Step 1: Gather configuration from the context ---
         check_url = self.context["check_url"]
 
-        # --- Step 2: Build the query parameters ---
-        # Start with the primary identifier using the configured query parameter name.
-        identifier_value = self.module.params["name"]
+        # --- Step 2: Determine the identifier and build query parameters ---
+
+        # Priority 1: Check if a UUID is provided. This allows for precise, direct lookup.
+        resource_uuid = self.module.params.get("uuid")
+        if resource_uuid:
+            # Direct lookup by UUID is the most reliable method.
+            path = f"{check_url.rstrip('/')}/{resource_uuid}/"
+            self.resource, _ = self.send_request("GET", path)
+            return
+
+        # Priority 2: Fall back to name-based lookup or filter-based lookup.
+        identifier_value = self.module.params.get("name")
         name_query_param = self.context.get("name_query_param", "name_exact")
-        query_params = {name_query_param: identifier_value}
+
+        query_params = {}
+        if identifier_value:
+            # If the user passed a UUID string as the name, we assume they want a direct lookup.
+            # This handles cases where 'name' is used as a generic identifier.
+            if self._is_uuid(identifier_value):
+                path = f"{check_url.rstrip('/')}/{identifier_value}/"
+                self.resource, _ = self.send_request("GET", path)
+                # If we get here (no 404), the resource exists.
+                return
+
+            # Otherwise, treat it as a standard name-based search filter.
+            query_params[name_query_param] = identifier_value
 
         # Get the sorted list of resolver keys and the map of filter keys.
         resolver_order = self.context.get("resolver_order", [])
@@ -890,6 +911,18 @@ class BaseRunner:
 
                     filter_key = filter_keys_map[param_name]
                     query_params[filter_key] = resolved_uuid
+
+        # Validation: If we have neither a name nor any context filters, we cannot
+        # perform a safe existence check.
+        if not query_params:
+            # If we are in 'create' mode (state=present) and have no way to check existence,
+            # we might be creating a duplicate. But for some resources (name-less), this is valid
+            # if they are just being created. However, to be safe and consistent, we enforce
+            # at least some filter or name.
+            # We only enforce this if we didn't perform a direct lookup above.
+            self.module.fail_json(
+                msg="Cannot check for resource existence: neither 'name', 'uuid', nor any context filters were provided."
+            )
 
         # --- Step 3: Execute the API call ---
         data, _ = self.send_request("GET", check_url, query_params=query_params)

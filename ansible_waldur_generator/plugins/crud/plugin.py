@@ -207,10 +207,25 @@ class CrudPlugin(BasePlugin):
         conf = module_config
 
         # 1. Add parameters used for checking existence (e.g., 'name').
+        # Determine if 'name' is part of the resource model properly.
+        has_name_in_model = False
+        if conf.create_operation and conf.create_operation.model_schema:
+            has_name_in_model = "name" in conf.create_operation.model_schema.get(
+                "properties", {}
+            )
+
         params["name"] = {
             "description": f"The name of the {conf.resource_type}.",
             "type": "str",
-            "required": True,
+            "required": True if has_name_in_model else False,
+        }
+
+        # Add an optional 'uuid' parameter for precise identification,
+        # especially useful for resources without unique names or for mutation operations.
+        params["uuid"] = {
+            "description": f"The UUID of the {conf.resource_type}. Use this to identify a specific resource for modification or deletion.",
+            "type": "str",
+            "required": False,
         }
 
         # 2. Add parameters required for nested API paths from ALL operations.
