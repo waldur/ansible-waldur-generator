@@ -290,6 +290,56 @@ class ParameterResolver:
             if param_name in self.module.params:
                 self.cache[param_name] = resolved_object
 
+        # --- Validation Step ---
+        # Ensure that the resolved object actually complies with the dependencies
+        # specified by the user. For example, if the user asked for Project A
+        # and Customer B, we must ensure Project A actually belongs to Customer B.
+        if resolver_conf.get("filter_by"):
+            for dep in resolver_conf["filter_by"]:
+                source_param = dep["source_param"]
+                # Only validate if the user explicitly provided the dependency parameter.
+                # If it was implicitly resolved or default, we assume it's correct/harmless.
+                if self.module.params.get(source_param):
+                    # Get the expected value (e.g., the UUID of Customer B)
+                    expected_value = self.module.params[source_param]
+
+                    # Get the actual value from the resolved object (e.g., Project A's customer_uuid)
+                    # Note: We rely on the 'source_key' mapping from the dependency config.
+                    # Usually, 'source_key' maps the parent's field in THIS object to the parent's UUID.
+                    # e.g. for Project, filter_by customer: source_key='customer_uuid'.
+                    actual_value = resolved_object.get(dep["target_key"])
+
+                    # We need to resolve the expected value to a UUID if it's a name,
+                    # because the API response (actual_value) will likely be a UUID or URL.
+                    # However, since we are in the middle of resolution, the dependency
+                    # *should* have been resolved and cached already if the order is correct.
+
+                    # Let's check the cache for the dependency to get its UUID.
+                    if source_param in self.cache:
+                        dep_obj = self.cache[source_param]
+                        if isinstance(dep_obj, dict):
+                            expected_uuid = dep_obj.get("uuid")
+                        else:
+                            expected_uuid = None
+                    else:
+                        # Fallback: if not in cache (rare), assume the input might be a UUID
+                        expected_uuid = expected_value
+
+                    # Normalize actual value: it might be a URL or a UUID.
+                    actual_uuid = actual_value
+                    if isinstance(actual_value, str) and "/" in actual_value:
+                        actual_uuid = actual_value.rstrip("/").split("/")[-1]
+
+                    if expected_uuid and actual_uuid and expected_uuid != actual_uuid:
+                        self.module.fail_json(
+                            msg=(
+                                f"Consistency error: The resolved '{param_name}' ('{value}') "
+                                f"belongs to a different '{source_param}' than specified. "
+                                f"Specified {source_param}: '{expected_value}' (UUID: {expected_uuid}). "
+                                f"Actual {source_param} of resource: {actual_uuid}."
+                            )
+                        )
+
         # Step 3: Populate the simple cache key for dependency lookups.
         # This is the critical fix: ensure this happens on every call (cache hit or miss)
         # for any top-level parameter, making the cache robust for dependencies.
