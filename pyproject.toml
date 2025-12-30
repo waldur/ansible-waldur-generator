@@ -1,43 +1,44 @@
-[tool.poetry]
+[project]
 name = "ansible-waldur-generator"
 version = "0.0.1"
 description = "Ansible Waldur module generator."
-authors = ["OpenNode Team <info@opennodecloud.com>"]
-license = "MIT"
 readme = "README.md"
-homepage = "https://waldur.com"
+authors = [{ name = "OpenNode Team", email = "info@opennodecloud.com" }]
+license = { text = "MIT" }
+requires-python = ">=3.11"
 classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
+dependencies = [
+    "pyyaml>=6.0",
+    "ansible>=11.8.0",
+    "ruff>=0.12.8",
+    "pydantic>=2.5.3",
+    "pytest-vcr>=1.0.2",
+]
 
-[tool.poetry.scripts]
+[project.scripts]
 ansible-waldur-generator = "ansible_waldur_generator.cli:main"
 
-[tool.poetry.dependencies]
-python = ">=3.11,<4.0"
-pyyaml = "^6.0"
-ansible = "^11.8.0"
-ruff = "^0.12.8"
-pydantic = "^2.5.3"
-pytest-vcr = "^1.0.2"
+[project.entry-points."ansible_waldur_generator"]
+crud = "ansible_waldur_generator.plugins.crud.plugin:CrudPlugin"
+facts = "ansible_waldur_generator.plugins.facts.plugin:FactsPlugin"
+order = "ansible_waldur_generator.plugins.order.plugin:OrderPlugin"
+actions = "ansible_waldur_generator.plugins.actions.plugin:ActionsPlugin"
+link = "ansible_waldur_generator.plugins.link.plugin:LinkPlugin"
 
-[tool.poetry.group.dev.dependencies]
-pytest = "^7.2.0"
-pytest-cov = "^4.0.0"
+[dependency-groups]
+dev = [
+    "pytest>=7.2.0",
+    "pytest-cov>=4.0.0",
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.poetry.plugins.ansible_waldur_generator]
-"crud" = "ansible_waldur_generator.plugins.crud.plugin:CrudPlugin"
-"facts" = "ansible_waldur_generator.plugins.facts.plugin:FactsPlugin"
-"order" = "ansible_waldur_generator.plugins.order.plugin:OrderPlugin"
-"actions" = "ansible_waldur_generator.plugins.actions.plugin:ActionsPlugin"
-"link" = "ansible_waldur_generator.plugins.link.plugin:LinkPlugin"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.pytest.ini_options]
 pythonpath = [

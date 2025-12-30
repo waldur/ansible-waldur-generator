@@ -11,13 +11,6 @@ repos:
     rev: v0.9.32
     hooks:
       - id: pymarkdown
-        args: [-d, "MD046", "-s", "plugins.md013.code_block_line_length=$#120", "-s", "plugins.md013.heading_line_length=$#120", "-s", "plugins.md013.line_length=$#120", scan]
-
-
-  - repo: https://github.com/jackdewinter/pymarkdown
-    rev: v0.9.32
-    hooks:
-      - id: pymarkdown
         args: [-d, "MD046", "-s", "plugins.md013.code_block_line_length=$#120", "-s", "plugins.md013.heading_line_length=$#120", "-s", "plugins.md013.line_length=$#120", fix]
 
   - repo: https://github.com/charliermarsh/ruff-pre-commit

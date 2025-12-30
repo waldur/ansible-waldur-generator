@@ -27,7 +27,7 @@ The generator works by combining three main components:
 ### Prerequisites
 
 - Python 3.11+
-- [Poetry](https://python-poetry.org/docs/#installation)
+- [uv](https://github.com/astral-sh/uv)
 - Ansible Core (`ansible-core >= 2.14`)
 
 ### Installation
@@ -36,7 +36,7 @@ The generator works by combining three main components:
 2. Install dependencies:
 
     ```bash
-    poetry install
+    uv sync
     ```
 
 ### Running the Generator
@@ -44,7 +44,7 @@ The generator works by combining three main components:
 To generate the Ansible Collection(s) as defined in `inputs/generator_config.yaml`, run:
 
 ```bash
-poetry run ansible-waldur-generator
+uv run ansible-waldur-generator
 ```
 
 The generated collections will be placed in the `outputs/` directory.
