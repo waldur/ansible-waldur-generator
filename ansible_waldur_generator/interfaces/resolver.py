@@ -318,7 +318,8 @@ class ParameterResolver:
                     if source_param in self.cache:
                         dep_obj = self.cache[source_param]
                         if isinstance(dep_obj, dict):
-                            expected_uuid = dep_obj.get("uuid")
+                            source_key = dep.get("source_key", "uuid")
+                            expected_uuid = dep_obj.get(source_key)
                         else:
                             expected_uuid = None
                     else:
