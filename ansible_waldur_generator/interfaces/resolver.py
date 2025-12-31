@@ -281,7 +281,14 @@ class ParameterResolver:
                     )
                 )
 
-            resolved_object = resource_list[0]
+            # Check if resource_list behaves like a list
+            try:
+                resolved_object = resource_list[0]
+            except (TypeError, KeyError, IndexError) as e:
+                self.module.fail_json(
+                    msg=f"Unexpected API response structure for '{param_name}'. Expected a list, got {type(resource_list)}. Response: {resource_list}. Error: {e}"
+                )
+                return None
             # Populate the tuple-key cache to avoid re-fetching this specific item.
             self.cache[cache_key] = resolved_object
 

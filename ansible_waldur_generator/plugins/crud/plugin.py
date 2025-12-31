@@ -154,6 +154,7 @@ class CrudPlugin(BasePlugin):
                     )
                 )
             ),
+            "composite_keys": conf.composite_keys,
         }
 
         if module_config.wait_config:

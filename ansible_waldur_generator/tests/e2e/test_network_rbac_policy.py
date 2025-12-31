@@ -16,7 +16,6 @@ class TestNetworkRbacPolicyModule:
 
     # Define consistent test data to be used across the lifecycle tests.
     TEST_DATA = {
-        "policy_name": "E2E-VCR-Test-Policy",
         "tenant": "waldur-dev-farm",
         "network": "waldur-dev-farm-int-net",
         "target_tenant": "91809",
@@ -24,15 +23,13 @@ class TestNetworkRbacPolicyModule:
     }
 
     def test_create_policy(self, auth_params):
-        """
-        Verify that a new RBAC policy can be created successfully.
-        This is the first step in the resource's lifecycle.
-        """
+        # Verify that a new RBAC policy can be created successfully.
+        # This is the first step in the resource's lifecycle.
+
         # --- ARRANGE ---
         # Define the user's desired state for creating the policy.
         user_params = {
             "state": "present",
-            "name": self.TEST_DATA["policy_name"],
             "tenant": self.TEST_DATA["tenant"],
             "network": self.TEST_DATA["network"],
             "target_tenant": self.TEST_DATA["target_tenant"],
@@ -58,15 +55,12 @@ class TestNetworkRbacPolicyModule:
         assert "resource" in exit_result
 
     def test_create_policy_idempotent(self, auth_params):
-        """
-        Verify that running the 'create' task again with the same parameters
-        results in no change, proving idempotency.
-        """
+        # Verify that running the 'create' task again with the same parameters
+        # results in no change, proving idempotency.
         # --- ARRANGE ---
         # The parameters are identical to the 'create' test.
         user_params = {
             "state": "present",
-            "name": self.TEST_DATA["policy_name"],
             "tenant": self.TEST_DATA["tenant"],
             "network": self.TEST_DATA["network"],
             "target_tenant": self.TEST_DATA["target_tenant"],
@@ -87,17 +81,17 @@ class TestNetworkRbacPolicyModule:
         assert exit_result["changed"] is False
 
     def test_delete_policy(self, auth_params):
-        """
-        Verify that an existing RBAC policy can be deleted.
-        This tests the complex deletion path with two path parameters.
-        """
+        # Verify that an existing RBAC policy can be deleted.
+        # This tests the complex deletion path with two path parameters.
         # --- ARRANGE ---
         # Define the parameters needed to identify and delete the policy.
         user_params = {
             "state": "absent",
-            "name": self.TEST_DATA["policy_name"],  # Identifies the policy to delete.
             "tenant": self.TEST_DATA["tenant"],
             "network": self.TEST_DATA["network"],  # Identifies the parent network.
+            "target_tenant": self.TEST_DATA[
+                "target_tenant"
+            ],  # Required for composite key lookup.
             "wait": False,
             **auth_params,
         }
@@ -124,9 +118,9 @@ class TestNetworkRbacPolicyModule:
         # The parameters are identical to the 'delete' test.
         user_params = {
             "state": "absent",
-            "name": self.TEST_DATA["policy_name"],
             "tenant": self.TEST_DATA["tenant"],
             "network": self.TEST_DATA["network"],
+            "target_tenant": self.TEST_DATA["target_tenant"],
             "wait": False,
             **auth_params,
         }

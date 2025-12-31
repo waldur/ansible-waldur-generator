@@ -866,63 +866,101 @@ class BaseRunner:
             self.resource, _ = self.send_request("GET", path)
             return
 
-        # Priority 2: Fall back to name-based lookup or filter-based lookup.
-        identifier_value = self.module.params.get("name")
-        name_query_param = self.context.get("name_query_param", "name_exact")
-
-        query_params = {}
-        if identifier_value:
-            # If the user passed a UUID string as the name, we assume they want a direct lookup.
-            # This handles cases where 'name' is used as a generic identifier.
-            if self._is_uuid(identifier_value):
-                path = f"{check_url.rstrip('/')}/{identifier_value}/"
-                self.resource, _ = self.send_request("GET", path)
-                # If we get here (no 404), the resource exists.
-                return
-
-            # Otherwise, treat it as a standard name-based search filter.
-            query_params[name_query_param] = identifier_value
+        # Priority 2: Use composite keys if configured.
+        composite_keys = self.context.get("composite_keys")
 
         # Get the sorted list of resolver keys and the map of filter keys.
         resolver_order = self.context.get("resolver_order", [])
         filter_keys_map = self.context.get("check_filter_keys", {})
 
-        # Iterate through the resolvers in the topologically sorted order.
-        for param_name in resolver_order:
-            # We only process resolvers that are configured as context filters.
-            if param_name in filter_keys_map and self.module.params.get(param_name):
-                # Use the main `resolve` method. It is dependency-aware and populates
-                # the resolver's cache with the full object, which is essential for
-                # the next resolver in the chain.
-                resolved_object = self.resolver.resolve(
-                    param_name, self.module.params[param_name]
+        query_params = {}
+
+        if composite_keys:
+            # New composite key logic.
+            # We iterate over the explicitly defined composite keys.
+            for key in composite_keys:
+                value = self.module.params.get(key)
+                if value is None:
+                    self.module.fail_json(
+                        msg=f"Missing required parameter for composite key: '{key}'."
+                    )
+
+                # Determine the API query parameter name.
+                # If mapped in check_filter_keys, use that. Otherwise, default to the key itself.
+                query_param_name = filter_keys_map.get(key, key)
+
+                # Check if this key needs resolution (is it a foreign key?).
+                if key in resolver_order:
+                    # Use the resolver to get the full object and extract the UUID.
+                    resolved_object = self.resolver.resolve(key, value)
+                    if resolved_object:
+                        if isinstance(resolved_object, str):
+                            resolved_uuid = resolved_object.strip("/").split("/")[-1]
+                        else:
+                            resolved_uuid = resolved_object.get("uuid")
+
+                        if not resolved_uuid:
+                            self.module.fail_json(
+                                msg=f"Could not extract UUID from resolved '{key}' object."
+                            )
+                        query_params[query_param_name] = resolved_uuid
+                else:
+                    # Simple value (string, int), use directly.
+                    query_params[query_param_name] = value
+
+        else:
+            # Legacy logic: Fall back to name-based lookup or filter-based lookup.
+            identifier_value = self.module.params.get("name")
+            name_query_param = self.context.get("name_query_param", "name_exact")
+
+            if identifier_value:
+                # If the user passed a UUID string as the name, we assume they want a direct lookup.
+                # This handles cases where 'name' is used as a generic identifier.
+                if self._is_uuid(identifier_value):
+                    path = f"{check_url.rstrip('/')}/{identifier_value}/"
+                    self.resource, _ = self.send_request("GET", path)
+                    # If we get here (no 404), the resource exists.
+                    return
+
+                # Otherwise, treat it as a standard name-based search filter.
+                query_params[name_query_param] = identifier_value
+
+            # Iterate through the resolvers in the topologically sorted order.
+            for param_name in resolver_order:
+                # We only process resolvers that are configured as context filters.
+                if param_name in filter_keys_map and self.module.params.get(param_name):
+                    # Use the main `resolve` method. It is dependency-aware and populates
+                    # the resolver's cache with the full object, which is essential for
+                    # the next resolver in the chain.
+                    resolved_object = self.resolver.resolve(
+                        param_name, self.module.params[param_name]
+                    )
+
+                    if resolved_object:
+                        # The `resolve` method returns the full object. We need its UUID.
+                        if isinstance(resolved_object, str):
+                            resolved_uuid = resolved_object.strip("/").split("/")[-1]
+                        else:
+                            resolved_uuid = resolved_object.get("uuid")
+                        if not resolved_uuid:
+                            self.module.fail_json(
+                                msg=f"Could not extract UUID from resolved '{param_name}' object."
+                            )
+
+                        filter_key = filter_keys_map[param_name]
+                        query_params[filter_key] = resolved_uuid
+
+            # Validation: If we have neither a name nor any context filters, we cannot
+            # perform a safe existence check.
+            if not query_params:
+                # If we are in 'create' mode (state=present) and have no way to check existence,
+                # we might be creating a duplicate. But for some resources (name-less), this is valid
+                # if they are just being created. However, to be safe and consistent, we enforce
+                # at least some filter or name.
+                # We only enforce this if we didn't perform a direct lookup above.
+                self.module.fail_json(
+                    msg="Cannot check for resource existence: neither 'name', 'uuid', composite_keys nor any context filters were provided."
                 )
-
-                if resolved_object:
-                    # The `resolve` method returns the full object. We need its UUID.
-                    if isinstance(resolved_object, str):
-                        resolved_uuid = resolved_object.strip("/").split("/")[-1]
-                    else:
-                        resolved_uuid = resolved_object.get("uuid")
-                    if not resolved_uuid:
-                        self.module.fail_json(
-                            msg=f"Could not extract UUID from resolved '{param_name}' object."
-                        )
-
-                    filter_key = filter_keys_map[param_name]
-                    query_params[filter_key] = resolved_uuid
-
-        # Validation: If we have neither a name nor any context filters, we cannot
-        # perform a safe existence check.
-        if not query_params:
-            # If we are in 'create' mode (state=present) and have no way to check existence,
-            # we might be creating a duplicate. But for some resources (name-less), this is valid
-            # if they are just being created. However, to be safe and consistent, we enforce
-            # at least some filter or name.
-            # We only enforce this if we didn't perform a direct lookup above.
-            self.module.fail_json(
-                msg="Cannot check for resource existence: neither 'name', 'uuid', nor any context filters were provided."
-            )
 
         # --- Step 3: Execute the API call ---
         data, _ = self.send_request("GET", check_url, query_params=query_params)

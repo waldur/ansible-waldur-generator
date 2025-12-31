@@ -118,3 +118,7 @@ class CrudModuleConfig(BaseModel):
     # The query parameter name to use for name-based lookups in check_existence.
     # Defaults to "name_exact". Some API endpoints use different parameter names.
     name_query_param: str = "name_exact"
+
+    # A list of parameter names that form a composite key for identifying the resource.
+    # If provided, these keys are used instead of 'name' or 'uuid' for existence checks.
+    composite_keys: List[str] | None = None
