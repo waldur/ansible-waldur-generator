@@ -1,0 +1,374 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/marketplace-public-offerings/?name_exact=Demo+offering+1
+  response:
+    body:
+      string: '[{"url":"http://127.0.0.1:8000/api/marketplace-public-offerings/7b219a269da4444b98fe4d32a14a9134/","uuid":"7b219a269da4444b98fe4d32a14a9134","created":"2026-01-06T18:50:14.136569+00:00","name":"Demo
+        offering 1","slug":"demo-offer","description":"","full_description":"","privacy_policy_link":"","access_url":"","endpoints":[],"software_catalogs":[],"partitions":[],"roles":[],"customer":"http://127.0.0.1:8000/api/customers/1d29548b7eb542a09105b408085e676a/","customer_uuid":"1d29548b7eb542a09105b408085e676a","customer_name":"Waldur
+        Demo","project":null,"project_uuid":null,"project_name":null,"category":"http://127.0.0.1:8000/api/marketplace-categories/06e45986252244218bd062149fc3b5b5/","category_uuid":"06e45986252244218bd062149fc3b5b5","category_title":"Private
+        clouds","attributes":{},"options":{"order":[],"options":{}},"resource_options":{"order":[],"options":{}},"components":[{"uuid":"384de895bc2349ce9f4c8149fd6a2c89","billing_type":"limit","type":"cores","name":"Cores","description":"","measured_unit":"cores","unit_factor":1,"limit_period":"month","limit_amount":null,"article_code":"","max_value":null,"min_value":null,"max_available_limit":null,"is_boolean":false,"default_limit":null,"factor":1,"is_builtin":true,"is_prepaid":false,"overage_component":null,"min_prepaid_duration":null,"max_prepaid_duration":null},{"uuid":"58369d4931b34e6cba79beac8e079839","billing_type":"limit","type":"ram","name":"RAM","description":"","measured_unit":"GB","unit_factor":1,"limit_period":"month","limit_amount":null,"article_code":"","max_value":null,"min_value":null,"max_available_limit":null,"is_boolean":false,"default_limit":null,"factor":1024,"is_builtin":true,"is_prepaid":false,"overage_component":null,"min_prepaid_duration":null,"max_prepaid_duration":null},{"uuid":"361b3a021f554ade92c4dae266cc4897","billing_type":"limit","type":"storage","name":"Storage","description":"","measured_unit":"GB","unit_factor":1,"limit_period":"month","limit_amount":null,"article_code":"","max_value":null,"min_value":null,"max_available_limit":null,"is_boolean":false,"default_limit":null,"factor":1024,"is_builtin":true,"is_prepaid":false,"overage_component":null,"min_prepaid_duration":null,"max_prepaid_duration":null}],"plugin_options":{},"state":"Active","vendor_details":"","getting_started":"","integration_guide":"","thumbnail":null,"order_count":0,"plans":[{"url":"http://127.0.0.1:8000/api/marketplace-public-offerings/7b219a269da4444b98fe4d32a14a9134/plans/7be89cdf793b45d5b29d59202e28ce6a/","uuid":"7be89cdf793b45d5b29d59202e28ce6a","name":"Default","description":"","article_code":"","max_amount":null,"archived":false,"is_active":true,"unit_price":"0.0000000000","unit":"month","init_price":0,"switch_price":0,"backend_id":"","organization_groups":[],"components":[{"type":"cores","name":"Cores","measured_unit":"cores","amount":0,"price":"0.0000000000","future_price":null,"discount_threshold":null,"discount_rate":null},{"type":"ram","name":"RAM","measured_unit":"GB","amount":0,"price":"0.0000000000","future_price":null,"discount_threshold":null,"discount_rate":null},{"type":"storage","name":"Storage","measured_unit":"GB","amount":0,"price":"0.0000000000","future_price":null,"discount_threshold":null,"discount_rate":null}],"prices":{"cores":"0E-10","ram":"0E-10","storage":"0E-10"},"future_prices":{"cores":null,"ram":null,"storage":null},"quotas":{"cores":0,"ram":0,"storage":0},"resources_count":0,"plan_type":null,"minimal_price":0}],"screenshots":[],"type":"OpenStack.Tenant","shared":true,"billable":true,"scope":"http://127.0.0.1:8000/api/service-settings/81766dac4e1b416a9cf3c3b89b37c17b/","scope_uuid":"81766dac4e1b416a9cf3c3b89b37c17b","scope_name":"Antelope","scope_state":"OK","scope_error_message":"","files":[],"quotas":[{"name":"openstack_storage","usage":5120,"limit":-1},{"name":"openstack_ram","usage":1536,"limit":15988},{"name":"openstack_vcpu","usage":2,"limit":8}],"paused_reason":"","datacite_doi":"","citation_count":-1,"latitude":null,"longitude":null,"country":"","backend_id":"","organization_groups":[],"image":null,"total_customers":null,"total_cost":null,"total_cost_estimated":null,"parent_description":null,"parent_uuid":null,"parent_name":null,"backend_metadata":{},"has_compliance_requirements":false,"billing_type_classification":"limit_only","compliance_checklist":null,"user_has_consent":false,"google_calendar_is_public":null,"google_calendar_link":null,"promotion_campaigns":[]}]'
+    headers:
+      Allow:
+      - GET, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '4439'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Tue, 06 Jan 2026 19:33:37 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/marketplace-public-offerings/?name_exact=Demo+offering+1>;
+        rel="first", <http://127.0.0.1:8000/api/marketplace-public-offerings/?name_exact=Demo+offering+1>;
+        rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/projects/?name_exact=Demo+project
+  response:
+    body:
+      string: '[{"url":"http://127.0.0.1:8000/api/projects/8e771ec3625c49329bdb93791ac81b58/","uuid":"8e771ec3625c49329bdb93791ac81b58","name":"Demo
+        project","slug":"demo-pro-1","customer":"http://127.0.0.1:8000/api/customers/1d29548b7eb542a09105b408085e676a/","customer_uuid":"1d29548b7eb542a09105b408085e676a","customer_name":"Waldur
+        Demo","customer_slug":"waldur-d-1","customer_native_name":"","customer_abbreviation":"","description":"","customer_display_billing_info_in_projects":true,"created":"2020-05-06T11:22:58.918896+00:00","type":null,"type_name":null,"type_uuid":null,"backend_id":"","start_date":null,"end_date":null,"end_date_requested_by":null,"oecd_fos_2007_code":null,"oecd_fos_2007_label":null,"is_industry":false,"image":null,"resources_count":7,"max_service_accounts":0,"kind":"default","is_removed":false,"termination_metadata":null,"staff_notes":"","grace_period_days":null,"user_email_patterns":[],"user_affiliations":[],"user_identity_sources":[],"project_credit":null,"marketplace_resource_count":{"06e45986252244218bd062149fc3b5b5":1,"6dfcdbe3c18241dc87526ef411bf6064":3,"e5a5e7651f394d10958328bbc3e967eb":3},"billing_price_estimate":{"total":230.32,"current":"0.00","tax":"0.00","tax_current":"0.00"}}]'
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '1215'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Tue, 06 Jan 2026 19:33:37 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/projects/?name_exact=Demo+project>; rel="first",
+        <http://127.0.0.1:8000/api/projects/?name_exact=Demo+project>; rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/marketplace-resources/?offering_uuid=7b219a269da4444b98fe4d32a14a9134&project_uuid=8e771ec3625c49329bdb93791ac81b58&name_exact=test-vpc
+  response:
+    body:
+      string: '[]'
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '2'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Tue, 06 Jan 2026 19:33:37 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/marketplace-resources/?name_exact=test-vpc&offering_uuid=7b219a269da4444b98fe4d32a14a9134&project_uuid=8e771ec3625c49329bdb93791ac81b58>;
+        rel="first", <http://127.0.0.1:8000/api/marketplace-resources/?name_exact=test-vpc&offering_uuid=7b219a269da4444b98fe4d32a14a9134&project_uuid=8e771ec3625c49329bdb93791ac81b58>;
+        rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"project": "http://127.0.0.1:8000/api/projects/8e771ec3625c49329bdb93791ac81b58/",
+      "offering": "http://127.0.0.1:8000/api/marketplace-public-offerings/7b219a269da4444b98fe4d32a14a9134/",
+      "attributes": {"name": "test-vpc"}, "accepting_terms_of_service": true, "plan":
+      "http://127.0.0.1:8000/api/marketplace-public-offerings/7b219a269da4444b98fe4d32a14a9134/plans/7be89cdf793b45d5b29d59202e28ce6a/",
+      "limits": {"cores": 100, "storage": 1000, "ram": 102400}}'
+    headers:
+      Connection:
+      - close
+      Content-Length:
+      - '456'
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: POST
+    uri: http://127.0.0.1:8000/api/marketplace-orders/
+  response:
+    body:
+      string: '{"offering":"http://127.0.0.1:8000/api/marketplace-public-offerings/7b219a269da4444b98fe4d32a14a9134/","offering_name":"Demo
+        offering 1","offering_uuid":"7b219a269da4444b98fe4d32a14a9134","offering_description":"","offering_image":null,"offering_thumbnail":null,"offering_type":"OpenStack.Tenant","offering_shared":true,"offering_billable":true,"offering_plugin_options":{},"provider_name":"Waldur
+        Demo","provider_uuid":"1d29548b7eb542a09105b408085e676a","provider_slug":"waldur-d-1","category_title":"Private
+        clouds","category_uuid":"06e45986252244218bd062149fc3b5b5","category_icon":"http://127.0.0.1:8000/api/media/03a3d50446174e5c92d143a827a98cf3/","plan":"http://127.0.0.1:8000/api/marketplace-public-offerings/7b219a269da4444b98fe4d32a14a9134/plans/7be89cdf793b45d5b29d59202e28ce6a/","plan_unit":"month","plan_name":"Default","plan_uuid":"7be89cdf793b45d5b29d59202e28ce6a","plan_description":"","attributes":{"name":"test-vpc"},"limits":{"cores":100,"storage":1000,"ram":102400},"uuid":"2e64ba3d935343f1966a420b984d4083","created":"2026-01-06T19:33:37.820452+00:00","modified":"2026-01-06T19:33:37.885928+00:00","resource_uuid":null,"resource_type":null,"resource_name":"test-vpc","cost":"0.0000000000","state":"executing","output":"","marketplace_resource_uuid":"92900fce5ebe4bb99f07f55f22406013","error_message":"","error_traceback":"","callback_url":null,"completed_at":null,"request_comment":null,"attachment":null,"type":"Create","slug":"waldur-d-1","url":"http://127.0.0.1:8000/api/marketplace-orders/2e64ba3d935343f1966a420b984d4083/","created_by":"http://127.0.0.1:8000/api/users/2f7757b71dbc4c5e8e1d0fc4fcb09aea/","created_by_username":"adminuser","created_by_full_name":"","consumer_reviewed_by":"http://127.0.0.1:8000/api/users/2f7757b71dbc4c5e8e1d0fc4fcb09aea/","consumer_reviewed_at":"2026-01-06T19:33:37.880981+00:00","consumer_reviewed_by_username":"adminuser","consumer_reviewed_by_full_name":"","project":"http://127.0.0.1:8000/api/projects/8e771ec3625c49329bdb93791ac81b58/","project_uuid":"8e771ec3625c49329bdb93791ac81b58","project_name":"Demo
+        project","project_description":"","customer_name":"Waldur Demo","customer_uuid":"1d29548b7eb542a09105b408085e676a"}'
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '2185'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Tue, 06 Jan 2026 19:33:37 GMT
+      Location:
+      - http://127.0.0.1:8000/api/marketplace-orders/2e64ba3d935343f1966a420b984d4083/
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+    status:
+      code: 201
+      message: Created
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/marketplace-public-offerings/?name_exact=Demo+offering+2
+  response:
+    body:
+      string: '[{"url":"http://127.0.0.1:8000/api/marketplace-public-offerings/6336f2721bdb46b6b191129e1974d689/","uuid":"6336f2721bdb46b6b191129e1974d689","created":"2026-01-06T18:50:30.208426+00:00","name":"Demo
+        offering 2","slug":"demo-offer-2","description":"","full_description":"","privacy_policy_link":"","access_url":"","endpoints":[],"software_catalogs":[],"partitions":[],"roles":[],"customer":"http://127.0.0.1:8000/api/customers/1d29548b7eb542a09105b408085e676a/","customer_uuid":"1d29548b7eb542a09105b408085e676a","customer_name":"Waldur
+        Demo","project":null,"project_uuid":null,"project_name":null,"category":"http://127.0.0.1:8000/api/marketplace-categories/06e45986252244218bd062149fc3b5b5/","category_uuid":"06e45986252244218bd062149fc3b5b5","category_title":"Private
+        clouds","attributes":{},"options":{"order":[],"options":{}},"resource_options":{"order":[],"options":{}},"components":[{"uuid":"bf4b718df7ca47e4b52516a338a55b1f","billing_type":"limit","type":"cores","name":"Cores","description":"","measured_unit":"cores","unit_factor":1,"limit_period":"month","limit_amount":null,"article_code":"","max_value":null,"min_value":null,"max_available_limit":null,"is_boolean":false,"default_limit":null,"factor":1,"is_builtin":true,"is_prepaid":false,"overage_component":null,"min_prepaid_duration":null,"max_prepaid_duration":null},{"uuid":"95728b900fbd4196a6bdf6780f54fae1","billing_type":"limit","type":"ram","name":"RAM","description":"","measured_unit":"GB","unit_factor":1,"limit_period":"month","limit_amount":null,"article_code":"","max_value":null,"min_value":null,"max_available_limit":null,"is_boolean":false,"default_limit":null,"factor":1024,"is_builtin":true,"is_prepaid":false,"overage_component":null,"min_prepaid_duration":null,"max_prepaid_duration":null},{"uuid":"f22c3852767a4d7783238d576259c106","billing_type":"limit","type":"storage","name":"Storage","description":"","measured_unit":"GB","unit_factor":1,"limit_period":"month","limit_amount":null,"article_code":"","max_value":null,"min_value":null,"max_available_limit":null,"is_boolean":false,"default_limit":null,"factor":1024,"is_builtin":true,"is_prepaid":false,"overage_component":null,"min_prepaid_duration":null,"max_prepaid_duration":null}],"plugin_options":{},"state":"Active","vendor_details":"","getting_started":"","integration_guide":"","thumbnail":null,"order_count":0,"plans":[{"url":"http://127.0.0.1:8000/api/marketplace-public-offerings/6336f2721bdb46b6b191129e1974d689/plans/5db8e0608ebe4b1ca3cf491c67e97662/","uuid":"5db8e0608ebe4b1ca3cf491c67e97662","name":"Default","description":"","article_code":"","max_amount":null,"archived":false,"is_active":true,"unit_price":"0.0000000000","unit":"month","init_price":0,"switch_price":0,"backend_id":"","organization_groups":[],"components":[{"type":"cores","name":"Cores","measured_unit":"cores","amount":0,"price":"0.0000000000","future_price":null,"discount_threshold":null,"discount_rate":null},{"type":"ram","name":"RAM","measured_unit":"GB","amount":0,"price":"0.0000000000","future_price":null,"discount_threshold":null,"discount_rate":null},{"type":"storage","name":"Storage","measured_unit":"GB","amount":0,"price":"0.0000000000","future_price":null,"discount_threshold":null,"discount_rate":null}],"prices":{"cores":"0E-10","ram":"0E-10","storage":"0E-10"},"future_prices":{"cores":null,"ram":null,"storage":null},"quotas":{"cores":0,"ram":0,"storage":0},"resources_count":0,"plan_type":null,"minimal_price":0}],"screenshots":[],"type":"OpenStack.Tenant","shared":true,"billable":true,"scope":"http://127.0.0.1:8000/api/service-settings/81766dac4e1b416a9cf3c3b89b37c17b/","scope_uuid":"81766dac4e1b416a9cf3c3b89b37c17b","scope_name":"Antelope","scope_state":"OK","scope_error_message":"","files":[],"quotas":[{"name":"openstack_storage","usage":5120,"limit":-1},{"name":"openstack_ram","usage":1536,"limit":15988},{"name":"openstack_vcpu","usage":2,"limit":8}],"paused_reason":"","datacite_doi":"","citation_count":-1,"latitude":null,"longitude":null,"country":"","backend_id":"","organization_groups":[],"image":null,"total_customers":null,"total_cost":null,"total_cost_estimated":null,"parent_description":null,"parent_uuid":null,"parent_name":null,"backend_metadata":{},"has_compliance_requirements":false,"billing_type_classification":"limit_only","compliance_checklist":null,"user_has_consent":false,"google_calendar_is_public":null,"google_calendar_link":null,"promotion_campaigns":[]}]'
+    headers:
+      Allow:
+      - GET, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '4441'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Tue, 06 Jan 2026 19:33:38 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/marketplace-public-offerings/?name_exact=Demo+offering+2>;
+        rel="first", <http://127.0.0.1:8000/api/marketplace-public-offerings/?name_exact=Demo+offering+2>;
+        rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/projects/?name_exact=Demo+project
+  response:
+    body:
+      string: '[{"url":"http://127.0.0.1:8000/api/projects/8e771ec3625c49329bdb93791ac81b58/","uuid":"8e771ec3625c49329bdb93791ac81b58","name":"Demo
+        project","slug":"demo-pro-1","customer":"http://127.0.0.1:8000/api/customers/1d29548b7eb542a09105b408085e676a/","customer_uuid":"1d29548b7eb542a09105b408085e676a","customer_name":"Waldur
+        Demo","customer_slug":"waldur-d-1","customer_native_name":"","customer_abbreviation":"","description":"","customer_display_billing_info_in_projects":true,"created":"2020-05-06T11:22:58.918896+00:00","type":null,"type_name":null,"type_uuid":null,"backend_id":"","start_date":null,"end_date":null,"end_date_requested_by":null,"oecd_fos_2007_code":null,"oecd_fos_2007_label":null,"is_industry":false,"image":null,"resources_count":7,"max_service_accounts":0,"kind":"default","is_removed":false,"termination_metadata":null,"staff_notes":"","grace_period_days":null,"user_email_patterns":[],"user_affiliations":[],"user_identity_sources":[],"project_credit":null,"marketplace_resource_count":{"06e45986252244218bd062149fc3b5b5":2,"6dfcdbe3c18241dc87526ef411bf6064":3,"e5a5e7651f394d10958328bbc3e967eb":3},"billing_price_estimate":{"total":230.32,"current":"0.00","tax":"0.00","tax_current":"0.00"}}]'
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '1215'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Tue, 06 Jan 2026 19:33:38 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/projects/?name_exact=Demo+project>; rel="first",
+        <http://127.0.0.1:8000/api/projects/?name_exact=Demo+project>; rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/marketplace-resources/?offering_uuid=6336f2721bdb46b6b191129e1974d689&project_uuid=8e771ec3625c49329bdb93791ac81b58&name_exact=test-vpc
+  response:
+    body:
+      string: '[]'
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '2'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Tue, 06 Jan 2026 19:33:38 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/marketplace-resources/?name_exact=test-vpc&offering_uuid=6336f2721bdb46b6b191129e1974d689&project_uuid=8e771ec3625c49329bdb93791ac81b58>;
+        rel="first", <http://127.0.0.1:8000/api/marketplace-resources/?name_exact=test-vpc&offering_uuid=6336f2721bdb46b6b191129e1974d689&project_uuid=8e771ec3625c49329bdb93791ac81b58>;
+        rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"project": "http://127.0.0.1:8000/api/projects/8e771ec3625c49329bdb93791ac81b58/",
+      "offering": "http://127.0.0.1:8000/api/marketplace-public-offerings/6336f2721bdb46b6b191129e1974d689/",
+      "attributes": {"name": "test-vpc"}, "accepting_terms_of_service": true, "plan":
+      "http://127.0.0.1:8000/api/marketplace-public-offerings/6336f2721bdb46b6b191129e1974d689/plans/5db8e0608ebe4b1ca3cf491c67e97662/",
+      "limits": {"cores": 100, "storage": 1000, "ram": 102400}}'
+    headers:
+      Connection:
+      - close
+      Content-Length:
+      - '456'
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: POST
+    uri: http://127.0.0.1:8000/api/marketplace-orders/
+  response:
+    body:
+      string: '{"offering":"http://127.0.0.1:8000/api/marketplace-public-offerings/6336f2721bdb46b6b191129e1974d689/","offering_name":"Demo
+        offering 2","offering_uuid":"6336f2721bdb46b6b191129e1974d689","offering_description":"","offering_image":null,"offering_thumbnail":null,"offering_type":"OpenStack.Tenant","offering_shared":true,"offering_billable":true,"offering_plugin_options":{},"provider_name":"Waldur
+        Demo","provider_uuid":"1d29548b7eb542a09105b408085e676a","provider_slug":"waldur-d-1","category_title":"Private
+        clouds","category_uuid":"06e45986252244218bd062149fc3b5b5","category_icon":"http://127.0.0.1:8000/api/media/03a3d50446174e5c92d143a827a98cf3/","plan":"http://127.0.0.1:8000/api/marketplace-public-offerings/6336f2721bdb46b6b191129e1974d689/plans/5db8e0608ebe4b1ca3cf491c67e97662/","plan_unit":"month","plan_name":"Default","plan_uuid":"5db8e0608ebe4b1ca3cf491c67e97662","plan_description":"","attributes":{"name":"test-vpc"},"limits":{"cores":100,"storage":1000,"ram":102400},"uuid":"b99e0e8c2a184c6eb478095e42d793df","created":"2026-01-06T19:33:38.261106+00:00","modified":"2026-01-06T19:33:38.320391+00:00","resource_uuid":null,"resource_type":null,"resource_name":"test-vpc","cost":"0.0000000000","state":"executing","output":"","marketplace_resource_uuid":"b96855db0377450593961036a73aba76","error_message":"","error_traceback":"","callback_url":null,"completed_at":null,"request_comment":null,"attachment":null,"type":"Create","slug":"waldur-d-1-2","url":"http://127.0.0.1:8000/api/marketplace-orders/b99e0e8c2a184c6eb478095e42d793df/","created_by":"http://127.0.0.1:8000/api/users/2f7757b71dbc4c5e8e1d0fc4fcb09aea/","created_by_username":"adminuser","created_by_full_name":"","consumer_reviewed_by":"http://127.0.0.1:8000/api/users/2f7757b71dbc4c5e8e1d0fc4fcb09aea/","consumer_reviewed_at":"2026-01-06T19:33:38.311416+00:00","consumer_reviewed_by_username":"adminuser","consumer_reviewed_by_full_name":"","project":"http://127.0.0.1:8000/api/projects/8e771ec3625c49329bdb93791ac81b58/","project_uuid":"8e771ec3625c49329bdb93791ac81b58","project_name":"Demo
+        project","project_description":"","customer_name":"Waldur Demo","customer_uuid":"1d29548b7eb542a09105b408085e676a"}'
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '2187'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Tue, 06 Jan 2026 19:33:38 GMT
+      Location:
+      - http://127.0.0.1:8000/api/marketplace-orders/b99e0e8c2a184c6eb478095e42d793df/
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+    status:
+      code: 201
+      message: Created
+version: 1

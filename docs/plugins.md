@@ -461,7 +461,7 @@ This architecture makes adding support for a new module type straightforward:
    Add the new plugin to the entry points section in `pyproject.toml`:
 
    ```toml
-    [tool.poetry.plugins."ansible_waldur_generator"]
+    [project.entry-points."ansible_waldur_generator"]
     # ... existing plugins
     crud = "ansible_waldur_generator.plugins.crud.plugin:CrudPlugin"
     order = "ansible_waldur_generator.plugins.order.plugin:OrderPlugin"
@@ -469,9 +469,9 @@ This architecture makes adding support for a new module type straightforward:
     my_type = "ansible_waldur_generator.plugins.my_type.plugin:MyTypePlugin" # Add this line
     ```
 
-6. **Update Poetry Environment**:
-   Run `poetry install`. This makes the new entry point available to the `PluginManager`. Your new `my_type`
+6. **Update Environment**:
+   Run `uv sync`. This makes the new entry point available to the `PluginManager`. Your new `my_type`
    is now ready to be used in `generator_config.yaml`.
 
-After these steps, running `poetry install` will make the new `facts` type instantly available to the
+After these steps, running `uv sync` will make the new `facts` type instantly available to the
 generator without any changes to the core `generator.py` or `plugin_manager.py` files.

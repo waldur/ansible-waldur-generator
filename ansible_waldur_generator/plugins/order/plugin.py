@@ -446,6 +446,10 @@ class OrderPlugin(BasePlugin):
 
         runner_context = {
             "resource_type": module_config.resource_type,
+            "offering_type": module_config.offering_type,
+            "marketplace_resource_check_url": api_parser.get_operation(
+                "marketplace_resources_list"
+            ).path,  # For offering-based existence checks
             "check_url": module_config.existence_check_op.path
             if module_config.existence_check_op
             else "",
@@ -797,6 +801,27 @@ class OrderPlugin(BasePlugin):
         retrieve_op_id = None
         if base_id:
             retrieve_op_id = f"{base_id}_retrieve"
+
+        # --- SPECIAL CASE: Inject default 'offering' resolver if not present ---
+        # This ensures that resource existence checks are filtered by offering_uuid.
+        if "offering" not in raw_config.get("resolvers", {}):
+            offering_list_op = api_parser.get_operation(
+                "marketplace_public_offerings_list"
+            )
+            offering_retrieve_op = api_parser.get_operation(
+                "marketplace_public_offerings_retrieve"
+            )
+
+            if offering_list_op and offering_retrieve_op:
+                if "resolvers" not in raw_config:
+                    raw_config["resolvers"] = {}
+
+                raw_config["resolvers"]["offering"] = {
+                    "list": "marketplace_public_offerings_list",
+                    "retrieve": "marketplace_public_offerings_retrieve",
+                    "name_query_param": "name_exact",
+                    "error_message": "Offering '{value}' not found.",
+                }
 
         if retrieve_op_id:
             raw_config["retrieve_op"] = api_parser.get_operation(retrieve_op_id)

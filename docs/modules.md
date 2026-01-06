@@ -18,7 +18,7 @@ The generator works by combining three main components:
 ### Prerequisites
 
 - Python 3.11+
-- [Poetry](https://python-poetry.org/docs/#installation) (for dependency management and running scripts)
+- [uv](https://github.com/astral-sh/uv) (for dependency management and running scripts)
 - Ansible Core (`ansible-core >= 2.14`) for building and using the collection.
 
 ### Installation
@@ -30,10 +30,10 @@ The generator works by combining three main components:
    cd ansible-waldur-generator
    ```
 
-2. Install the required Python dependencies using Poetry:
+2. Install the required Python dependencies using uv:
 
    ```bash
-   poetry install
+   uv sync
    ```
 
    This will create a virtual environment and install packages like `PyYAML`, and `Pytest`.
@@ -43,7 +43,7 @@ The generator works by combining three main components:
 To generate the Ansible Collection, run the `generate` script defined in `pyproject.toml`:
 
 ```bash
-poetry run ansible-waldur-generator
+uv run ansible-waldur-generator
 ```
 
 By default, this command will:
@@ -83,10 +83,10 @@ outputs/
 You can customize the path using command-line options:
 
 ```bash
-poetry run generate --config my_config.yaml --output-dir ./dist
+uv run generate --config my_config.yaml --output-dir ./dist
 ```
 
-Run `poetry run ansible-waldur-generator --help` for a full list of options.
+Run `uv run ansible-waldur-generator --help` for a full list of options.
 
 ## The Plugin System
 

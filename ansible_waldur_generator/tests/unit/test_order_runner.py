@@ -25,6 +25,7 @@ def mock_instance_runner_context():
     context = {
         "resource_type": "OpenStack instance",
         "check_url": "/api/openstack-instances/",
+        "marketplace_resource_check_url": "/api/marketplace-resources/",
         "check_filter_keys": {"project": "project_uuid"},
         "update_path": "/api/openstack-instances/{uuid}/",
         "update_fields": ["description", "name"],
@@ -293,6 +294,34 @@ class TestOrderRunner:
                     )
                 if path == "/api/marketplace-orders/{uuid}/":  # Polling call
                     return ({"state": "done"}, 200)
+
+                if path == "/api/marketplace-resources/":
+                    # Check if creation happened
+                    post_happened = any(
+                        c.args[0] == "POST" and c.args[1] == "/api/marketplace-orders/"
+                        for c in mocksend_request.call_args_list
+                    )
+                    if (
+                        post_happened
+                        and query_params.get("name_exact") == "prod-web-vm-01"
+                    ):
+                        return (
+                            [
+                                {
+                                    "uuid": "mr-uuid-final",
+                                    "scope": "http://api.com/api/openstack-instances/final-vm-uuid-123/",
+                                }
+                            ],
+                            200,
+                        )
+                    return ([], 200)
+
+                if (
+                    path == "/api/openstack-instances/final-vm-uuid-123/"
+                    or path
+                    == "http://api.com/api/openstack-instances/final-vm-uuid-123/"
+                ):
+                    return (final_resource_state, 200)
 
             # Route POST requests for order submission
             if method == "POST" and path == "/api/marketplace-orders/":

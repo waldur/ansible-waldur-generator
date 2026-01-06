@@ -33,7 +33,7 @@ offline. This is the fastest and most common way to run the tests.
 
 ```bash
 # Run all E2E tests using their saved cassettes
-poetry run pytest ansible_waldur_generator/tests/e2e/
+uv run pytest ansible_waldur_generator/tests/e2e/
 ```
 
 This command should complete in a few seconds.
@@ -73,7 +73,7 @@ You only need to enter recording mode when you are:
 
     ```bash
     # Run a specific test to record its interactions
-    poetry run pytest ansible_waldur_generator/tests/e2e/test_e2e_modules.py::TestInstanceModule::test_create_instance
+    uv run pytest ansible_waldur_generator/tests/e2e/test_e2e_modules.py::TestInstanceModule::test_create_instance
     ```
 
     After the test passes, a new cassette file will be generated.

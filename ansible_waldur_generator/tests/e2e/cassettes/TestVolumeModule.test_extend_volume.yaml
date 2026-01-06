@@ -13,24 +13,74 @@ interactions:
       authorization:
       - DUMMY
     method: GET
+    uri: http://127.0.0.1:8000/api/marketplace-public-offerings/?name_exact=Volume+in+E2E+Ansible+tenant
+  response:
+    body:
+      string: '[{"url":"http://127.0.0.1:8000/api/marketplace-public-offerings/6d74cdc77ba0447daeed6813f6b01134/","uuid":"6d74cdc77ba0447daeed6813f6b01134","created":"2020-07-01T08:38:24.678901+00:00","name":"Volume
+        in E2E Ansible tenant","slug":"volume-i-1549","description":"","full_description":"","privacy_policy_link":"","access_url":"","endpoints":[],"software_catalogs":[],"partitions":[],"roles":[],"customer":"http://127.0.0.1:8000/api/customers/6983ac22f2bb469189311ab21e493359/","customer_uuid":"6983ac22f2bb469189311ab21e493359","customer_name":"TalTech
+        HPC Centre","project":"http://127.0.0.1:8000/api/projects/22d7e03a0d654f98bd45cafd592ce8a2/","project_uuid":"22d7e03a0d654f98bd45cafd592ce8a2","project_name":"E2E
+        Ansible project","category":"http://127.0.0.1:8000/api/marketplace-categories/6dfcdbe3c18241dc87526ef411bf6064/","category_uuid":"6dfcdbe3c18241dc87526ef411bf6064","category_title":"Storage","attributes":{},"options":{},"resource_options":{},"components":[{"uuid":"666fa5f4b2a24cf1aed92aece38f0796","billing_type":"limit","type":"cores","name":"Cores","description":"","measured_unit":"cores","unit_factor":1,"limit_period":"month","limit_amount":null,"article_code":"","max_value":500,"min_value":1,"max_available_limit":null,"is_boolean":false,"default_limit":null,"factor":1,"is_builtin":true,"is_prepaid":false,"overage_component":null,"min_prepaid_duration":null,"max_prepaid_duration":null},{"uuid":"95c9e6bb602d460285e4fba147e6cafe","billing_type":"limit","type":"ram","name":"RAM","description":"","measured_unit":"GB","unit_factor":1,"limit_period":"month","limit_amount":null,"article_code":"","max_value":614400,"min_value":1024,"max_available_limit":null,"is_boolean":false,"default_limit":null,"factor":1024,"is_builtin":true,"is_prepaid":false,"overage_component":null,"min_prepaid_duration":null,"max_prepaid_duration":null},{"uuid":"e89dbdaa8edc4da29a6ca9be1b8536d0","billing_type":"limit","type":"storage","name":"Storage","description":"","measured_unit":"GB","unit_factor":1,"limit_period":"month","limit_amount":null,"article_code":"","max_value":30720000,"min_value":10240,"max_available_limit":null,"is_boolean":false,"default_limit":null,"factor":1024,"is_builtin":true,"is_prepaid":false,"overage_component":null,"min_prepaid_duration":null,"max_prepaid_duration":null}],"plugin_options":{},"state":"Active","vendor_details":"","getting_started":"","integration_guide":"","thumbnail":"http://127.0.0.1:8000/api/media/f482e2c8b7004f6881a3f5b0c1985b3f/","order_count":212,"plans":[{"url":"http://127.0.0.1:8000/api/marketplace-public-offerings/d7b3aade9ec34301a87ae1b533f08b57/plans/bd248d04e0da4863a36183cbb98f603b/","uuid":"bd248d04e0da4863a36183cbb98f603b","name":"ETAIS","description":"","article_code":"","max_amount":null,"archived":false,"is_active":true,"unit_price":"0.0000000000","unit":"day","init_price":0,"switch_price":0,"backend_id":"","organization_groups":[],"components":[{"type":"cores","name":"Cores","measured_unit":"cores","amount":0,"price":"0.0720000000","future_price":null,"discount_threshold":null,"discount_rate":null},{"type":"ram","name":"RAM","measured_unit":"GB","amount":0,"price":"0.0312000000","future_price":null,"discount_threshold":null,"discount_rate":null},{"type":"storage","name":"Storage","measured_unit":"GB","amount":0,"price":"0.0002000000","future_price":null,"discount_threshold":null,"discount_rate":null}],"prices":{"cores":"0.0720000000","ram":"0.0312000000","storage":"0.0002000000"},"future_prices":{"cores":null,"ram":null,"storage":null},"quotas":{"cores":0,"ram":0,"storage":0},"resources_count":20516,"plan_type":"limit","minimal_price":"0.1034000000"}],"screenshots":[],"type":"OpenStack.Volume","shared":false,"billable":false,"scope":"http://127.0.0.1:8000/api/openstack-tenants/2bfc029827bb41e884ff60f4b8eff3b2/","scope_uuid":"2bfc029827bb41e884ff60f4b8eff3b2","scope_name":"Roman
+        Kuchin tenant","scope_state":"UPDATING","scope_error_message":"","files":[],"quotas":[{"name":"ram","usage":235520,"limit":614400},{"name":"gigabytes_ultra-high-iops","usage":1,"limit":-1},{"name":"security_group_rule_count","usage":22,"limit":200},{"name":"gigabytes___DEFAULT__","usage":0,"limit":-1},{"name":"floating_ip_count","usage":1,"limit":200},{"name":"storage","usage":1062912,"limit":3072000},{"name":"volumes","usage":118,"limit":350},{"name":"gigabytes_standard","usage":1038,"limit":-1},{"name":"subnet_count","usage":2,"limit":200},{"name":"volumes_size","usage":1062912,"limit":-1},{"name":"snapshots_size","usage":0,"limit":-1},{"name":"gigabytes_tripleo","usage":0,"limit":-1},{"name":"instances","usage":116,"limit":300},{"name":"snapshots","usage":0,"limit":50},{"name":"security_group_count","usage":6,"limit":200},{"name":"vcpu","usage":116,"limit":300},{"name":"network_count","usage":2,"limit":200},{"name":"port_count","usage":74,"limit":500}],"paused_reason":"","datacite_doi":"","citation_count":-1,"latitude":null,"longitude":null,"country":"","backend_id":"","organization_groups":[],"image":null,"total_customers":null,"total_cost":null,"total_cost_estimated":null,"parent_description":"OpenStack-based
+        IaaS cloud operated by TalTech HPC team","parent_uuid":"d7b3aade9ec34301a87ae1b533f08b57","parent_name":"TalTech
+        Cloud","backend_metadata":{},"has_compliance_requirements":false,"billing_type_classification":"mixed","compliance_checklist":null,"user_has_consent":false,"google_calendar_is_public":null,"google_calendar_link":null,"promotion_campaigns":[]}]'
+    headers:
+      Allow:
+      - GET, HEAD, OPTIONS
+      Content-Language:
+      - en
+      Content-Length:
+      - '5468'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Tue, 06 Jan 2026 20:25:27 GMT
+      Link:
+      - <http://127.0.0.1:8000/api/marketplace-public-offerings/?name_exact=Volume+in+E2E+Ansible+tenant>;
+        rel="first", <http://127.0.0.1:8000/api/marketplace-public-offerings/?name_exact=Volume+in+E2E+Ansible+tenant>;
+        rel="last"
+      Server:
+      - WSGIServer/0.2 CPython/3.11.9
+      Vary:
+      - Accept, Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
     uri: http://127.0.0.1:8000/api/projects/?name_exact=E2E+Ansible+project
   response:
     body:
       string: '[{"url":"http://127.0.0.1:8000/api/projects/22d7e03a0d654f98bd45cafd592ce8a2/","uuid":"22d7e03a0d654f98bd45cafd592ce8a2","name":"E2E
         Ansible project","slug":"roman-ku-1","customer":"http://127.0.0.1:8000/api/customers/6983ac22f2bb469189311ab21e493359/","customer_uuid":"6983ac22f2bb469189311ab21e493359","customer_name":"TalTech
         HPC Centre","customer_slug":"taltech--2","customer_native_name":"","customer_abbreviation":"TalTech
-        HPC","description":"","customer_display_billing_info_in_projects":true,"created":"2020-06-30T15:15:30.884550+00:00","type":null,"type_name":null,"type_uuid":null,"backend_id":"","start_date":null,"end_date":null,"end_date_requested_by":null,"oecd_fos_2007_code":null,"oecd_fos_2007_label":null,"is_industry":false,"image":null,"resources_count":235,"max_service_accounts":0,"kind":"default","is_removed":false,"termination_metadata":null,"staff_notes":"","project_credit":null,"marketplace_resource_count":{"06e45986252244218bd062149fc3b5b5":1,"6dfcdbe3c18241dc87526ef411bf6064":120,"e5a5e7651f394d10958328bbc3e967eb":116},"billing_price_estimate":{"total":1268.52,"current":"0.00","tax":"0.00","tax_current":"0.00"}}]'
+        HPC","description":"","customer_display_billing_info_in_projects":true,"created":"2020-06-30T15:15:30.884550+00:00","type":null,"type_name":null,"type_uuid":null,"backend_id":"","start_date":null,"end_date":null,"end_date_requested_by":null,"oecd_fos_2007_code":null,"oecd_fos_2007_label":null,"is_industry":false,"image":null,"resources_count":235,"max_service_accounts":0,"kind":"default","is_removed":false,"termination_metadata":null,"staff_notes":"","grace_period_days":null,"user_email_patterns":[],"user_affiliations":[],"user_identity_sources":[],"project_credit":null,"marketplace_resource_count":{"06e45986252244218bd062149fc3b5b5":1,"6dfcdbe3c18241dc87526ef411bf6064":120,"e5a5e7651f394d10958328bbc3e967eb":116},"billing_price_estimate":{"total":1268.52,"current":"0.00","tax":"0.00","tax_current":"0.00"}}]'
     headers:
       Allow:
       - GET, POST, HEAD, OPTIONS
       Content-Language:
       - en
       Content-Length:
-      - '1147'
+      - '1247'
       Content-Type:
       - application/json; charset=utf-8
       Date:
-      - Fri, 07 Nov 2025 13:02:35 GMT
+      - Tue, 06 Jan 2026 20:25:27 GMT
       Link:
       - <http://127.0.0.1:8000/api/projects/?name_exact=E2E+Ansible+project>; rel="first",
         <http://127.0.0.1:8000/api/projects/?name_exact=E2E+Ansible+project>; rel="last"
@@ -59,28 +109,68 @@ interactions:
       authorization:
       - DUMMY
     method: GET
-    uri: http://127.0.0.1:8000/api/openstack-volumes/?name_exact=E2E+Test+Volume+via+VCR&project_uuid=22d7e03a0d654f98bd45cafd592ce8a2
+    uri: http://127.0.0.1:8000/api/marketplace-resources/?offering_uuid=6d74cdc77ba0447daeed6813f6b01134&project_uuid=22d7e03a0d654f98bd45cafd592ce8a2&name_exact=E2E+Test+Volume+via+VCR&state=OK&state=Erred&state=Creating&state=Updating&state=Terminating
   response:
     body:
-      string: '[{"url":"http://127.0.0.1:8000/api/openstack-volumes/b9e6da6cb6164cacb584184934744208/","uuid":"b9e6da6cb6164cacb584184934744208","name":"E2E
-        Test Volume via VCR","description":"","service_name":"Antelope","service_settings":"http://127.0.0.1:8000/api/service-settings/81766dac4e1b416a9cf3c3b89b37c17b/","service_settings_uuid":"81766dac4e1b416a9cf3c3b89b37c17b","service_settings_state":"OK","service_settings_error_message":"","project":"http://127.0.0.1:8000/api/projects/22d7e03a0d654f98bd45cafd592ce8a2/","project_name":"E2E
-        Ansible project","project_uuid":"22d7e03a0d654f98bd45cafd592ce8a2","customer":"http://127.0.0.1:8000/api/customers/6983ac22f2bb469189311ab21e493359/","customer_uuid":"6983ac22f2bb469189311ab21e493359","customer_name":"TalTech
-        HPC Centre","customer_native_name":"","customer_abbreviation":"TalTech HPC","error_message":"","error_traceback":"","resource_type":"OpenStack.Volume","state":"OK","created":"2025-06-12T18:58:14.237792+00:00","modified":"2025-11-07T12:36:12.283298+00:00","backend_id":"ed34838c-d4f7-4fec-99e6-355e9b6ac995","access_url":null,"source_snapshot":null,"size":1024,"bootable":false,"metadata":"","image":null,"image_metadata":"","image_name":"","type":"http://127.0.0.1:8000/api/openstack-volume-types/f64983968e1441f09ec618f407cb034a/","type_name":"__DEFAULT__","runtime_state":"in-use","availability_zone":null,"device":"/dev/sdb","action":"","action_details":{},"instance":"http://127.0.0.1:8000/api/openstack-instances/c5581648dd36416980cbcd3852d0a2cf/","instance_name":"k8s-lb-test-202-5","instance_marketplace_uuid":null,"tenant":"http://127.0.0.1:8000/api/openstack-tenants/fdc10baab4664b158a3fa338a4d8bf2b/","tenant_uuid":"fdc10baab4664b158a3fa338a4d8bf2b","extend_enabled":true,"marketplace_offering_uuid":"6d74cdc77ba0447daeed6813f6b01134","marketplace_offering_name":"Volume
-        in E2E Ansible tenant","marketplace_offering_plugin_options":{},"marketplace_category_uuid":"6dfcdbe3c18241dc87526ef411bf6064","marketplace_category_name":"Storage","marketplace_resource_uuid":"921d6c239a66473f9db0caafb6b8a644","marketplace_plan_uuid":null,"marketplace_resource_state":"Creating","is_usage_based":false,"is_limit_based":false}]'
+      string: '[{"offering":"http://127.0.0.1:8000/api/marketplace-public-offerings/6d74cdc77ba0447daeed6813f6b01134/","offering_name":"Volume
+        in E2E Ansible tenant","offering_uuid":"6d74cdc77ba0447daeed6813f6b01134","offering_description":"","offering_image":null,"offering_thumbnail":"http://127.0.0.1:8000/api/media/f482e2c8b7004f6881a3f5b0c1985b3f/","offering_type":"OpenStack.Volume","offering_shared":false,"offering_billable":false,"offering_plugin_options":{},"provider_name":"TalTech
+        HPC Centre","provider_uuid":"6983ac22f2bb469189311ab21e493359","provider_slug":"taltech--2","category_title":"Storage","category_uuid":"6dfcdbe3c18241dc87526ef411bf6064","category_icon":"http://127.0.0.1:8000/api/media/9f0563ae65fd4a08a6a60a2eba574c7c/","plan":null,"plan_unit":null,"plan_name":null,"plan_uuid":null,"plan_description":null,"attributes":{"name":"E2E
+        Test Volume via VCR","size":20480},"limits":{},"uuid":"1dcd35dfa9364144aa91852b437d8084","created":"2025-08-24T08:37:47.065387+00:00","modified":"2025-08-24T08:37:47.384497+00:00","url":"http://127.0.0.1:8000/api/marketplace-resources/1dcd35dfa9364144aa91852b437d8084/","scope":null,"description":"","state":"Creating","resource_uuid":null,"backend_id":"","effective_id":"","resource_type":null,"project":"http://127.0.0.1:8000/api/projects/22d7e03a0d654f98bd45cafd592ce8a2/","project_uuid":"22d7e03a0d654f98bd45cafd592ce8a2","project_name":"E2E
+        Ansible project","project_description":"","project_end_date":null,"project_end_date_requested_by":null,"customer_uuid":"6983ac22f2bb469189311ab21e493359","customer_name":"TalTech
+        HPC Centre","offering_slug":"volume-i-1549","parent_offering_uuid":"d7b3aade9ec34301a87ae1b533f08b57","parent_offering_name":"TalTech
+        Cloud","parent_offering_slug":"roman-ku-1","parent_uuid":"b427bad67f5c42cf8f908fb49c74a9a7","parent_name":"Roman
+        Kuchin tenant","backend_metadata":{"size":20480},"is_usage_based":false,"is_limit_based":false,"name":"E2E
+        Test Volume via VCR","slug":"e2e-test-1","current_usages":{},"can_terminate":false,"report":null,"end_date":null,"end_date_requested_by":null,"username":null,"limit_usage":{},"downscaled":false,"restrict_member_access":false,"paused":false,"endpoints":[],"error_message":"","error_traceback":"","options":null,"available_actions":[],"last_sync":"2025-08-24T08:37:47.065443+00:00","order_in_progress":{"offering":"http://127.0.0.1:8000/api/marketplace-public-offerings/6d74cdc77ba0447daeed6813f6b01134/","offering_name":"Volume
+        in E2E Ansible tenant","offering_uuid":"6d74cdc77ba0447daeed6813f6b01134","offering_description":"","offering_image":null,"offering_thumbnail":"http://127.0.0.1:8000/api/media/f482e2c8b7004f6881a3f5b0c1985b3f/","offering_type":"OpenStack.Volume","offering_shared":false,"offering_billable":false,"offering_plugin_options":{},"provider_name":"TalTech
+        HPC Centre","provider_uuid":"6983ac22f2bb469189311ab21e493359","provider_slug":"taltech--2","category_title":"Storage","category_uuid":"6dfcdbe3c18241dc87526ef411bf6064","category_icon":"http://127.0.0.1:8000/api/media/9f0563ae65fd4a08a6a60a2eba574c7c/","plan":null,"plan_unit":null,"plan_name":null,"plan_uuid":null,"plan_description":null,"attributes":{"name":"E2E
+        Test Volume via VCR","size":20480},"limits":{},"uuid":"93a8f9f9344a455bbd6d07245b154f07","created":"2025-08-24T08:37:47.155756+00:00","modified":"2025-08-24T08:37:47.356040+00:00","resource_uuid":null,"resource_type":null,"resource_name":"E2E
+        Test Volume via VCR","cost":null,"state":"executing","output":"","marketplace_resource_uuid":"1dcd35dfa9364144aa91852b437d8084","error_message":"","error_traceback":"","callback_url":null,"completed_at":null,"request_comment":null,"attachment":null,"type":"Create","start_date":null,"slug":"","url":"http://127.0.0.1:8000/api/marketplace-orders/93a8f9f9344a455bbd6d07245b154f07/","consumer_reviewed_by":"victor","consumer_reviewed_by_full_name":"Victor
+        Mireyev","consumer_reviewed_by_username":"victor","consumer_reviewed_at":"2025-08-24T08:37:47.352575+00:00","provider_reviewed_by":null,"provider_reviewed_by_full_name":null,"provider_reviewed_by_username":null,"provider_reviewed_at":null,"created_by_username":"victor","created_by_full_name":"Victor
+        Mireyev","created_by_civil_number":null,"customer_name":"TalTech HPC Centre","customer_uuid":"6983ac22f2bb469189311ab21e493359","customer_slug":"taltech--2","project_name":"E2E
+        Ansible project","project_uuid":"22d7e03a0d654f98bd45cafd592ce8a2","project_description":"","project_slug":"roman-ku-1","old_plan_name":null,"new_plan_name":null,"old_plan_uuid":null,"new_plan_uuid":null,"old_cost_estimate":0,"new_cost_estimate":null,"can_terminate":false,"termination_comment":null,"backend_id":"","order_subtype":null,"issue":null},"creation_order":{"offering":"http://127.0.0.1:8000/api/marketplace-public-offerings/6d74cdc77ba0447daeed6813f6b01134/","offering_name":"Volume
+        in E2E Ansible tenant","offering_uuid":"6d74cdc77ba0447daeed6813f6b01134","offering_description":"","offering_image":null,"offering_thumbnail":"http://127.0.0.1:8000/api/media/f482e2c8b7004f6881a3f5b0c1985b3f/","offering_type":"OpenStack.Volume","offering_shared":false,"offering_billable":false,"offering_plugin_options":{},"provider_name":"TalTech
+        HPC Centre","provider_uuid":"6983ac22f2bb469189311ab21e493359","provider_slug":"taltech--2","category_title":"Storage","category_uuid":"6dfcdbe3c18241dc87526ef411bf6064","category_icon":"http://127.0.0.1:8000/api/media/9f0563ae65fd4a08a6a60a2eba574c7c/","plan":null,"plan_unit":null,"plan_name":null,"plan_uuid":null,"plan_description":null,"attributes":{"name":"E2E
+        Test Volume via VCR","size":20480},"limits":{},"uuid":"93a8f9f9344a455bbd6d07245b154f07","created":"2025-08-24T08:37:47.155756+00:00","modified":"2025-08-24T08:37:47.356040+00:00","resource_uuid":null,"resource_type":null,"resource_name":"E2E
+        Test Volume via VCR","cost":null,"state":"executing","output":"","marketplace_resource_uuid":"1dcd35dfa9364144aa91852b437d8084","error_message":"","error_traceback":"","callback_url":null,"completed_at":null,"request_comment":null,"attachment":null,"type":"Create","start_date":null,"slug":"","url":"http://127.0.0.1:8000/api/marketplace-orders/93a8f9f9344a455bbd6d07245b154f07/","consumer_reviewed_by":"victor","consumer_reviewed_by_full_name":"Victor
+        Mireyev","consumer_reviewed_by_username":"victor","consumer_reviewed_at":"2025-08-24T08:37:47.352575+00:00","provider_reviewed_by":null,"provider_reviewed_by_full_name":null,"provider_reviewed_by_username":null,"provider_reviewed_at":null,"created_by_username":"victor","created_by_full_name":"Victor
+        Mireyev","created_by_civil_number":null,"customer_name":"TalTech HPC Centre","customer_uuid":"6983ac22f2bb469189311ab21e493359","customer_slug":"taltech--2","project_name":"E2E
+        Ansible project","project_uuid":"22d7e03a0d654f98bd45cafd592ce8a2","project_description":"","project_slug":"roman-ku-1","old_plan_name":null,"new_plan_name":null,"old_plan_uuid":null,"new_plan_uuid":null,"old_cost_estimate":0,"new_cost_estimate":null,"can_terminate":false,"termination_comment":null,"backend_id":"","order_subtype":null,"issue":null},"project_slug":"roman-ku-1","customer_slug":"taltech--2","user_requires_reconsent":false,"renewal_date":null,"offering_state":"Active","offering_components":[]},{"offering":"http://127.0.0.1:8000/api/marketplace-public-offerings/6d74cdc77ba0447daeed6813f6b01134/","offering_name":"Volume
+        in E2E Ansible tenant","offering_uuid":"6d74cdc77ba0447daeed6813f6b01134","offering_description":"","offering_image":null,"offering_thumbnail":"http://127.0.0.1:8000/api/media/f482e2c8b7004f6881a3f5b0c1985b3f/","offering_type":"OpenStack.Volume","offering_shared":false,"offering_billable":false,"offering_plugin_options":{},"provider_name":"TalTech
+        HPC Centre","provider_uuid":"6983ac22f2bb469189311ab21e493359","provider_slug":"taltech--2","category_title":"Storage","category_uuid":"6dfcdbe3c18241dc87526ef411bf6064","category_icon":"http://127.0.0.1:8000/api/media/9f0563ae65fd4a08a6a60a2eba574c7c/","plan":null,"plan_unit":null,"plan_name":null,"plan_uuid":null,"plan_description":null,"attributes":{"name":"E2E
+        Test Volume via VCR","size":20480},"limits":{},"uuid":"921d6c239a66473f9db0caafb6b8a644","created":"2025-08-24T08:38:18.972044+00:00","modified":"2026-01-06T20:25:18.462771+00:00","url":"http://127.0.0.1:8000/api/marketplace-resources/921d6c239a66473f9db0caafb6b8a644/","scope":"http://127.0.0.1:8000/api/openstack-volumes/b9e6da6cb6164cacb584184934744208/","description":"","state":"Creating","resource_uuid":"b9e6da6cb6164cacb584184934744208","backend_id":"ed34838c-d4f7-4fec-99e6-355e9b6ac995","effective_id":"","resource_type":"OpenStack.Volume","project":"http://127.0.0.1:8000/api/projects/22d7e03a0d654f98bd45cafd592ce8a2/","project_uuid":"22d7e03a0d654f98bd45cafd592ce8a2","project_name":"E2E
+        Ansible project","project_description":"","project_end_date":null,"project_end_date_requested_by":null,"customer_uuid":"6983ac22f2bb469189311ab21e493359","customer_name":"TalTech
+        HPC Centre","offering_slug":"volume-i-1549","parent_offering_uuid":"d7b3aade9ec34301a87ae1b533f08b57","parent_offering_name":"TalTech
+        Cloud","parent_offering_slug":"roman-ku-1","parent_uuid":"b427bad67f5c42cf8f908fb49c74a9a7","parent_name":"Roman
+        Kuchin tenant","backend_metadata":{"size":1024,"state":"UPDATING","action":"Retype","type_name":"ultra-high-iops","instance_name":"k8s-lb-test-202-5","instance_uuid":"c5581648dd36416980cbcd3852d0a2cf","runtime_state":"available","action_details":{}},"is_usage_based":false,"is_limit_based":false,"name":"E2E
+        Test Volume via VCR","slug":"e2e-test-2","current_usages":{},"can_terminate":false,"report":null,"end_date":null,"end_date_requested_by":null,"username":null,"limit_usage":{},"downscaled":false,"restrict_member_access":false,"paused":false,"endpoints":[],"error_message":"","error_traceback":"","options":null,"available_actions":[],"last_sync":"2025-08-24T08:38:18.972113+00:00","order_in_progress":{"offering":"http://127.0.0.1:8000/api/marketplace-public-offerings/6d74cdc77ba0447daeed6813f6b01134/","offering_name":"Volume
+        in E2E Ansible tenant","offering_uuid":"6d74cdc77ba0447daeed6813f6b01134","offering_description":"","offering_image":null,"offering_thumbnail":"http://127.0.0.1:8000/api/media/f482e2c8b7004f6881a3f5b0c1985b3f/","offering_type":"OpenStack.Volume","offering_shared":false,"offering_billable":false,"offering_plugin_options":{},"provider_name":"TalTech
+        HPC Centre","provider_uuid":"6983ac22f2bb469189311ab21e493359","provider_slug":"taltech--2","category_title":"Storage","category_uuid":"6dfcdbe3c18241dc87526ef411bf6064","category_icon":"http://127.0.0.1:8000/api/media/9f0563ae65fd4a08a6a60a2eba574c7c/","plan":null,"plan_unit":null,"plan_name":null,"plan_uuid":null,"plan_description":null,"attributes":{"name":"E2E
+        Test Volume via VCR","size":20480},"limits":{},"uuid":"e49ad1d8238841a881d929e5d2a37e1a","created":"2025-08-24T08:38:19.045400+00:00","modified":"2025-11-11T13:15:46.586764+00:00","resource_uuid":"b9e6da6cb6164cacb584184934744208","resource_type":"OpenStack.Volume","resource_name":"E2E
+        Test Volume via VCR","cost":null,"state":"pending-start-date","output":"","marketplace_resource_uuid":"921d6c239a66473f9db0caafb6b8a644","error_message":"","error_traceback":"","callback_url":null,"completed_at":null,"request_comment":null,"attachment":null,"type":"Create","start_date":"2025-11-11","slug":"taltech-2-4","url":"http://127.0.0.1:8000/api/marketplace-orders/e49ad1d8238841a881d929e5d2a37e1a/","consumer_reviewed_by":"victor","consumer_reviewed_by_full_name":"Victor
+        Mireyev","consumer_reviewed_by_username":"victor","consumer_reviewed_at":"2025-08-24T08:38:19.241390+00:00","provider_reviewed_by":null,"provider_reviewed_by_full_name":null,"provider_reviewed_by_username":null,"provider_reviewed_at":null,"created_by_username":"victor","created_by_full_name":"Victor
+        Mireyev","created_by_civil_number":null,"customer_name":"TalTech HPC Centre","customer_uuid":"6983ac22f2bb469189311ab21e493359","customer_slug":"taltech--2","project_name":"E2E
+        Ansible project","project_uuid":"22d7e03a0d654f98bd45cafd592ce8a2","project_description":"","project_slug":"roman-ku-1","old_plan_name":null,"new_plan_name":null,"old_plan_uuid":null,"new_plan_uuid":null,"old_cost_estimate":0,"new_cost_estimate":null,"can_terminate":false,"termination_comment":null,"backend_id":"","order_subtype":null,"issue":null},"creation_order":{"offering":"http://127.0.0.1:8000/api/marketplace-public-offerings/6d74cdc77ba0447daeed6813f6b01134/","offering_name":"Volume
+        in E2E Ansible tenant","offering_uuid":"6d74cdc77ba0447daeed6813f6b01134","offering_description":"","offering_image":null,"offering_thumbnail":"http://127.0.0.1:8000/api/media/f482e2c8b7004f6881a3f5b0c1985b3f/","offering_type":"OpenStack.Volume","offering_shared":false,"offering_billable":false,"offering_plugin_options":{},"provider_name":"TalTech
+        HPC Centre","provider_uuid":"6983ac22f2bb469189311ab21e493359","provider_slug":"taltech--2","category_title":"Storage","category_uuid":"6dfcdbe3c18241dc87526ef411bf6064","category_icon":"http://127.0.0.1:8000/api/media/9f0563ae65fd4a08a6a60a2eba574c7c/","plan":null,"plan_unit":null,"plan_name":null,"plan_uuid":null,"plan_description":null,"attributes":{"name":"E2E
+        Test Volume via VCR","size":20480},"limits":{},"uuid":"e49ad1d8238841a881d929e5d2a37e1a","created":"2025-08-24T08:38:19.045400+00:00","modified":"2025-11-11T13:15:46.586764+00:00","resource_uuid":"b9e6da6cb6164cacb584184934744208","resource_type":"OpenStack.Volume","resource_name":"E2E
+        Test Volume via VCR","cost":null,"state":"pending-start-date","output":"","marketplace_resource_uuid":"921d6c239a66473f9db0caafb6b8a644","error_message":"","error_traceback":"","callback_url":null,"completed_at":null,"request_comment":null,"attachment":null,"type":"Create","start_date":"2025-11-11","slug":"taltech-2-4","url":"http://127.0.0.1:8000/api/marketplace-orders/e49ad1d8238841a881d929e5d2a37e1a/","consumer_reviewed_by":"victor","consumer_reviewed_by_full_name":"Victor
+        Mireyev","consumer_reviewed_by_username":"victor","consumer_reviewed_at":"2025-08-24T08:38:19.241390+00:00","provider_reviewed_by":null,"provider_reviewed_by_full_name":null,"provider_reviewed_by_username":null,"provider_reviewed_at":null,"created_by_username":"victor","created_by_full_name":"Victor
+        Mireyev","created_by_civil_number":null,"customer_name":"TalTech HPC Centre","customer_uuid":"6983ac22f2bb469189311ab21e493359","customer_slug":"taltech--2","project_name":"E2E
+        Ansible project","project_uuid":"22d7e03a0d654f98bd45cafd592ce8a2","project_description":"","project_slug":"roman-ku-1","old_plan_name":null,"new_plan_name":null,"old_plan_uuid":null,"new_plan_uuid":null,"old_cost_estimate":0,"new_cost_estimate":null,"can_terminate":false,"termination_comment":null,"backend_id":"","order_subtype":null,"issue":null},"service_settings_uuid":"81766dac4e1b416a9cf3c3b89b37c17b","project_slug":"roman-ku-1","customer_slug":"taltech--2","user_requires_reconsent":false,"renewal_date":null,"offering_state":"Active","offering_components":[]}]'
     headers:
       Allow:
       - GET, POST, HEAD, OPTIONS
       Content-Language:
       - en
       Content-Length:
-      - '2181'
+      - '15038'
       Content-Type:
       - application/json; charset=utf-8
       Date:
-      - Fri, 07 Nov 2025 13:02:35 GMT
+      - Tue, 06 Jan 2026 20:25:27 GMT
       Link:
-      - <http://127.0.0.1:8000/api/openstack-volumes/?name_exact=E2E+Test+Volume+via+VCR&project_uuid=22d7e03a0d654f98bd45cafd592ce8a2>;
-        rel="first", <http://127.0.0.1:8000/api/openstack-volumes/?name_exact=E2E+Test+Volume+via+VCR&project_uuid=22d7e03a0d654f98bd45cafd592ce8a2>;
+      - <http://127.0.0.1:8000/api/marketplace-resources/?name_exact=E2E+Test+Volume+via+VCR&offering_uuid=6d74cdc77ba0447daeed6813f6b01134&project_uuid=22d7e03a0d654f98bd45cafd592ce8a2&state=OK&state=Erred&state=Creating&state=Updating&state=Terminating>;
+        rel="first", <http://127.0.0.1:8000/api/marketplace-resources/?name_exact=E2E+Test+Volume+via+VCR&offering_uuid=6d74cdc77ba0447daeed6813f6b01134&project_uuid=22d7e03a0d654f98bd45cafd592ce8a2&state=OK&state=Erred&state=Creating&state=Updating&state=Terminating>;
         rel="last"
       Server:
       - WSGIServer/0.2 CPython/3.11.9
@@ -89,7 +179,7 @@ interactions:
       X-Frame-Options:
       - DENY
       X-Result-Count:
-      - '1'
+      - '2'
     status:
       code: 200
       message: OK
@@ -107,39 +197,31 @@ interactions:
       authorization:
       - DUMMY
     method: GET
-    uri: http://127.0.0.1:8000/api/marketplace-public-offerings/?name_exact=Volume+in+E2E+Ansible+tenant
+    uri: http://127.0.0.1:8000/api/openstack-volumes/b9e6da6cb6164cacb584184934744208/
   response:
     body:
-      string: '[{"url":"http://127.0.0.1:8000/api/marketplace-public-offerings/6d74cdc77ba0447daeed6813f6b01134/","uuid":"6d74cdc77ba0447daeed6813f6b01134","created":"2020-07-01T08:38:24.678901+00:00","name":"Volume
-        in E2E Ansible tenant","slug":"volume-i-1549","description":"","full_description":"","privacy_policy_link":"","access_url":"","endpoints":[],"software_catalogs":[],"partitions":[],"roles":[],"customer":"http://127.0.0.1:8000/api/customers/6983ac22f2bb469189311ab21e493359/","customer_uuid":"6983ac22f2bb469189311ab21e493359","customer_name":"TalTech
-        HPC Centre","project":"http://127.0.0.1:8000/api/projects/22d7e03a0d654f98bd45cafd592ce8a2/","project_uuid":"22d7e03a0d654f98bd45cafd592ce8a2","project_name":"E2E
-        Ansible project","category":"http://127.0.0.1:8000/api/marketplace-categories/6dfcdbe3c18241dc87526ef411bf6064/","category_uuid":"6dfcdbe3c18241dc87526ef411bf6064","category_title":"Storage","attributes":{},"options":{},"resource_options":{},"components":[{"uuid":"666fa5f4b2a24cf1aed92aece38f0796","billing_type":"limit","type":"cores","name":"Cores","description":"","measured_unit":"cores","unit_factor":1,"limit_period":"month","limit_amount":null,"article_code":"","max_value":500,"min_value":1,"max_available_limit":null,"is_boolean":false,"default_limit":null,"factor":1,"is_builtin":true,"is_prepaid":false,"overage_component":null,"min_prepaid_duration":null,"max_prepaid_duration":null},{"uuid":"95c9e6bb602d460285e4fba147e6cafe","billing_type":"limit","type":"ram","name":"RAM","description":"","measured_unit":"GB","unit_factor":1,"limit_period":"month","limit_amount":null,"article_code":"","max_value":614400,"min_value":1024,"max_available_limit":null,"is_boolean":false,"default_limit":null,"factor":1024,"is_builtin":true,"is_prepaid":false,"overage_component":null,"min_prepaid_duration":null,"max_prepaid_duration":null},{"uuid":"e89dbdaa8edc4da29a6ca9be1b8536d0","billing_type":"limit","type":"storage","name":"Storage","description":"","measured_unit":"GB","unit_factor":1,"limit_period":"month","limit_amount":null,"article_code":"","max_value":30720000,"min_value":10240,"max_available_limit":null,"is_boolean":false,"default_limit":null,"factor":1024,"is_builtin":true,"is_prepaid":false,"overage_component":null,"min_prepaid_duration":null,"max_prepaid_duration":null}],"plugin_options":{},"state":"Active","vendor_details":"","getting_started":"","integration_guide":"","thumbnail":"http://127.0.0.1:8000/api/media/f482e2c8b7004f6881a3f5b0c1985b3f/","order_count":212,"plans":[{"url":"http://127.0.0.1:8000/api/marketplace-public-offerings/d7b3aade9ec34301a87ae1b533f08b57/plans/bd248d04e0da4863a36183cbb98f603b/","uuid":"bd248d04e0da4863a36183cbb98f603b","name":"ETAIS","description":"","article_code":"","max_amount":null,"archived":false,"is_active":true,"unit_price":"0.0000000000","unit":"day","init_price":0,"switch_price":0,"backend_id":"","organization_groups":[],"components":[{"type":"cores","name":"Cores","measured_unit":"cores","amount":0,"price":"0.0720000000","future_price":null,"discount_threshold":null,"discount_rate":null},{"type":"ram","name":"RAM","measured_unit":"GB","amount":0,"price":"0.0312000000","future_price":null,"discount_threshold":null,"discount_rate":null},{"type":"storage","name":"Storage","measured_unit":"GB","amount":0,"price":"0.0002000000","future_price":null,"discount_threshold":null,"discount_rate":null}],"prices":{"cores":"0.0720000000","ram":"0.0312000000","storage":"0.0002000000"},"future_prices":{"cores":null,"ram":null,"storage":null},"quotas":{"cores":0,"ram":0,"storage":0},"resources_count":20517,"plan_type":"limit","minimal_price":"0.1034000000"}],"screenshots":[],"type":"OpenStack.Volume","shared":false,"billable":false,"scope":"http://127.0.0.1:8000/api/openstack-tenants/2bfc029827bb41e884ff60f4b8eff3b2/","scope_uuid":"2bfc029827bb41e884ff60f4b8eff3b2","scope_name":"Roman
-        Kuchin tenant","scope_state":"UPDATING","scope_error_message":"","files":[],"quotas":[{"name":"volumes_size","usage":1062912,"limit":-1},{"name":"network_count","usage":2,"limit":200},{"name":"snapshots","usage":0,"limit":50},{"name":"storage","usage":1062912,"limit":3072000},{"name":"port_count","usage":74,"limit":500},{"name":"gigabytes_standard","usage":1038,"limit":-1},{"name":"security_group_rule_count","usage":22,"limit":200},{"name":"vcpu","usage":116,"limit":300},{"name":"gigabytes_tripleo","usage":0,"limit":-1},{"name":"floating_ip_count","usage":1,"limit":200},{"name":"ram","usage":235520,"limit":614400},{"name":"snapshots_size","usage":0,"limit":-1},{"name":"instances","usage":116,"limit":300},{"name":"security_group_count","usage":6,"limit":200},{"name":"subnet_count","usage":2,"limit":200},{"name":"volumes","usage":118,"limit":350}],"paused_reason":"","datacite_doi":"","citation_count":-1,"latitude":null,"longitude":null,"country":"","backend_id":"","organization_groups":[],"image":null,"total_customers":null,"total_cost":null,"total_cost_estimated":null,"parent_description":"OpenStack-based
-        IaaS cloud operated by TalTech HPC team","parent_uuid":"d7b3aade9ec34301a87ae1b533f08b57","parent_name":"TalTech
-        Cloud","backend_metadata":{},"has_compliance_requirements":false,"compliance_checklist":null,"user_has_consent":false,"google_calendar_is_public":null,"google_calendar_link":null,"promotion_campaigns":[]}]'
+      string: '{"url":"http://127.0.0.1:8000/api/openstack-volumes/b9e6da6cb6164cacb584184934744208/","uuid":"b9e6da6cb6164cacb584184934744208","name":"E2E
+        Test Volume via VCR","description":"","service_name":"Antelope","service_settings":"http://127.0.0.1:8000/api/service-settings/81766dac4e1b416a9cf3c3b89b37c17b/","service_settings_uuid":"81766dac4e1b416a9cf3c3b89b37c17b","service_settings_state":"OK","service_settings_error_message":"","project":"http://127.0.0.1:8000/api/projects/22d7e03a0d654f98bd45cafd592ce8a2/","project_name":"E2E
+        Ansible project","project_uuid":"22d7e03a0d654f98bd45cafd592ce8a2","customer":"http://127.0.0.1:8000/api/customers/6983ac22f2bb469189311ab21e493359/","customer_uuid":"6983ac22f2bb469189311ab21e493359","customer_name":"TalTech
+        HPC Centre","customer_native_name":"","customer_abbreviation":"TalTech HPC","error_message":"","error_traceback":"","resource_type":"OpenStack.Volume","state":"UPDATING","created":"2025-06-12T18:58:14.237792+00:00","modified":"2026-01-06T20:25:18.363930+00:00","backend_id":"ed34838c-d4f7-4fec-99e6-355e9b6ac995","access_url":null,"source_snapshot":null,"size":1024,"bootable":false,"metadata":"","image":null,"image_metadata":"","image_name":"","type":"http://127.0.0.1:8000/api/openstack-volume-types/4651cef9e81b4426af655b730c5a9a99/","type_name":"ultra-high-iops","runtime_state":"available","availability_zone":null,"device":"/dev/sdb","action":"Retype","action_details":{},"instance":"http://127.0.0.1:8000/api/openstack-instances/c5581648dd36416980cbcd3852d0a2cf/","instance_name":"k8s-lb-test-202-5","instance_marketplace_uuid":null,"tenant":"http://127.0.0.1:8000/api/openstack-tenants/2bfc029827bb41e884ff60f4b8eff3b2/","tenant_uuid":"2bfc029827bb41e884ff60f4b8eff3b2","extend_enabled":true,"marketplace_offering_uuid":"6d74cdc77ba0447daeed6813f6b01134","marketplace_offering_name":"Volume
+        in E2E Ansible tenant","marketplace_offering_plugin_options":{},"marketplace_category_uuid":"6dfcdbe3c18241dc87526ef411bf6064","marketplace_category_name":"Storage","marketplace_resource_uuid":"921d6c239a66473f9db0caafb6b8a644","marketplace_plan_uuid":null,"marketplace_resource_state":"Creating","is_usage_based":false,"is_limit_based":false}'
     headers:
       Allow:
-      - GET, HEAD, OPTIONS
+      - GET, PUT, PATCH, DELETE, HEAD, OPTIONS
       Content-Language:
       - en
       Content-Length:
-      - '5318'
+      - '2198'
       Content-Type:
       - application/json; charset=utf-8
       Date:
-      - Fri, 07 Nov 2025 13:02:35 GMT
-      Link:
-      - <http://127.0.0.1:8000/api/marketplace-public-offerings/?name_exact=Volume+in+E2E+Ansible+tenant>;
-        rel="first", <http://127.0.0.1:8000/api/marketplace-public-offerings/?name_exact=Volume+in+E2E+Ansible+tenant>;
-        rel="last"
+      - Tue, 06 Jan 2026 20:25:27 GMT
       Server:
       - WSGIServer/0.2 CPython/3.11.9
       Vary:
       - Accept, Accept-Language, Cookie, origin
       X-Frame-Options:
       - DENY
-      X-Result-Count:
-      - '1'
     status:
       code: 200
       message: OK
@@ -173,7 +255,7 @@ interactions:
       Content-Type:
       - application/json; charset=utf-8
       Date:
-      - Fri, 07 Nov 2025 13:02:36 GMT
+      - Tue, 06 Jan 2026 20:25:27 GMT
       Server:
       - WSGIServer/0.2 CPython/3.11.9
       Vary:

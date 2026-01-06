@@ -32,6 +32,115 @@ class OrderRunner(BaseRunner):
         # parameter-to-URL conversions.
         self.resolver = ParameterResolver(self)
 
+    def check_existence(self):
+        """
+        Check for resource existence, prioritizing the offering-based filter if present.
+        """
+        # If 'offering' is specified, we must filter by it.
+        # This prevents identical resource names in different offerings from
+        # being treated as the same resource.
+        if self.module.params.get("offering"):
+            marketplace_url = self.context.get("marketplace_resource_check_url")
+            if not marketplace_url:
+                # Should not happen if plugin is configured correctly
+                self.module.fail_json(
+                    msg="Configuration error: 'marketplace_resource_check_url' missing from context."
+                )
+                return
+
+            # Resolve the offering to get its UUID
+            offering_uuid = self.resolver.resolve(
+                "offering", self.module.params["offering"]
+            )
+            if not offering_uuid:
+                self.module.fail_json(
+                    msg=f"Could not resolve offering '{self.module.params['offering']}' to a valid UUID string."
+                )
+                return
+
+            # The resolver returns a URL, extract the UUID
+            if "/" in offering_uuid:
+                offering_uuid = offering_uuid.rstrip("/").split("/")[-1]
+
+            # Resolve project to get its UUID for filtering
+            project_uuid = None
+            if self.module.params.get("project"):
+                project_url = self.resolver.resolve(
+                    "project", self.module.params["project"]
+                )
+                if project_url and "/" in project_url:
+                    project_uuid = project_url.rstrip("/").split("/")[-1]
+
+            # Build query parameters
+            query_params = {
+                "offering_uuid": offering_uuid,
+            }
+
+            # Add project filter if available
+            if project_uuid:
+                query_params["project_uuid"] = project_uuid
+
+            # Add name filter
+            # Order modules typically use 'name_exact' for name filtering
+            # We check context for specific name param name or default to 'name_exact'
+            name_param = self.context.get("name_query_param", "name_exact")
+            if self.module.params.get("name"):
+                query_params[name_param] = self.module.params["name"]
+
+            # Filter out terminated resources at the API level
+            query_params["state"] = [
+                "OK",
+                "Erred",
+                "Creating",
+                "Updating",
+                "Terminating",
+            ]
+
+            # Query marketplace resources
+            response, _ = self.send_request(
+                "GET", marketplace_url, query_params=query_params
+            )
+
+            if response and len(response) > 0:
+                # Filter to only resources with valid scopes
+                # (Scope is a field value, not a filterable query param)
+                active_resources = [r for r in response if r.get("scope")]
+
+                if len(active_resources) > 1:
+                    self.module.fail_json(
+                        msg=f"Multiple active resources found for name '{self.module.params.get('name')}' in the specified offering. Please ensure resource names are unique."
+                    )
+                    return
+
+                if len(active_resources) == 0:
+                    # No active resources found
+                    self.resource = None
+                    return
+
+                marketplace_resource = active_resources[0]
+                scope_url = marketplace_resource.get("scope")
+
+                # Follow the scope URL to get the actual plugin resource
+                resource, _ = self.send_request("GET", scope_url)
+                if resource:
+                    self.resource = resource
+                    # Important: Attach the marketplace UUID to the resource object
+                    # so that deletion logic can find it later (as deletion often targets the marketplace resource)
+                    self.resource["marketplace_resource_uuid"] = marketplace_resource[
+                        "uuid"
+                    ]
+                    return
+                else:
+                    # Scope URL exists but resource not found? treat as not found.
+                    self.resource = None
+                    return
+            else:
+                self.resource = None
+                return
+
+        # Fallback to standard check_existence if no offering is specified
+        super().check_existence()
+
     def plan_creation(self) -> list:
         """
         Handles the unique workflow for creating a resource via a marketplace order.
