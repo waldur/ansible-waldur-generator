@@ -1,6 +1,7 @@
 import re
 from typing import Dict, Any, List
 from graphlib import TopologicalSorter, CycleError
+import yaml
 
 from ansible_waldur_generator.api_parser import ApiSpecParser
 from ansible_waldur_generator.schema_parser import ReturnBlockGenerator
@@ -587,6 +588,31 @@ class OrderPlugin(BasePlugin):
                     ],
                 },
             )
+
+        # Step 4: Add extra examples from configured files or inline definitions.
+        if module_config.extra_examples:
+            for example_item in module_config.extra_examples:
+                try:
+                    # Case 1: Inline example (dict or list of dicts)
+                    if isinstance(example_item, (dict, list)):
+                        if isinstance(example_item, list):
+                            examples.extend(example_item)
+                        else:
+                            examples.append(example_item)
+                        continue
+
+                    # Case 2: File path (string)
+                    if isinstance(example_item, str):
+                        with open(example_item, "r") as f:
+                            extra_data = yaml.safe_load(f)
+                            if isinstance(extra_data, list):
+                                examples.extend(extra_data)
+                            elif isinstance(extra_data, dict):
+                                examples.append(extra_data)
+                except Exception as e:
+                    print(
+                        f"Warning: Failed to process extra example '{example_item}': {e}"
+                    )
 
         return examples
 

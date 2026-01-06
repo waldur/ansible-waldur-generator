@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Dict, List
+from typing import Dict, List, Any
 
 from ansible_waldur_generator.models import ApiOperation, PluginModuleResolver
 
@@ -64,3 +64,6 @@ class OrderModuleConfig(BaseModel):
     # The query parameter name to use for name-based lookups in check_existence.
     # Defaults to "name_exact". Some API endpoints use different parameter names.
     name_query_param: str = "name_exact"
+
+    # List of paths to external YAML files containing extra examples OR inline dictionaries/lists
+    extra_examples: List[Any] = Field(default_factory=list)
