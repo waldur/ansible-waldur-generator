@@ -159,7 +159,7 @@ interactions:
       authorization:
       - DUMMY
     method: GET
-    uri: http://127.0.0.1:8000/api/openstack-networks/?tenant_uuid=9d80c96ced07443e99a1c810a1d41ba9&name_exact=waldur-dev-farm-int-net
+    uri: http://127.0.0.1:8000/api/openstack-networks/?name_exact=waldur-dev-farm-int-net
   response:
     body:
       string: '[{"url":"http://127.0.0.1:8000/api/openstack-networks/24a91363451349a2b78b2c48bb09e80a/","uuid":"24a91363451349a2b78b2c48bb09e80a","name":"waldur-dev-farm-int-net","description":"","service_name":"UT
@@ -179,8 +179,8 @@ interactions:
       Date:
       - Wed, 31 Dec 2025 08:18:54 GMT
       Link:
-      - <http://127.0.0.1:8000/api/openstack-networks/?name_exact=waldur-dev-farm-int-net&tenant_uuid=9d80c96ced07443e99a1c810a1d41ba9>;
-        rel="first", <http://127.0.0.1:8000/api/openstack-networks/?name_exact=waldur-dev-farm-int-net&tenant_uuid=9d80c96ced07443e99a1c810a1d41ba9>;
+      - <http://127.0.0.1:8000/api/openstack-networks/?name_exact=waldur-dev-farm-int-net>;
+        rel="first", <http://127.0.0.1:8000/api/openstack-networks/?name_exact=waldur-dev-farm-int-net>;
         rel="last"
       Server:
       - WSGIServer/0.2 CPython/3.11.9
