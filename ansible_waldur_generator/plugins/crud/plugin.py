@@ -326,9 +326,10 @@ class CrudPlugin(BasePlugin):
                                 resolved_variant = api_parser.get_schema_by_ref(
                                     variant["$ref"]
                                 )
-                                if resolved_variant.get(
-                                    "type"
-                                ) == "object" or "properties" in resolved_variant:
+                                if (
+                                    resolved_variant.get("type") == "object"
+                                    or "properties" in resolved_variant
+                                ):
                                     variants_are_complex = True
                                     break
                             except (ValueError, KeyError):
