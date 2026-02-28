@@ -714,9 +714,7 @@ class TestSingleValueResolution:
         )
 
         # Assert — should wrap in {"url": "..."}, not return plain string
-        expected = {
-            "url": "http://127.0.0.1:8000/api/openstack-server-groups/sg-123/"
-        }
+        expected = {"url": "http://127.0.0.1:8000/api/openstack-server-groups/sg-123/"}
         assert result == expected
 
     def test_resolve_single_value_object_item_keys_no_match(self):
@@ -754,10 +752,7 @@ class TestSingleValueResolution:
         )
 
         # Assert — should return plain URL since no key for update_action
-        assert (
-            result
-            == "http://127.0.0.1:8000/api/openstack-server-groups/sg-123/"
-        )
+        assert result == "http://127.0.0.1:8000/api/openstack-server-groups/sg-123/"
 
     def test_resolve_single_value_no_results_fails(self):
         """Test that single value resolution fails when no results are found."""
