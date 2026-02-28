@@ -106,7 +106,13 @@ class OrderPlugin(BasePlugin):
         param_spec = {}
 
         # --- Step 2: Determine Ansible Type and Basic Attributes ---
-        param_type = OPENAPI_TO_ANSIBLE_TYPE_MAP.get(p_conf_to_process.type, "str")
+        # If this parameter is resolved by the runner (e.g., server_group), the user
+        # provides a simple string (name/UUID) regardless of the API's expected type.
+        # The resolver converts it to the correct API format at runtime.
+        if p_conf_to_process.is_resolved and p_conf_to_process.type == "object":
+            param_type = "str"
+        else:
+            param_type = OPENAPI_TO_ANSIBLE_TYPE_MAP.get(p_conf_to_process.type, "str")
         param_spec["type"] = param_type
         param_spec["required"] = p_conf_to_process.required
         if p_conf_to_process.choices:
@@ -659,6 +665,26 @@ class OrderPlugin(BasePlugin):
                     type="object",
                     required=(name in required_list),
                 )
+
+        # Handle 'allOf' schema composition (e.g., allOf: [{$ref: '...'}] with writeOnly/description).
+        # Merge all sub-schemas into a single flat schema so the rest of this method
+        # sees the resolved type and properties.
+        if "allOf" in prop:
+            merged = {k: v for k, v in prop.items() if k != "allOf"}
+            for sub_schema in prop["allOf"]:
+                if "$ref" in sub_schema:
+                    try:
+                        resolved = api_parser.get_schema_by_ref(sub_schema["$ref"])
+                    except ValueError:
+                        continue
+                else:
+                    resolved = sub_schema
+                for key, value in resolved.items():
+                    if key == "properties" and isinstance(value, dict):
+                        merged.setdefault("properties", {}).update(value)
+                    elif key not in merged:
+                        merged[key] = value
+            prop = merged
 
         prop_type = prop.get("type")
         if not prop_type and "$ref" in prop:
