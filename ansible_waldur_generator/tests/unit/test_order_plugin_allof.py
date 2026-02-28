@@ -86,9 +86,7 @@ class TestAllOfSchemaResolution:
     ):
         """When a property uses allOf: [{$ref: ...}], the resolved type must be 'object'."""
         prop = {
-            "allOf": [
-                {"$ref": "#/components/schemas/ServerGroupHyperlinkRequest"}
-            ],
+            "allOf": [{"$ref": "#/components/schemas/ServerGroupHyperlinkRequest"}],
             "writeOnly": True,
             "description": "Server group for scheduling policy",
         }
@@ -113,9 +111,7 @@ class TestAllOfSchemaResolution:
     ):
         """Sibling properties (description, writeOnly) alongside allOf are preserved."""
         prop = {
-            "allOf": [
-                {"$ref": "#/components/schemas/ServerGroupHyperlinkRequest"}
-            ],
+            "allOf": [{"$ref": "#/components/schemas/ServerGroupHyperlinkRequest"}],
             "writeOnly": True,
             "description": "Server group for scheduling policy",
         }
