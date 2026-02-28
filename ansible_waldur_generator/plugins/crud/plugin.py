@@ -317,9 +317,24 @@ class CrudPlugin(BasePlugin):
                     # HEURISTIC: If it's a 'oneOf' and we couldn't resolve a concrete type,
                     # check if the variants are objects. If so, treat it as a dictionary.
                     # This fixes the issue where 'attributes' is parsed as a string.
+                    # We must resolve $ref entries first — enum refs like PolicyEnum
+                    # or BlankEnum are simple strings, not complex objects.
                     variants_are_complex = False
                     for variant in resolved_prop["oneOf"]:
-                        if "$ref" in variant or variant.get("type") == "object":
+                        if "$ref" in variant:
+                            try:
+                                resolved_variant = api_parser.get_schema_by_ref(
+                                    variant["$ref"]
+                                )
+                                if resolved_variant.get(
+                                    "type"
+                                ) == "object" or "properties" in resolved_variant:
+                                    variants_are_complex = True
+                                    break
+                            except (ValueError, KeyError):
+                                variants_are_complex = True
+                                break
+                        elif variant.get("type") == "object":
                             variants_are_complex = True
                             break
                     if variants_are_complex:

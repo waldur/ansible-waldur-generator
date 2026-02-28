@@ -1,6 +1,11 @@
+from types import SimpleNamespace
+
 import pytest
-from ansible_waldur_generator.schema_parser import ReturnBlockGenerator
+
+from ansible_waldur_generator.api_parser import ApiSpecParser
+from ansible_waldur_generator.helpers import ValidationErrorCollector
 from ansible_waldur_generator.plugins.crud.plugin import CrudPlugin
+from ansible_waldur_generator.schema_parser import ReturnBlockGenerator
 
 
 class TestOneOfExpansion:
@@ -96,8 +101,6 @@ class TestOneOfExpansion:
         # The logic is in _build_parameters which iterates over 'create_operation.model_schema'.
 
         # Minimal mock of what's passed to _build_parameters logic
-        from types import SimpleNamespace
-
         request_schema = {
             "type": "object",
             "properties": {
@@ -132,6 +135,154 @@ class TestOneOfExpansion:
         assert "attributes" in params
         # This is the key assertion: it should be 'dict', not 'str'
         assert params["attributes"]["type"] == "dict"
+
+    def test_crud_plugin_oneof_enum_refs_stay_str(self):
+        """Test that oneOf with $ref to simple enum schemas keeps type='str', not 'dict'.
+
+        This reproduces the server_group policy bug: the OpenAPI schema for 'policy'
+        uses oneOf with $ref to PolicyEnum and BlankEnum. The heuristic should NOT
+        treat these as complex objects — they are simple string enums.
+        """
+        plugin = CrudPlugin()
+
+        # Simulate the OpenAPI schema for server group: policy uses oneOf with $ref
+        # to PolicyEnum (string enum) and BlankEnum (string enum with '').
+        api_spec = {
+            "components": {
+                "schemas": {
+                    "PolicyEnum": {
+                        "enum": [
+                            "affinity",
+                            "anti-affinity",
+                            "soft-affinity",
+                            "soft-anti-affinity",
+                        ],
+                        "type": "string",
+                    },
+                    "BlankEnum": {
+                        "enum": [""],
+                    },
+                }
+            }
+        }
+
+        api_parser = ApiSpecParser(api_spec, ValidationErrorCollector())
+
+        request_schema = {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "minLength": 1, "maxLength": 150},
+                "description": {"type": "string", "maxLength": 4096},
+                "policy": {
+                    "description": "Server group scheduling policy.",
+                    "oneOf": [
+                        {"$ref": "#/components/schemas/PolicyEnum"},
+                        {"$ref": "#/components/schemas/BlankEnum"},
+                    ],
+                },
+            },
+            "required": ["name"],
+        }
+
+        module_config = SimpleNamespace(
+            create_operation=SimpleNamespace(model_schema=request_schema),
+            parameters={},
+            resolvers={},
+            resource_type="OpenStack server group",
+            path_param_maps={},
+            update_config=None,
+        )
+
+        params = plugin._build_parameters(module_config, api_parser)
+
+        assert "policy" in params
+        # The key assertion: enum refs should produce 'str', NOT 'dict'
+        assert params["policy"]["type"] == "str"
+        # Choices should be correctly extracted from the enum refs
+        assert params["policy"]["choices"] is not None
+        assert "affinity" in params["policy"]["choices"]
+        assert "anti-affinity" in params["policy"]["choices"]
+
+    def test_crud_plugin_oneof_mixed_enum_and_object_refs(self):
+        """Test that oneOf with a mix of enum and object $refs correctly infers 'dict'."""
+        plugin = CrudPlugin()
+
+        api_spec = {
+            "components": {
+                "schemas": {
+                    "SimpleEnum": {
+                        "enum": ["a", "b"],
+                        "type": "string",
+                    },
+                    "ComplexObject": {
+                        "type": "object",
+                        "properties": {"foo": {"type": "string"}},
+                    },
+                }
+            }
+        }
+
+        api_parser = ApiSpecParser(api_spec, ValidationErrorCollector())
+
+        request_schema = {
+            "type": "object",
+            "properties": {
+                "mixed_field": {
+                    "oneOf": [
+                        {"$ref": "#/components/schemas/SimpleEnum"},
+                        {"$ref": "#/components/schemas/ComplexObject"},
+                    ],
+                },
+            },
+        }
+
+        module_config = SimpleNamespace(
+            create_operation=SimpleNamespace(model_schema=request_schema),
+            parameters={},
+            resolvers={},
+            resource_type="TestResource",
+            path_param_maps={},
+            update_config=None,
+        )
+
+        params = plugin._build_parameters(module_config, api_parser)
+
+        assert "mixed_field" in params
+        # If ANY variant is a complex object, the type should be 'dict'
+        assert params["mixed_field"]["type"] == "dict"
+
+    def test_crud_plugin_oneof_unresolvable_ref_defaults_to_dict(self):
+        """Test that oneOf with unresolvable $ref defaults to 'dict' for safety."""
+        plugin = CrudPlugin()
+
+        # Empty spec — refs can't be resolved
+        api_parser = ApiSpecParser({}, ValidationErrorCollector())
+
+        request_schema = {
+            "type": "object",
+            "properties": {
+                "unknown_field": {
+                    "oneOf": [
+                        {"$ref": "#/components/schemas/DoesNotExist"},
+                    ],
+                },
+            },
+        }
+
+        module_config = SimpleNamespace(
+            create_operation=SimpleNamespace(model_schema=request_schema),
+            parameters={},
+            resolvers={},
+            resource_type="TestResource",
+            path_param_maps={},
+            update_config=None,
+        )
+
+        params = plugin._build_parameters(module_config, api_parser)
+
+        assert "unknown_field" in params
+        # Unresolvable refs should be treated as complex (dict) for safety
+        assert params["unknown_field"]["type"] == "dict"
 
     def test_allof_default_handling(self, schema_parser):
         """Test that default values in allOf structures are used for sample generation."""
