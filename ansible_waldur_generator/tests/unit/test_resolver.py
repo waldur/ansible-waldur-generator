@@ -678,6 +678,87 @@ class TestSingleValueResolution:
         expected = {"url": "http://127.0.0.1:8000/api/security-groups/sg-123/"}
         assert result == expected
 
+    def test_resolve_single_value_object_item_keys(self):
+        """Test single value resolution with object_item_keys wraps URL in a dict.
+
+        This covers the case where a non-list resolver maps to an object type
+        (e.g., server_group), which expects {"url": "..."} instead of a plain URL string.
+        """
+        # Arrange
+        mock_runner = Mock()
+        mock_runner.module = Mock()
+        mock_runner.module.params = {}
+        mock_runner.context = {"resolvers": {}}
+
+        resolver = ParameterResolver(mock_runner)
+        resolver._build_dependency_filters = Mock(return_value={})
+        resolver._resolve_to_list = Mock(
+            return_value=[
+                {
+                    "url": "http://127.0.0.1:8000/api/openstack-server-groups/sg-123/",
+                    "name": "my-server-group",
+                }
+            ]
+        )
+
+        resolver_conf = {
+            "url": "/api/openstack-server-groups/",
+            "error_message": "Server group '{value}' not found",
+            "is_list": False,
+            "object_item_keys": {"create": "url"},
+        }
+
+        # Act
+        result = resolver._resolve_single_value(
+            "server_group", "my-server-group", resolver_conf, output_format="create"
+        )
+
+        # Assert — should wrap in {"url": "..."}, not return plain string
+        expected = {
+            "url": "http://127.0.0.1:8000/api/openstack-server-groups/sg-123/"
+        }
+        assert result == expected
+
+    def test_resolve_single_value_object_item_keys_no_match(self):
+        """Test that object_item_keys does not wrap when output_format doesn't match."""
+        # Arrange
+        mock_runner = Mock()
+        mock_runner.module = Mock()
+        mock_runner.module.params = {}
+        mock_runner.context = {"resolvers": {}}
+
+        resolver = ParameterResolver(mock_runner)
+        resolver._build_dependency_filters = Mock(return_value={})
+        resolver._resolve_to_list = Mock(
+            return_value=[
+                {
+                    "url": "http://127.0.0.1:8000/api/openstack-server-groups/sg-123/",
+                    "name": "my-server-group",
+                }
+            ]
+        )
+
+        resolver_conf = {
+            "url": "/api/openstack-server-groups/",
+            "error_message": "Server group '{value}' not found",
+            "is_list": False,
+            "object_item_keys": {"create": "url"},  # Only create has a key
+        }
+
+        # Act — use update_action format which has no object_item_key
+        result = resolver._resolve_single_value(
+            "server_group",
+            "my-server-group",
+            resolver_conf,
+            output_format="update_action",
+        )
+
+        # Assert — should return plain URL since no key for update_action
+        assert (
+            result
+            == "http://127.0.0.1:8000/api/openstack-server-groups/sg-123/"
+        )
+
     def test_resolve_single_value_no_results_fails(self):
         """Test that single value resolution fails when no results are found."""
         # Arrange

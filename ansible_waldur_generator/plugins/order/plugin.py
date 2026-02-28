@@ -320,12 +320,24 @@ class OrderPlugin(BasePlugin):
                                     item_props.keys()
                                 )[0]
 
+            # For non-list resolvers that map to object types (like server_group),
+            # we also need to wrap the resolved URL in a dict (e.g., {"url": "..."}).
+            object_item_keys = {}
+            if (
+                not is_list_resolver
+                and param_config
+                and param_config.type == "object"
+                and param_config.properties
+            ):
+                object_item_keys["create"] = param_config.properties[0].name
+
             resolvers_data[name] = {
                 "url": resolver.list_operation.path if resolver.list_operation else "",
                 "error_message": resolver.error_message,
                 "filter_by": [f.model_dump() for f in resolver.filter_by],
                 "is_list": is_list_resolver,
                 "list_item_keys": list_item_keys,
+                "object_item_keys": object_item_keys,
             }
         return resolvers_data
 

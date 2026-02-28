@@ -360,6 +360,12 @@ class ParameterResolver:
             item_key = list_item_keys.get(output_format)
             if item_key:
                 return {item_key: resolved_object["url"]}
+        else:
+            # For non-list object resolvers (e.g., server_group), wrap the URL in a dict.
+            object_item_keys = resolver_conf.get("object_item_keys", {})
+            item_key = object_item_keys.get(output_format)
+            if item_key:
+                return {item_key: resolved_object["url"]}
 
         return resolved_object["url"]
 
