@@ -245,3 +245,85 @@ class TestFactsRunner:
         )
         mock_ansible_module.fail_json.assert_not_called()
         mock_ansible_module.warn.assert_not_called()
+
+    # --- Scenario 6: many=true follows pagination across all pages ---
+    def test_many_follows_pagination_links(
+        self, mock_ansible_module, mock_facts_runner_context
+    ):
+        """
+        Regression test: with `many: true`, the runner must follow Waldur's
+        'Link' pagination header and return resources from *every* page, not
+        just the first page (default page size 10).
+        """
+        # Arrange
+        mock_facts_runner_context["many"] = True
+        mock_ansible_module.params = {**AUTH_FIXTURE}
+
+        runner = FactsRunner(mock_ansible_module, mock_facts_runner_context)
+
+        page1 = [{"uuid": f"sg-{i}"} for i in range(10)]
+        page2 = [{"uuid": f"sg-{i}"} for i in range(10, 18)]
+        responses = [
+            (
+                page1,
+                '<https://api.example.com/api/security-groups/?page=2>; rel="next", '
+                '<https://api.example.com/api/security-groups/?page=2>; rel="last"',
+            ),
+            (page2, ""),  # No 'next' link -> this is the last page.
+        ]
+        calls = []
+
+        def fake_send_request(
+            method, path, query_params=None, path_params=None, data=None
+        ):
+            calls.append((method, path, query_params))
+            body, link = responses[len(calls) - 1]
+            # Emulate the real send_request recording the response metadata.
+            runner._last_response_info = {"status": 200, "link": link}
+            return body, 200
+
+        runner.send_request = fake_send_request
+
+        # Act
+        runner.run()
+
+        # Assert: every resource across both pages is returned.
+        mock_ansible_module.exit_json.assert_called_once_with(
+            changed=False, resources=page1 + page2
+        )
+        mock_ansible_module.fail_json.assert_not_called()
+
+        # Two requests were made: the first page (filters preserved verbatim,
+        # no extra page-size hint) then the 'next' link followed verbatim.
+        assert len(calls) == 2
+        assert calls[0][1] == "/api/security-groups/"
+        assert calls[1][1] == "https://api.example.com/api/security-groups/?page=2"
+
+    def test_get_next_page_url_parsing(
+        self, mock_ansible_module, mock_facts_runner_context
+    ):
+        """Unit test for the 'Link' header parser used to drive pagination."""
+        runner = FactsRunner(mock_ansible_module, mock_facts_runner_context)
+
+        # A full header exposes a 'next' link.
+        runner._last_response_info = {
+            "link": (
+                '<https://api.example.com/api/x/?page=1>; rel="first", '
+                '<https://api.example.com/api/x/?page=3>; rel="next", '
+                '<https://api.example.com/api/x/?page=9>; rel="last"'
+            )
+        }
+        assert runner._get_next_page_url() == "https://api.example.com/api/x/?page=3"
+
+        # The last page has no 'next' relation.
+        runner._last_response_info = {
+            "link": (
+                '<https://api.example.com/api/x/?page=1>; rel="first", '
+                '<https://api.example.com/api/x/?page=8>; rel="prev"'
+            )
+        }
+        assert runner._get_next_page_url() is None
+
+        # A missing/empty header means there is no further page.
+        runner._last_response_info = {}
+        assert runner._get_next_page_url() is None

@@ -201,5 +201,41 @@ class TestSecurityGroupModule:
         # 2. Ensure the module exited successfully.
         assert exit_result is not None
 
-        # 3. Verify that a change occurred.
-        assert exit_result["resource"] is not None
+        # 3. The facts module returns a list under 'resources' (many: true).
+        #    Filtering by an exact name yields a single matching group.
+        assert exit_result["resources"]
+        assert len(exit_result["resources"]) == 1
+        assert exit_result["resources"][0]["name"] == "E2E-VCR-Test-SG"
+
+    def test_fetch_all_security_groups_paginated(self, auth_params):
+        """
+        Regression test for the pagination bug: when more security groups exist
+        than fit on a single API page (Waldur's default page size is 10), the
+        facts module must follow the 'Link: rel="next"' header and return every
+        group across all pages — not just the first 10.
+
+        The recorded cassette serves two pages (10 + 5 groups); a passing run
+        proves the runner concatenated both pages into a single 15-item result.
+        """
+        # --- ARRANGE ---
+        # No name/tenant filter: list every security group the token can see.
+        user_params = {**auth_params}
+
+        # --- ACT ---
+        exit_result, fail_result = run_module_harness(
+            security_group_facts_module, user_params
+        )
+
+        # --- ASSERT ---
+        assert fail_result is None, f"Module failed unexpectedly with: {fail_result}"
+        assert exit_result is not None
+
+        # Both pages (10 + 5) must be present — the pre-fix behaviour returned 10.
+        resources = exit_result["resources"]
+        assert len(resources) == 15, (
+            f"Expected all 15 groups across both pages, got {len(resources)}. "
+            "Pagination 'Link' header was likely not followed."
+        )
+        # Sanity-check that resources from the second page are included.
+        names = {r["name"] for r in resources}
+        assert "sg-01" in names and "sg-15" in names
