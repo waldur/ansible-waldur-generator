@@ -122,6 +122,17 @@ class FactsRunner(BaseRunner):
                 query_params[param_name] = param_value
 
         # Perform the final API call with the combined dictionary of filters.
+        # When the module returns a list (`many: true`), the result set may span
+        # multiple pages — Waldur paginates list endpoints (default page size 10)
+        # and only the first page is returned by a single request. We must follow
+        # the pagination links to gather every matching resource. For single-item
+        # lookups (`many: false`) the filters are expected to narrow the result to
+        # one page, so a single request is sufficient.
+        if self.context.get("many", False):
+            return self._fetch_all_pages(
+                self.context["list_url"], query_params=query_params
+            )
+
         data, _ = self.send_request(
             "GET", self.context["list_url"], query_params=query_params
         )

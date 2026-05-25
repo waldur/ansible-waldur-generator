@@ -1,0 +1,58 @@
+version: 1
+interactions:
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/openstack-security-groups/
+  response:
+    body:
+      string: '[{"url": "http://127.0.0.1:8000/api/openstack-security-groups/00000000000000000000000000000001/", "uuid": "00000000000000000000000000000001", "name": "sg-01", "state": "OK", "tenant_name": "demo-tenant"}, {"url": "http://127.0.0.1:8000/api/openstack-security-groups/00000000000000000000000000000002/", "uuid": "00000000000000000000000000000002", "name": "sg-02", "state": "OK", "tenant_name": "demo-tenant"}, {"url": "http://127.0.0.1:8000/api/openstack-security-groups/00000000000000000000000000000003/", "uuid": "00000000000000000000000000000003", "name": "sg-03", "state": "OK", "tenant_name": "demo-tenant"}, {"url": "http://127.0.0.1:8000/api/openstack-security-groups/00000000000000000000000000000004/", "uuid": "00000000000000000000000000000004", "name": "sg-04", "state": "OK", "tenant_name": "demo-tenant"}, {"url": "http://127.0.0.1:8000/api/openstack-security-groups/00000000000000000000000000000005/", "uuid": "00000000000000000000000000000005", "name": "sg-05", "state": "OK", "tenant_name": "demo-tenant"}, {"url": "http://127.0.0.1:8000/api/openstack-security-groups/00000000000000000000000000000006/", "uuid": "00000000000000000000000000000006", "name": "sg-06", "state": "OK", "tenant_name": "demo-tenant"}, {"url": "http://127.0.0.1:8000/api/openstack-security-groups/00000000000000000000000000000007/", "uuid": "00000000000000000000000000000007", "name": "sg-07", "state": "OK", "tenant_name": "demo-tenant"}, {"url": "http://127.0.0.1:8000/api/openstack-security-groups/00000000000000000000000000000008/", "uuid": "00000000000000000000000000000008", "name": "sg-08", "state": "OK", "tenant_name": "demo-tenant"}, {"url": "http://127.0.0.1:8000/api/openstack-security-groups/00000000000000000000000000000009/", "uuid": "00000000000000000000000000000009", "name": "sg-09", "state": "OK", "tenant_name": "demo-tenant"}, {"url": "http://127.0.0.1:8000/api/openstack-security-groups/0000000000000000000000000000000a/", "uuid": "0000000000000000000000000000000a", "name": "sg-10", "state": "OK", "tenant_name": "demo-tenant"}]'
+    headers:
+      Content-Type:
+      - application/json; charset=utf-8
+      Link:
+      - <http://127.0.0.1:8000/api/openstack-security-groups/>; rel="first", <http://127.0.0.1:8000/api/openstack-security-groups/?page=2>; rel="next", <http://127.0.0.1:8000/api/openstack-security-groups/?page=2>; rel="last"
+      X-Result-Count:
+      - '15'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8000
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8000/api/openstack-security-groups/?page=2
+  response:
+    body:
+      string: '[{"url": "http://127.0.0.1:8000/api/openstack-security-groups/0000000000000000000000000000000b/", "uuid": "0000000000000000000000000000000b", "name": "sg-11", "state": "OK", "tenant_name": "demo-tenant"}, {"url": "http://127.0.0.1:8000/api/openstack-security-groups/0000000000000000000000000000000c/", "uuid": "0000000000000000000000000000000c", "name": "sg-12", "state": "OK", "tenant_name": "demo-tenant"}, {"url": "http://127.0.0.1:8000/api/openstack-security-groups/0000000000000000000000000000000d/", "uuid": "0000000000000000000000000000000d", "name": "sg-13", "state": "OK", "tenant_name": "demo-tenant"}, {"url": "http://127.0.0.1:8000/api/openstack-security-groups/0000000000000000000000000000000e/", "uuid": "0000000000000000000000000000000e", "name": "sg-14", "state": "OK", "tenant_name": "demo-tenant"}, {"url": "http://127.0.0.1:8000/api/openstack-security-groups/0000000000000000000000000000000f/", "uuid": "0000000000000000000000000000000f", "name": "sg-15", "state": "OK", "tenant_name": "demo-tenant"}]'
+    headers:
+      Content-Type:
+      - application/json; charset=utf-8
+      Link:
+      - <http://127.0.0.1:8000/api/openstack-security-groups/>; rel="first", <http://127.0.0.1:8000/api/openstack-security-groups/>; rel="prev", <http://127.0.0.1:8000/api/openstack-security-groups/?page=2>; rel="last"
+      X-Result-Count:
+      - '15'
+    status:
+      code: 200
+      message: OK
