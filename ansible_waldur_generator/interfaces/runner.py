@@ -283,6 +283,23 @@ class BaseRunner:
 
         status_code = info["status"]
 
+        # Handle connection-level failures that never produced an HTTP response.
+        # `fetch_url` signals these (DNS failure, connection refused, timeout,
+        # dropped VPN, etc.) by returning `response=None` and a synthetic status
+        # of -1. Without this guard such failures would slip past the `>= 400`
+        # check below and fall through to the "empty body" handling, silently
+        # returning an empty list for GET requests. That masks a hard network
+        # error as a legitimate "zero results found" outcome, which is both
+        # misleading and dangerous for callers that act on the emptiness.
+        if status_code < 0:
+            self.module.fail_json(
+                msg=(
+                    f"Request to {url} failed: no response received from the server. "
+                    f"Details: {info.get('msg', 'Unknown connection error.')}"
+                ),
+            )
+            return None, status_code  # Unreachable
+
         # Handle non-successful status codes (e.g., 400, 403, 404, 500).
         if status_code >= 400:
             # As per the `fetch_url` contract, the error response body is located in `info['body']`.

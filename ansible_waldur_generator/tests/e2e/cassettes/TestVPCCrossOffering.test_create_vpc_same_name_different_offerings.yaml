@@ -105,7 +105,7 @@ interactions:
       authorization:
       - DUMMY
     method: GET
-    uri: http://127.0.0.1:8000/api/marketplace-resources/?offering_uuid=7b219a269da4444b98fe4d32a14a9134&project_uuid=8e771ec3625c49329bdb93791ac81b58&name_exact=test-vpc
+    uri: http://127.0.0.1:8000/api/marketplace-resources/?offering_uuid=7b219a269da4444b98fe4d32a14a9134&project_uuid=8e771ec3625c49329bdb93791ac81b58&name_exact=test-vpc&state=OK&state=Erred&state=Creating&state=Updating&state=Terminating
   response:
     body:
       string: '[]'
@@ -291,7 +291,7 @@ interactions:
       authorization:
       - DUMMY
     method: GET
-    uri: http://127.0.0.1:8000/api/marketplace-resources/?offering_uuid=6336f2721bdb46b6b191129e1974d689&project_uuid=8e771ec3625c49329bdb93791ac81b58&name_exact=test-vpc
+    uri: http://127.0.0.1:8000/api/marketplace-resources/?offering_uuid=6336f2721bdb46b6b191129e1974d689&project_uuid=8e771ec3625c49329bdb93791ac81b58&name_exact=test-vpc&state=OK&state=Erred&state=Creating&state=Updating&state=Terminating
   response:
     body:
       string: '[]'

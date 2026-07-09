@@ -328,6 +328,8 @@ interactions:
     method: POST
     uri: http://127.0.0.1:8000/api/marketplace-resources/2b4d46bf5e2840a79f8d86fadf89820d/terminate/
   response:
+    body:
+      string: '{}'
     headers:
       Allow:
       - POST, OPTIONS

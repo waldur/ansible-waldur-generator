@@ -57,7 +57,7 @@ interactions:
       authorization:
       - DUMMY
     method: GET
-    uri: http://127.0.0.1:8000/api/openstack-instances/?name_exact=VCR-test&project_uuid=5573c3487f3b456891409e3b3f906fa5
+    uri: http://127.0.0.1:8000/api/marketplace-resources/?offering_uuid=a19ccd5770f74376b73ebe8ffd8b146a&project_uuid=5573c3487f3b456891409e3b3f906fa5&name_exact=VCR-test&state=OK&state=Erred&state=Creating&state=Updating&state=Terminating
   response:
     body:
       string: '[]'

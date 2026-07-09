@@ -59,7 +59,7 @@ interactions:
       authorization:
       - DUMMY
     method: GET
-    uri: http://127.0.0.1:8000/api/openstack-volumes/?name_exact=E2E+Test+Volume+via+VCR&project_uuid=22d7e03a0d654f98bd45cafd592ce8a2
+    uri: http://127.0.0.1:8000/api/marketplace-resources/?offering_uuid=6d74cdc77ba0447daeed6813f6b01134&project_uuid=22d7e03a0d654f98bd45cafd592ce8a2&name_exact=E2E+Test+Volume+via+VCR&state=OK&state=Erred&state=Creating&state=Updating&state=Terminating
   response:
     body:
       string: '[]'

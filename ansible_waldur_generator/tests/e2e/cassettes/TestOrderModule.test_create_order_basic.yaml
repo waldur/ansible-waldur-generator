@@ -155,7 +155,8 @@ interactions:
     method: POST
     uri: http://127.0.0.1:8000/api/marketplace-orders/
   response:
-    body: {}
+    body:
+      string: '{}'
     headers:
       Content-Language:
       - en
