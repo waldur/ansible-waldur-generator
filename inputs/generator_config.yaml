@@ -477,6 +477,12 @@ collections:
                 operation: "openstack_ports_update_security_groups"
                 param: "security_groups"
                 compare_key: "security_groups"
+              update_port_ip:
+                operation: "openstack_ports_update_port_ip"
+                param: "fixed_ips"
+                compare_key: "fixed_ips"
+        transformations:
+          fixed_ips: "first_element"
         resolvers:
           <<: *tenant_context_resolver
           network:
@@ -485,6 +491,15 @@ collections:
           security_groups:
             base: "openstack_security_groups"
             filter_by: *tenant_filter
+          subnet:
+            base: "openstack_subnets"
+            filter_by: *tenant_filter
+            return_field:
+              create: "backend_id"
+              update_action: "url"
+            object_item_keys:
+              create: "subnet_id"
+              update_action: "subnet"
           target_tenant:
             base: "openstack_tenants"
 

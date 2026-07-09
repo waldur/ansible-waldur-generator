@@ -1,0 +1,148 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8080
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8080/api/openstack-tenants/?name_exact=terraform-e2e-vpc_TtR
+  response:
+    body:
+      string: '[{"url":"http://127.0.0.1:8080/api/openstack-tenants/ccad914afe49465aa4eb96d7b013aa3c/","uuid":"ccad914afe49465aa4eb96d7b013aa3c","name":"terraform-e2e-vpc_TtR","description":"","service_name":"Demo
+        OpenStack","service_settings":"http://127.0.0.1:8080/api/service-settings/aa000000000000000000000000000001/","service_settings_uuid":"aa000000000000000000000000000001","service_settings_state":"OK","service_settings_error_message":"","project":"http://127.0.0.1:8080/api/projects/d77716406a3a4f36856517268e2718f5/","project_name":"terraform-e2e-project","project_uuid":"d77716406a3a4f36856517268e2718f5","customer":"http://127.0.0.1:8080/api/customers/e2e10000000000000000000000000001/","customer_uuid":"e2e10000000000000000000000000001","customer_name":"E2E
+        Organization","customer_native_name":"","customer_abbreviation":"E2E","error_message":"","error_traceback":"","resource_type":"OpenStack.Tenant","state":"OK","created":"2026-07-08T16:42:04.844362+00:00","modified":"2026-07-08T16:42:08.706401+00:00","backend_id":"591e3d45-112c-4b42-8876-581c1ab20d5c","availability_zone":"","internal_network_id":"c77b7e4d-c644-41d9-87e9-af01e66545d1","external_network_id":"","external_network_ref_uuid":null,"external_network_ref_name":"","quotas":[{"name":"port_count","usage":0,"limit":500},{"name":"security_group_rule_count","usage":7,"limit":100},{"name":"network_count","usage":1,"limit":100},{"name":"instances","usage":0,"limit":10},{"name":"vcpu","usage":0,"limit":4},{"name":"storage","usage":0,"limit":51200},{"name":"floating_ip_count","usage":0,"limit":50},{"name":"snapshots","usage":0,"limit":10},{"name":"security_group_count","usage":5,"limit":10},{"name":"ram","usage":0,"limit":4096},{"name":"volumes","usage":0,"limit":10},{"name":"subnet_count","usage":1,"limit":100}],"default_volume_type_name":"","skip_creation_of_default_router":true,"marketplace_offering_uuid":"f3000000000000000000000000000001","marketplace_offering_name":"E2E
+        OpenStack Tenant","marketplace_offering_type":"OpenStack.Tenant","marketplace_offering_plugin_options":{"auto_approve_in_service_provider_projects":true},"marketplace_category_uuid":"e2e30000000000000000000000000001","marketplace_category_name":"Private
+        Clouds","marketplace_resource_uuid":"70899cc67df64cf4a3bd6117a1ce13cc","marketplace_plan_uuid":"b3000000000000000000000000000001","marketplace_resource_state":"OK","is_usage_based":false,"is_limit_based":true}]'
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Connection:
+      - close
+      Content-Language:
+      - en
+      Content-Length:
+      - '2412'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Thu, 09 Jul 2026 13:41:40 GMT
+      Link:
+      - <http://127.0.0.1:8080/api/openstack-tenants/?name_exact=terraform-e2e-vpc_TtR>;
+        rel="first", <http://127.0.0.1:8080/api/openstack-tenants/?name_exact=terraform-e2e-vpc_TtR>;
+        rel="last"
+      Server:
+      - gunicorn
+      Vary:
+      - Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8080
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8080/api/openstack-ports/?name_exact=E2E-VCR-Test-port-new&tenant_uuid=ccad914afe49465aa4eb96d7b013aa3c
+  response:
+    body:
+      string: '[{"url":"http://127.0.0.1:8080/api/openstack-ports/d227d7c0716a47baa4149851ad324f0c/","uuid":"d227d7c0716a47baa4149851ad324f0c","name":"E2E-VCR-Test-port-new","description":"Port
+        created by an end-to-end VCR test.","service_name":"Demo OpenStack","service_settings":"http://127.0.0.1:8080/api/service-settings/aa000000000000000000000000000001/","service_settings_uuid":"aa000000000000000000000000000001","service_settings_state":"OK","service_settings_error_message":"","project":"http://127.0.0.1:8080/api/projects/d77716406a3a4f36856517268e2718f5/","project_name":"terraform-e2e-project","project_uuid":"d77716406a3a4f36856517268e2718f5","customer":"http://127.0.0.1:8080/api/customers/e2e10000000000000000000000000001/","customer_uuid":"e2e10000000000000000000000000001","customer_name":"E2E
+        Organization","customer_native_name":"","customer_abbreviation":"E2E","error_message":"","error_traceback":"","resource_type":"OpenStack.Port","state":"OK","created":"2026-07-09T13:40:59.057896+00:00","modified":"2026-07-09T13:41:39.906242+00:00","backend_id":"76dacef1-2800-488c-901b-6c0be18fdab0","access_url":null,"fixed_ips":[{"subnet_id":"309890d2-1a33-4885-adcd-d1b401c466b4","ip_address":"192.168.42.50"}],"mac_address":"fa:16:3e:47:42:9b","allowed_address_pairs":[],"tenant":"http://127.0.0.1:8080/api/openstack-tenants/ccad914afe49465aa4eb96d7b013aa3c/","tenant_name":"terraform-e2e-vpc_TtR","tenant_uuid":"ccad914afe49465aa4eb96d7b013aa3c","network":"http://127.0.0.1:8080/api/openstack-networks/cd7d4897201b4db3b25dd8361842149c/","network_name":"terraform-e2e-vpc-int-net","network_uuid":"cd7d4897201b4db3b25dd8361842149c","floating_ips":[],"device_id":null,"device_owner":"","port_security_enabled":true,"security_groups":[{"uuid":"393b3a1e021d435ba604e2c98032dd68","name":"ssh","url":"http://127.0.0.1:8080/api/openstack-security-groups/393b3a1e021d435ba604e2c98032dd68/"}],"admin_state_up":true,"status":"ACTIVE","marketplace_offering_uuid":null,"marketplace_offering_name":null,"marketplace_offering_type":null,"marketplace_offering_plugin_options":null,"marketplace_category_uuid":null,"marketplace_category_name":null,"marketplace_resource_uuid":null,"marketplace_plan_uuid":null,"marketplace_resource_state":null,"is_usage_based":null,"is_limit_based":null}]'
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Connection:
+      - close
+      Content-Language:
+      - en
+      Content-Length:
+      - '2271'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Thu, 09 Jul 2026 13:41:40 GMT
+      Link:
+      - <http://127.0.0.1:8080/api/openstack-ports/?name_exact=E2E-VCR-Test-port-new&tenant_uuid=ccad914afe49465aa4eb96d7b013aa3c>;
+        rel="first", <http://127.0.0.1:8080/api/openstack-ports/?name_exact=E2E-VCR-Test-port-new&tenant_uuid=ccad914afe49465aa4eb96d7b013aa3c>;
+        rel="last"
+      Server:
+      - gunicorn
+      Vary:
+      - Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '1'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Connection:
+      - close
+      Content-Type:
+      - application/json
+      Host:
+      - 127.0.0.1:8080
+      User-Agent:
+      - ansible-httpget
+      authorization:
+      - DUMMY
+    method: GET
+    uri: http://127.0.0.1:8080/api/openstack-subnets/?tenant_uuid=ccad914afe49465aa4eb96d7b013aa3c&name_exact=terraform-e2e-vpc-sub-net
+  response:
+    body:
+      string: '[{"url":"http://127.0.0.1:8080/api/openstack-subnets/15d23b63351f44378d0013ad6bef9cc9/","uuid":"15d23b63351f44378d0013ad6bef9cc9","name":"terraform-e2e-vpc-sub-net","description":"SubNet
+        for tenant terraform-e2e-vpc internal network","service_name":"Demo OpenStack","service_settings":"http://127.0.0.1:8080/api/service-settings/aa000000000000000000000000000001/","service_settings_uuid":"aa000000000000000000000000000001","service_settings_state":"OK","service_settings_error_message":"","project":"http://127.0.0.1:8080/api/projects/d77716406a3a4f36856517268e2718f5/","project_name":"terraform-e2e-project","project_uuid":"d77716406a3a4f36856517268e2718f5","customer":"http://127.0.0.1:8080/api/customers/e2e10000000000000000000000000001/","customer_uuid":"e2e10000000000000000000000000001","customer_name":"E2E
+        Organization","customer_native_name":"","customer_abbreviation":"E2E","error_message":"","error_traceback":"","resource_type":"OpenStack.SubNet","state":"OK","created":"2026-07-08T16:42:04.859020+00:00","modified":"2026-07-08T16:42:07.507339+00:00","backend_id":"309890d2-1a33-4885-adcd-d1b401c466b4","access_url":null,"tenant":"http://127.0.0.1:8080/api/openstack-tenants/ccad914afe49465aa4eb96d7b013aa3c/","tenant_name":"terraform-e2e-vpc_TtR","network":"http://127.0.0.1:8080/api/openstack-networks/cd7d4897201b4db3b25dd8361842149c/","network_name":"terraform-e2e-vpc-int-net","cidr":"192.168.42.0/24","gateway_ip":"192.168.42.1","disable_gateway":false,"allocation_pools":{},"ip_version":4,"enable_dhcp":true,"dns_nameservers":[],"host_routes":[],"is_connected":true,"port_security_enabled":true,"marketplace_offering_uuid":null,"marketplace_offering_name":null,"marketplace_offering_type":null,"marketplace_offering_plugin_options":null,"marketplace_category_uuid":null,"marketplace_category_name":null,"marketplace_resource_uuid":null,"marketplace_plan_uuid":null,"marketplace_resource_state":null,"is_usage_based":null,"is_limit_based":null}]'
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Connection:
+      - close
+      Content-Language:
+      - en
+      Content-Length:
+      - '1963'
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Thu, 09 Jul 2026 13:41:40 GMT
+      Link:
+      - <http://127.0.0.1:8080/api/openstack-subnets/?name_exact=terraform-e2e-vpc-sub-net&tenant_uuid=ccad914afe49465aa4eb96d7b013aa3c>;
+        rel="first", <http://127.0.0.1:8080/api/openstack-subnets/?name_exact=terraform-e2e-vpc-sub-net&tenant_uuid=ccad914afe49465aa4eb96d7b013aa3c>;
+        rel="last"
+      Server:
+      - gunicorn
+      Vary:
+      - Accept-Language, Cookie, origin
+      X-Frame-Options:
+      - DENY
+      X-Result-Count:
+      - '1'
+    status:
+      code: 200
+      message: OK
+version: 1

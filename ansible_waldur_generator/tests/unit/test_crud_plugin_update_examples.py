@@ -128,3 +128,136 @@ class TestCrudPluginUpdateExamples:
             # Since update action examples are appended, we should find them
             # The output is YAML, so keys are not quoted like in Python dicts
             assert "rules:" in content
+
+    def test_generate_update_examples_with_object_payload_and_no_wrap(
+        self, temp_output_dir
+    ):
+        config = {
+            "collections": [
+                {
+                    "namespace": "test",
+                    "name": "update_examples",
+                    "version": "1.0.0",
+                    "modules": [
+                        {
+                            "name": "module_update_examples",
+                            "plugin": "crud",
+                            "resource_type": "test_resource",
+                            "base_operation_id": "test_resources",
+                            "update_config": {
+                                "actions": {
+                                    "update_port_ip": {
+                                        "operation": "test_resources_update_port_ip",
+                                        "param": "fixed_ips",
+                                    }
+                                }
+                            },
+                        }
+                    ],
+                }
+            ]
+        }
+        api_spec = {
+            "openapi": "3.0.0",
+            "info": {"title": "Test API", "version": "1.0.0"},
+            "paths": {
+                "/api/test-resources/": {
+                    "get": {
+                        "operationId": "test_resources_list",
+                        "responses": {"200": {"description": "Success"}},
+                    },
+                    "post": {
+                        "operationId": "test_resources_create",
+                        "requestBody": {
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {
+                                            "fixed_ips": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "subnet": {"type": "string"},
+                                                        "ip_address": {"type": "string"},
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "responses": {"201": {"description": "Created"}},
+                    },
+                },
+                "/api/test-resources/{uuid}/": {
+                    "get": {
+                        "operationId": "test_resources_retrieve",
+                        "parameters": [
+                            {"name": "uuid", "in": "path", "required": True}
+                        ],
+                        "responses": {"200": {"description": "Success"}},
+                    },
+                    "delete": {
+                        "operationId": "test_resources_destroy",
+                        "parameters": [
+                            {"name": "uuid", "in": "path", "required": True}
+                        ],
+                        "responses": {"204": {"description": "No Content"}},
+                    },
+                    "patch": {
+                        "operationId": "test_resources_partial_update",
+                        "parameters": [
+                            {"name": "uuid", "in": "path", "required": True}
+                        ],
+                        "responses": {"200": {"description": "Success"}},
+                    },
+                },
+                "/api/test-resources/{uuid}/update_port_ip/": {
+                    "post": {
+                        "operationId": "test_resources_update_port_ip",
+                        "parameters": [
+                            {"name": "uuid", "in": "path", "required": True}
+                        ],
+                        "requestBody": {
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {
+                                            "subnet": {
+                                                "type": "string",
+                                                "format": "uri",
+                                            },
+                                            "ip_address": {
+                                                "type": "string",
+                                                "format": "ipv4",
+                                            }
+                                        },
+                                    }
+                                }
+                            }
+                        },
+                        "responses": {"200": {"description": "Success"}},
+                    },
+                },
+            },
+        }
+
+        generator = Generator(config, api_spec)
+        generator.generate(temp_output_dir)
+
+        module_path = os.path.join(
+            temp_output_dir,
+            "ansible_collections/test/update_examples/plugins/modules/module_update_examples.py",
+        )
+        assert os.path.exists(module_path)
+
+        with open(module_path, "r") as f:
+            content = f.read()
+            assert "Update test_resource - update port ip" in content
+            assert "fixed_ips:" in content
+            assert "subnet:" in content
+            assert "ip_address:" in content

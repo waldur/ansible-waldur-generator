@@ -639,10 +639,14 @@ class BasePlugin(ABC):
                 is_wrapped = False
             elif action_schema_raw.get("type") == "object":
                 # Case 2: The request body is an object containing our parameter.
-                payload_schema_raw = action_schema_raw.get("properties", {}).get(
-                    param_name
-                )
-                is_wrapped = True
+                if param_name in action_schema_raw.get("properties", {}):
+                    payload_schema_raw = action_schema_raw.get("properties", {}).get(
+                        param_name
+                    )
+                    is_wrapped = True
+                else:
+                    payload_schema_raw = None
+                    is_wrapped = False
 
             if payload_schema_raw and payload_schema_raw.get("type") == "array":
                 # Get the schema for the items *within* the array.

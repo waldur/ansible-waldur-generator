@@ -76,7 +76,7 @@ class ParameterResolver:
                 # We make a GET request to that URL to fetch the full object.
                 obj_data, _ = self.runner.send_request("GET", resource[key])
                 if obj_data:
-                    self.cache[key] = obj_data
+                    self._add_to_cache(key, obj_data)
 
     def resolve_to_url(self, param_name: str, value: str) -> str:
         """
@@ -144,11 +144,19 @@ class ParameterResolver:
         # Return the 'url' field from the first matching resource.
         # Cache the full object before returning the URL
         resolved_object = response[0]
-        self.cache[cache_key] = resolved_object
+        self._add_to_cache(cache_key, resolved_object)
         if param_name in self.module.params:
-            self.cache[param_name] = resolved_object
+            self._add_to_cache(param_name, resolved_object)
 
         return resolved_object["url"]
+
+    def _add_to_cache(self, key, obj):
+        self.cache[key] = obj
+        if isinstance(obj, dict):
+            if "url" in obj:
+                self.cache[obj["url"]] = obj
+            if "uuid" in obj:
+                self.cache[obj["uuid"]] = obj
 
     def resolve(
         self, param_name: str, param_value: any, output_format: str = "create"
@@ -176,14 +184,22 @@ class ParameterResolver:
 
         # Case 1: The value is a dictionary (e.g., a single item from a `ports` list).
         if isinstance(param_value, dict):
-            resolved_dict = deepcopy(param_value)
+            resolved_dict = {}
             # Iterate through the dictionary's items and recurse. The dictionary key
             # becomes the new `param_name` context for the next level down.
             for key, value in param_value.items():
                 # Pass the hint down during recursion
-                resolved_dict[key] = self.resolve(
+                resolved_val = self.resolve(
                     key, value, output_format=output_format
                 )
+                resolver_conf_key = self.context.get("resolvers", {}).get(key)
+                if resolver_conf_key:
+                    object_item_keys = resolver_conf_key.get("object_item_keys", {})
+                    mapped_key = object_item_keys.get(output_format)
+                    if mapped_key:
+                        resolved_dict[mapped_key] = resolved_val
+                        continue
+                resolved_dict[key] = resolved_val
             return resolved_dict
 
         # Case 2: The value is a list.
@@ -219,7 +235,7 @@ class ParameterResolver:
                 param_name in self.module.params
                 and (param_name, param_value) in self.cache
             ):
-                self.cache[param_name] = self.cache[(param_name, param_value)]
+                self._add_to_cache(param_name, self.cache[(param_name, param_value)])
             return resolved_value
 
         # If it's a primitive with no resolver, return it unchanged.
@@ -290,12 +306,12 @@ class ParameterResolver:
                 )
                 return None
             # Populate the tuple-key cache to avoid re-fetching this specific item.
-            self.cache[cache_key] = resolved_object
+            self._add_to_cache(cache_key, resolved_object)
 
             # Also populate the simple cache key for dependency lookups
             # if this is a top-level parameter, making the cache robust.
             if param_name in self.module.params:
-                self.cache[param_name] = resolved_object
+                self._add_to_cache(param_name, resolved_object)
 
         # --- Validation Step ---
         # Ensure that the resolved object actually complies with the dependencies
@@ -352,22 +368,30 @@ class ParameterResolver:
         # This is the critical fix: ensure this happens on every call (cache hit or miss)
         # for any top-level parameter, making the cache robust for dependencies.
         if param_name in self.module.params:
-            self.cache[param_name] = resolved_object
+            self._add_to_cache(param_name, resolved_object)
 
         # Step 4: Format the return value based on the resolver's configuration and context hint.
+        return_field_conf = resolver_conf.get("return_field", "url")
+        if isinstance(return_field_conf, dict):
+            return_field = return_field_conf.get(output_format, "url")
+        else:
+            return_field = return_field_conf
+
+        target_val = resolved_object.get(return_field) or resolved_object["url"]
+
         if resolver_conf.get("is_list"):
             list_item_keys = resolver_conf.get("list_item_keys", {})
             item_key = list_item_keys.get(output_format)
             if item_key:
-                return {item_key: resolved_object["url"]}
+                return {item_key: target_val}
         else:
             # For non-list object resolvers (e.g., server_group), wrap the URL in a dict.
             object_item_keys = resolver_conf.get("object_item_keys", {})
             item_key = object_item_keys.get(output_format)
             if item_key:
-                return {item_key: resolved_object["url"]}
+                return {item_key: target_val}
 
-        return resolved_object["url"]
+        return target_val
 
     def _build_dependency_filters(self, name: str, dependencies: list) -> dict:
         """

@@ -79,6 +79,15 @@ class CrudRunner(BaseRunner):
                 # by previous iterations of this loop, to satisfy dependencies.
                 payload[key] = self.resolver.resolve(key, self.module.params[key])
 
+        wait_config = None
+        if self.context.get("wait_config"):
+            wait_config = self.context["wait_config"].copy()
+            wait_config["polling_path"] = self.context["resource_detail_path"]
+            wait_config["uuid_source"] = {
+                "location": "result_body",
+                "key": "uuid",
+            }
+
         return [
             Command(
                 self,
@@ -88,6 +97,7 @@ class CrudRunner(BaseRunner):
                 data=payload,
                 path_params=path_params,
                 description=f"Create new {self.context['resource_type']}",
+                wait_config=wait_config,
             )
         ]
 
@@ -153,6 +163,15 @@ class CrudRunner(BaseRunner):
                     path_params[path_key] = parent_url.strip("/").split("/")[-1]
 
         # --- Step 2: Return the Final Command ---
+        wait_config = None
+        if self.context.get("wait_config"):
+            wait_config = self.context["wait_config"].copy()
+            wait_config["polling_path"] = self.context["resource_detail_path"]
+            wait_config["uuid_source"] = {
+                "location": "resource",
+                "key": "uuid",
+            }
+
         return [
             Command(
                 self,
@@ -161,5 +180,6 @@ class CrudRunner(BaseRunner):
                 command_type="delete",
                 path_params=path_params,
                 description=f"Delete {self.context['resource_type']} '{self.resource.get('name', self.resource.get('uuid'))}'",
+                wait_config=wait_config,
             )
         ]

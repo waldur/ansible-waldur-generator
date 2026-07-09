@@ -92,3 +92,5 @@ class PluginModuleResolver(BaseModel):
     # The query parameter name to use for name-based lookups (defaults to "name_exact").
     # Some API endpoints use different parameter names like "name", "title", etc.
     name_query_param: str = "name_exact"
+    return_field: str | dict[str, str] | None = None
+    object_item_keys: dict[str, str] | None = None

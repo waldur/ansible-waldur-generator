@@ -12,7 +12,10 @@ from .command import Command
 
 # A map of transformation functions, allowing the generator to configure
 # data conversions (e.g., from user-friendly GiB to API-required MiB).
-TRANSFORMATION_MAP = {"gb_to_mb": lambda x: int(x) * 1024}
+TRANSFORMATION_MAP = {
+    "gb_to_mb": lambda x: int(x) * 1024,
+    "first_element": lambda x: x[0] if isinstance(x, list) and x else x,
+}
 
 
 class BaseRunner:
@@ -138,7 +141,8 @@ class BaseRunner:
                 self.order = result
                 self.resource = None  # It doesn't exist yet.
             elif command.command_type == "delete":
-                self.resource = None
+                if not (command.wait_config and self.module.params.get("wait", True)):
+                    self.resource = None
             elif command.command_type == "update" and self.resource and result:
                 self.resource.update(result)
             # For 'action' commands, the resource state is typically updated by the waiter.
@@ -167,6 +171,9 @@ class BaseRunner:
                         msg=f"Could not determine UUID to poll for async action. Source config: {uuid_source_config}"
                     )
 
+            if command.command_type == "delete":
+                self.resource = None
+
     def handle_check_mode(self, plan: list):
         """
         Generates a predictive diff from a change plan and exits.
@@ -177,7 +184,7 @@ class BaseRunner:
         self.exit(commands=[cmd.serialize_request() for cmd in plan])
 
     def send_request(
-        self, method, path, data=None, query_params=None, path_params=None
+        self, method, path, data=None, query_params=None, path_params=None, fail_on_error=True
     ) -> tuple[any, int]:
         """
         A robust, centralized wrapper around Ansible's `fetch_url` utility to
@@ -304,6 +311,9 @@ class BaseRunner:
                     error_details_str = (
                         f"API Response (raw): {error_body.decode(errors='ignore')}"
                     )
+
+            if not fail_on_error:
+                return error_json, status_code
 
             # Construct a comprehensive, user-friendly error message.
             msg = (
@@ -446,7 +456,7 @@ class BaseRunner:
 
         while time.time() - start_time < timeout:
             polled_data, status_code = self.send_request(
-                "GET", polling_path, path_params={"uuid": resource_uuid}
+                "GET", polling_path, path_params={"uuid": resource_uuid}, fail_on_error=False
             )
 
             if status_code == 404:
@@ -477,6 +487,31 @@ class BaseRunner:
         self.module.fail_json(
             msg=f"Timeout waiting for task on resource {resource_uuid} to complete."
         )
+
+    def _normalize_dict_item(self, item: dict, idempotency_keys: list, defaults_map: dict) -> dict:
+        """
+        Normalizes a dictionary item by standardizing keys/values and applying defaults,
+        attempting to resolve UUIDs/URLs of nested references using the resolver cache.
+        """
+        item_to_process = self._apply_defaults(item, defaults_map)
+        normalized_item = {}
+        for k, v in item_to_process.items():
+            norm_k = k[:-3] if k.endswith("_id") else k
+            norm_v = v
+            if isinstance(v, str) and "/" in v:
+                uuid = v.strip("/").split("/")[-1]
+                cached_obj = self.resolver.cache.get(v) or self.resolver.cache.get(uuid)
+                if cached_obj and isinstance(cached_obj, dict) and "backend_id" in cached_obj:
+                    norm_v = cached_obj["backend_id"]
+                else:
+                    norm_v = uuid
+            elif isinstance(v, str) and self._is_uuid(v):
+                cached_obj = self.resolver.cache.get(v)
+                if cached_obj and isinstance(cached_obj, dict) and "backend_id" in cached_obj:
+                    norm_v = cached_obj["backend_id"]
+            normalized_item[norm_k] = norm_v
+        keys_to_use = idempotency_keys or list(normalized_item.keys())
+        return {key: normalized_item.get(key) for key in keys_to_use}
 
     def _normalize_for_comparison(
         self,
@@ -524,10 +559,13 @@ class BaseRunner:
         """
         defaults_map = defaults_map or {}
 
-        # --- Guard Clause 1: Handle Non-List Values ---
-        # This function is designed to normalize lists. If the input is anything else
-        # (e.g., a string, integer, boolean, dict, or None), there is no concept of
-        # "order" to normalize. We return the value as-is immediately.
+        # --- Guard Clause 1: Handle Dictionary Values ---
+        if isinstance(value, dict):
+            return self._normalize_dict_item(value, idempotency_keys, defaults_map)
+
+        # --- Guard Clause 2: Handle Non-List/Non-Dict Values ---
+        # If the input is anything else (e.g., a string, integer, boolean, or None),
+        # there is no concept of order or structure to normalize. We return it as-is.
         if not isinstance(value, list):
             return value
 
@@ -558,23 +596,10 @@ class BaseRunner:
                 if not isinstance(item, dict):
                     return value
 
-                # Apply schema defaults if a schema is available.
-                # We apply this to every item to handle both user input and resource state consistently.
-                item_to_process = self._apply_defaults(item, defaults_map)
-
-                # This is the core of the complex normalization. We create a new, temporary
-                # dictionary containing ONLY the keys that define the object's identity.
-                # This ensures we ignore transient or server-generated fields (like 'uuid'
-                # or 'status') when comparing the user's desired state to the current state.
-                keys_to_use = idempotency_keys or list(item_to_process.keys())
-                filtered_item = {key: item_to_process.get(key) for key in keys_to_use}
+                filtered_item = self._normalize_dict_item(item, idempotency_keys, defaults_map)
 
                 # We now convert this filtered dictionary into a canonical string. This string
                 # is both hashable (so it can be added to a set) and deterministic.
-                #   - `sort_keys=True`: Guarantees that `{'a': 1, 'b': 2}` and `{'b': 2, 'a': 1}`
-                #     produce the exact same string. This is essential.
-                #   - `separators=(",", ":")`: Creates the most compact JSON representation,
-                #     removing any variations in whitespace.
                 canonical_string = json.dumps(
                     filtered_item, sort_keys=True, separators=(",", ":")
                 )
@@ -582,7 +607,7 @@ class BaseRunner:
 
             return canonical_forms
         else:
-            # --- MODE B: List of Simple, Hashable Values (or Fallback) ---
+            # --- MODE B: List of Simple, Hashable Values (or Fallback) -----
             # This branch handles lists of strings, numbers, etc., where a direct
             # conversion to a set is the correct way to make it order-insensitive.
 
@@ -791,11 +816,17 @@ class BaseRunner:
                         temp_filtered_list = []
                         for resource_item in resource_value:
                             if isinstance(resource_item, dict):
-                                filtered_item = {
-                                    k: v
-                                    for k, v in resource_item.items()
-                                    if k in user_provided_keys
-                                }
+                                filtered_item = {}
+                                for k, v in resource_item.items():
+                                    norm_k = k[:-3] if k.endswith("_id") else k
+                                    match_key = None
+                                    if k in user_provided_keys:
+                                        match_key = k
+                                    elif norm_k in user_provided_keys:
+                                        match_key = norm_k
+                                    
+                                    if match_key:
+                                        filtered_item[match_key] = v
                                 temp_filtered_list.append(filtered_item)
                             else:
                                 temp_filtered_list.append(resource_item)
@@ -849,7 +880,27 @@ class BaseRunner:
 
                 # --- 2c. DETECT Change ---
                 # The actual idempotency check: a simple, reliable comparison of the two normalized values.
-                if normalized_new != normalized_old:
+                change_detected = False
+                if isinstance(resolved_payload, dict) and isinstance(resource_value, list):
+                    # Check if the desired dictionary is already present in the list
+                    norm_new = self._normalize_for_comparison(
+                        resolved_payload, idempotency_keys, defaults_map
+                    )
+                    found = False
+                    for item in resource_value:
+                        if isinstance(item, dict):
+                            # Filter the item to only compare keys present in resolved_payload
+                            filtered_item = {k: v for k, v in item.items() if k in resolved_payload}
+                            norm_item = self._normalize_for_comparison(
+                                filtered_item, idempotency_keys, defaults_map
+                            )
+                            if norm_item == norm_new:
+                                found = True
+                                break
+                    change_detected = not found
+                else:
+                    change_detected = normalized_new != normalized_old
+                if change_detected:
                     # --- 2d. GENERATE Command ---
                     # A change was detected. We must create an `ActionCommand` for it.
 

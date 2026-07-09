@@ -403,3 +403,72 @@ class TestCrudRunner:
                 }
             ],
         )
+
+    @patch("ansible_waldur_generator.plugins.crud.runner.CrudRunner.send_request")
+    def test_update_action_dict_to_list_comparison_idempotent(
+        self, mock_send_request, mock_ansible_module, mock_crud_runner_context
+    ):
+        """
+        Tests that when an update action has a dict payload (like update_port_ip)
+        and the resource value is a list of dicts (like fixed_ips), the comparison
+        correctly matches them as equal to preserve idempotency.
+        """
+        from copy import deepcopy
+        # Add custom update action context to simulate port_ip update
+        custom_context = deepcopy(mock_crud_runner_context)
+        custom_context["transformations"] = {
+            "fixed_ips": "first_element"
+        }
+        custom_context["update_actions"] = {
+            "update_port_ip": {
+                "path": "/api/openstack-ports/{uuid}/update_port_ip/",
+                "param": "fixed_ips",
+                "compare_key": "fixed_ips",
+                "maps_to": None,
+                "wrap_in_object": False,
+                "idempotency_keys": [],
+                "defaults_map": {},
+            }
+        }
+        mock_ansible_module.params = {
+            **AUTH_FIXTURE,
+            "state": "present",
+            "name": "my-port",
+            "fixed_ips": [
+                {
+                    "subnet": "http://api.com/api/openstack-subnets/subnet-uuid/",
+                    "ip_address": "10.0.0.5",
+                }
+            ],
+        }
+
+        existing_resource = {
+            "name": "my-port",
+            "uuid": "port-uuid-123",
+            "fixed_ips": [
+                {
+                    "subnet": "http://api.com/api/openstack-subnets/subnet-uuid/",
+                    "ip_address": "10.0.0.5",
+                    "subnet_name": "my-subnet",
+                }
+            ],
+        }
+
+        mock_send_request.side_effect = [
+            (
+                [existing_resource],
+                200,
+            ),  # 1. `check_existence` finds the initial resource.
+        ]
+
+        # --- ACT ---
+        runner = CrudRunner(mock_ansible_module, custom_context)
+        runner.run()
+
+        # --- ASSERT ---
+        mock_ansible_module.fail_json.assert_not_called()
+        mock_ansible_module.exit_json.assert_called_once_with(
+            changed=False,
+            resource=existing_resource,
+            commands=[],
+        )

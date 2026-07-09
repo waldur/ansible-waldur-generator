@@ -155,6 +155,7 @@ class CrudPlugin(BasePlugin):
                 )
             ),
             "composite_keys": conf.composite_keys,
+            "transformations": conf.transformations,
         }
 
         if module_config.wait_config:
@@ -418,16 +419,36 @@ class CrudPlugin(BasePlugin):
                 if (
                     model_schema.get("type") == "object"
                     and "properties" in model_schema
+                    and action_param_name in model_schema["properties"]
                 ):
-                    if action_param_name in model_schema["properties"]:
-                        param_schema = model_schema["properties"][action_param_name]
+                    param_schema = model_schema["properties"][action_param_name]
                 elif model_schema:
                     # Fallback: assume the whole body schema applies if it's not an object with props (e.g. array)
                     param_schema = model_schema
 
-                sample_value = schema_parser._generate_sample_value(
-                    action_param_name, param_schema, module_config.resource_type
-                )
+                resolved_param_schema = schema_parser._resolve_schema(param_schema)
+                if (
+                    resolved_param_schema.get("type") == "object"
+                    and "properties" in resolved_param_schema
+                ):
+                    sample_value = schema_parser.generate_example_from_schema(
+                        resolved_param_schema,
+                        module_config.resource_type,
+                        resolver_keys=list(getattr(module_config, "resolvers", {}).keys()),
+                    )
+                else:
+                    sample_value = schema_parser._generate_sample_value(
+                        action_param_name, resolved_param_schema, module_config.resource_type
+                    )
+
+                # Wrap sample_value in a list if the create schema defines this param as a list
+                if create_schema:
+                    resolved_create_schema = schema_parser._resolve_schema(create_schema)
+                    prop_schema = resolved_create_schema.get("properties", {}).get(action_param_name)
+                    if prop_schema:
+                        resolved_prop_schema = schema_parser._resolve_schema(prop_schema)
+                        if resolved_prop_schema.get("type") == "array":
+                            sample_value = [sample_value]
 
                 update_params = {
                     "state": "present",

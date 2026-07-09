@@ -108,6 +108,9 @@ class CrudModuleConfig(BaseModel):
     # from names/UUIDs to full API URLs. The key is the parameter name.
     resolvers: Dict[str, PluginModuleResolver] = Field(default_factory=dict)
 
+    # A dictionary of value transformations for parameters.
+    transformations: Dict[str, str] = Field(default_factory=dict)
+
     # A list of parameter names that have 'format: uri' but should NOT be treated
     # as needing a resolver. This is an escape hatch for special cases.
     skip_resolver_check: List[str] = Field(default_factory=list)
