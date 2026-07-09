@@ -159,7 +159,7 @@ interactions:
       authorization:
       - DUMMY
     method: GET
-    uri: http://127.0.0.1:8000/api/openstack-subnets/?name_exact=E2E-VCR-Test-Subnet-new&tenant_uuid=9d80c96ced07443e99a1c810a1d41ba9
+    uri: http://127.0.0.1:8000/api/openstack-subnets/?name_exact=E2E-VCR-Test-Subnet-new&network_uuid=24a91363451349a2b78b2c48bb09e80a&tenant_uuid=9d80c96ced07443e99a1c810a1d41ba9
   response:
     body:
       string: '[]'
