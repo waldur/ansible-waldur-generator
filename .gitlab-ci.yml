@@ -9,6 +9,18 @@ cache:
     files:
       - uv.lock
 
+.build_before_script: &build_before_script
+  - echo "[+] Adding SSH keys to the home directory"
+  - mkdir -p ~/.ssh
+  - cat "$SSH_JENKINS_GITHUB_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_rsa
+  - cat "$SSH_JENKINS_GITHUB_PUBLIC_KEY" | tr -d '\r' > ~/.ssh/id_rsa.pub
+  - chmod 600 ~/.ssh/id_rsa
+  - chmod 600 ~/.ssh/id_rsa.pub
+  - ssh-keygen -lf ~/.ssh/id_rsa.pub
+  - ssh-keyscan -H "github.com" >> ~/.ssh/known_hosts
+  - git config --global user.name "$GITLAB_USER_NAME"
+  - git config --global user.email "$GITLAB_USER_EMAIL"
+
 .base_job:
   extends: .download-openapi-schema
   image: registry.hpc.ut.ee/mirror/library/python:3.11-bullseye
@@ -58,7 +70,35 @@ Run unit tests:
 Generate Collection:
   extends: .base_job
   script:
-    - uv run ansible-waldur-generator
+    - apt-get update && apt-get install -y git jq
+    - pip install yq
+    - |
+      if [ -n "$CI_COMMIT_TAG" ]; then
+        RELEASE_VERSION="$CI_COMMIT_TAG"
+        echo "Building stable release version: $RELEASE_VERSION"
+      elif [ -n "$WALDUR_DOCS_VERSION" ]; then
+        RELEASE_VERSION="$WALDUR_DOCS_VERSION"
+        echo "Building stable release version from docs trigger: $RELEASE_VERSION"
+      else
+        git fetch --tags || true
+        LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
+        TIMESTAMP=$(date +%Y%m%d%H%M%S)
+        case "$LATEST_TAG" in
+          *-*) RELEASE_VERSION="${LATEST_TAG}.dev.${TIMESTAMP}" ;;
+          *)   RELEASE_VERSION="${LATEST_TAG}-dev.${TIMESTAMP}" ;;
+        esac
+        echo "Latest stable tag found: $LATEST_TAG"
+        echo "Building development release version: $RELEASE_VERSION"
+      fi
+
+      echo "Updating inputs/generator_config.yaml to version $RELEASE_VERSION"
+      yq -iy '.collections[].version = "'$RELEASE_VERSION'"' inputs/generator_config.yaml
+
+      echo "--- Updated inputs/generator_config.yaml ---"
+      cat inputs/generator_config.yaml
+      echo "-------------------------------------------"
+
+      uv run ansible-waldur-generator --config inputs/generator_config.yaml --api-spec inputs/waldur_api.yaml --output-dir outputs/
   artifacts:
     paths:
       - outputs/
@@ -89,3 +129,261 @@ Test Collection 3.9:
     when: always
     reports:
       junit: e2e_report_3.9.xml
+
+Generate Collection Changelog:
+  stage: deploy
+  extends: .base_job
+  needs:
+    - Generate Collection
+    - Test Collection 3.11
+    - Test Collection 3.9
+  rules:
+    # Run for schedules, web, pipeline triggers, and commits to main
+    - if: '$SKIP_TESTS == "true" || $SKIP_TESTS == "yes"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/'
+    - if: '$CI_PIPELINE_SOURCE == "pipeline"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+  before_script:
+    - apt-get update && apt-get install -y git jq
+  script:
+    - echo "Cloning the Ansible module repository..."
+    - git clone --depth 1 --branch main https://github.com/waldur/ansible-waldur-module-next.git /tmp/ansible-module-old
+    - cd /tmp/ansible-module-old
+
+    - |
+      # Determine version for changelog title and the baseline for comparison
+      if [ -n "$CI_COMMIT_TAG" ]; then
+        VERSION="$CI_COMMIT_TAG"
+      elif [ -n "$WALDUR_DOCS_VERSION" ]; then
+        VERSION="$WALDUR_DOCS_VERSION"
+      else
+        VERSION="develop"
+      fi
+
+      echo "Resolved Version: $VERSION"
+
+      if [ "$VERSION" != "develop" ]; then
+        echo "Finding previous stable tag for comparison."
+        git fetch --tags origin
+        PREVIOUS_TAG=$(git tag --sort=-v:refname | grep -A 1 "$VERSION" | tail -n 1)
+
+        if [ -z "$PREVIOUS_TAG" ] || [ "$PREVIOUS_TAG" == "$VERSION" ]; then
+          echo "Warning: Could not find a previous tag. Will compare against the initial commit."
+          BASELINE_COMMIT=$(git rev-list --max-parents=0 HEAD)
+        else
+          echo "Found previous tag: $PREVIOUS_TAG. Using it as the baseline."
+          BASELINE_COMMIT=$PREVIOUS_TAG
+        fi
+        git checkout $BASELINE_COMMIT
+      else
+        echo "This is a develop branch build. Comparing against the latest main branch."
+      fi
+
+    - cd $CI_PROJECT_DIR
+    - echo "Generating changelogs for version $VERSION..."
+    - |
+      python3 scripts/generate_ansible_changelog.py \
+        /tmp/ansible-module-old/ansible_waldur_module \
+        ${CI_PROJECT_DIR}/outputs \
+        --version "$VERSION" > collection-changelogs.json
+    - echo "--- Generated Changelogs (JSON) ---"
+    - cat collection-changelogs.json
+    - echo "-----------------------------------"
+
+    - |
+      OLD_COLLECTIONS_ROOT="/tmp/ansible-module-old/ansible_waldur_module/ansible_collections"
+      NEW_COLLECTIONS_ROOT="${CI_PROJECT_DIR}/outputs/ansible_collections"
+
+      ALL_COLLECTIONS=""
+      for ROOT in "$OLD_COLLECTIONS_ROOT" "$NEW_COLLECTIONS_ROOT"; do
+        if [ -d "$ROOT" ]; then
+          for DIR in "$ROOT"/*/*; do
+            [ -d "$DIR" ] || continue
+            REL="${DIR#$ROOT/}"
+            echo "$ALL_COLLECTIONS" | grep -qx "$REL" || ALL_COLLECTIONS="$ALL_COLLECTIONS
+      $REL"
+          done
+        fi
+      done
+
+      for RELATIVE_PATH in $ALL_COLLECTIONS; do
+        [ -z "$RELATIVE_PATH" ] && continue
+        COLLECTION_NAME=$(echo "$RELATIVE_PATH" | tr '/' '.')
+        NEW_README="$NEW_COLLECTIONS_ROOT/$RELATIVE_PATH/README.md"
+        OLD_README="$OLD_COLLECTIONS_ROOT/$RELATIVE_PATH/README.md"
+
+        NEW_CHANGELOG=""
+        if [ -s "collection-changelogs.json" ] && [ "$(jq 'length' collection-changelogs.json)" -gt 0 ]; then
+          CONTENT=$(jq -r ".[\"$COLLECTION_NAME\"] // empty" collection-changelogs.json)
+          if [ -n "$CONTENT" ]; then
+            NEW_CHANGELOG="$CONTENT"
+          fi
+        fi
+
+        OLD_CHANGELOG=""
+        if [ -f "$OLD_README" ] && grep -q "^## Breaking Changes for [0-9]" "$OLD_README"; then
+          OLD_CHANGELOG=$(sed -n '/^## Breaking Changes for [0-9]/,/^# Waldur Ansible Collection:/{ /^# Waldur Ansible Collection:/d; p; }' "$OLD_README")
+        fi
+
+        if [ -z "$NEW_CHANGELOG" ] && [ -z "$OLD_CHANGELOG" ]; then
+          continue
+        fi
+
+        [ ! -f "$NEW_README" ] && continue
+
+        echo "Updating README for $COLLECTION_NAME"
+
+        {
+          if [ -n "$NEW_CHANGELOG" ]; then
+            echo "$NEW_CHANGELOG"
+            echo ""
+            echo "---"
+            echo ""
+          fi
+          if [ -n "$OLD_CHANGELOG" ]; then
+            echo "$OLD_CHANGELOG"
+          fi
+          cat "$NEW_README"
+        } > "${NEW_README}.tmp" && mv "${NEW_README}.tmp" "$NEW_README"
+      done
+  artifacts:
+    paths:
+      - outputs/
+    expire_in: 1 day
+
+Upload Collection:
+  stage: postdeploy
+  extends: .base_job
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+      - api_failure
+      - scheduler_failure
+  rules:
+    - if: '$SKIP_TESTS == "true" || $SKIP_TESTS == "yes"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/'
+    - if: '$CI_PIPELINE_SOURCE == "pipeline"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+  image:
+    name: registry.hpc.ut.ee/mirror/alpine/git:latest
+    entrypoint: [""]
+  needs:
+    - Generate Collection Changelog
+  before_script:
+    - *build_before_script
+  script:
+    - cd /tmp/
+    - git clone --depth 1 --branch main git@github.com:waldur/ansible-waldur-module-next.git
+    - cd ansible-waldur-module-next
+    - rm -rf ansible_waldur_module && mkdir -p ansible_waldur_module
+    - cp -a "$CI_PROJECT_DIR/outputs/." ansible_waldur_module/
+
+    - git add ansible_waldur_module/
+
+    - if git diff-index --quiet HEAD --; then
+        echo "No changes to commit. Exiting."
+        exit 0
+      fi
+
+    - |
+      if [ -n "$CI_COMMIT_TAG" ]; then
+        VERSION="$CI_COMMIT_TAG"
+      elif [ -n "$WALDUR_DOCS_VERSION" ]; then
+        VERSION="$WALDUR_DOCS_VERSION"
+      else
+        VERSION=""
+      fi
+
+      if [ -n "$VERSION" ]; then
+        echo "Committing and tagging stable release $VERSION"
+        git commit -m "Release: update modules for version $VERSION"
+        git push origin main
+        git tag -a $VERSION -m "Release $VERSION"
+        git push origin $VERSION
+      else
+        echo "Committing development update"
+        git commit -m "Update Ansible Waldur modules from develop branch"
+        git push origin main
+      fi
+
+Publish Galaxy:
+  stage: postdeploy
+  extends: .base_job
+  rules:
+    - if: '$SKIP_TESTS == "true" || $SKIP_TESTS == "yes"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/'
+    - if: '$CI_PIPELINE_SOURCE == "pipeline"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+  image:
+    name: registry.hpc.ut.ee/mirror/library/python:3.12-bullseye
+  needs:
+    - Generate Collection Changelog
+  before_script:
+    - apt-get update && apt-get install -y jq
+    - pip install yq ansible
+  script:
+    - echo "--- Discovering and Publishing Ansible Collections ---"
+    - COLLECTIONS_ROOT="outputs/ansible_collections"
+
+    - |
+      if [ ! -d "$COLLECTIONS_ROOT" ]; then
+        echo "ERROR: Collections root '$COLLECTIONS_ROOT' not found in artifacts."
+        exit 1
+      fi
+
+    - |
+      find "$COLLECTIONS_ROOT" -name "galaxy.yml" | while read GALAXY_FILE; do
+        COLLECTION_PATH=$(dirname "${GALAXY_FILE}")
+
+        echo "=========================================================="
+        echo "Processing Collection at: ${COLLECTION_PATH}"
+        echo "=========================================================="
+
+        NAMESPACE=$(yq '.namespace' "${GALAXY_FILE}" | tr -d '"')
+        NAME=$(yq '.name' "${GALAXY_FILE}" | tr -d '"')
+        VERSION=$(yq '.version' "${GALAXY_FILE}" | tr -d '"')
+
+        echo "Found Collection: ${NAMESPACE}.${NAME} version ${VERSION}"
+
+        if [ -z "$NAMESPACE" ] || [ -z "$NAME" ] || [ -z "$VERSION" ]; then
+          echo "ERROR: Could not parse details from ${GALAXY_FILE}. Skipping."
+          continue
+        fi
+
+        echo "--- Building collection: ${NAMESPACE}.${NAME} ---"
+        (
+          cd "${COLLECTION_PATH}"
+          ansible-galaxy collection build --force
+        )
+
+        ARCHIVE_FILE_NAME="${NAMESPACE}-${NAME}-${VERSION}.tar.gz"
+        ARCHIVE_FILE_PATH="${COLLECTION_PATH}/${ARCHIVE_FILE_NAME}"
+
+        echo "--- Publishing archive: ${ARCHIVE_FILE_PATH} ---"
+
+        if [ ! -f "${ARCHIVE_FILE_PATH}" ]; then
+          echo "ERROR: Expected archive file not found at ${ARCHIVE_FILE_PATH}. Checking parent directory..."
+          ARCHIVE_FILE_PATH_PARENT="$(dirname "${COLLECTION_PATH}")/${ARCHIVE_FILE_NAME}"
+          if [ -f "${ARCHIVE_FILE_PATH_PARENT}" ]; then
+            ARCHIVE_FILE_PATH="${ARCHIVE_FILE_PATH_PARENT}"
+            echo "Found archive at: ${ARCHIVE_FILE_PATH}"
+          else
+            echo "ERROR: Archive file not found. Skipping."
+            continue
+          fi
+        fi
+
+        ansible-galaxy collection publish --api-key "$ANSIBLE_GALAXY_TOKEN" "${ARCHIVE_FILE_PATH}"
+        echo "Successfully published ${ARCHIVE_FILE_NAME} to Ansible Galaxy."
+        echo ""
+      done
+    - echo "--- All collections processed ---"
