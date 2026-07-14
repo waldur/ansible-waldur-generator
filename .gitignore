@@ -16,3 +16,4 @@
 /.eggs
 /.pytest_cache/
 outputs/
+/inputs/waldur_api.yaml

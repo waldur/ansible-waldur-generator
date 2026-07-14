@@ -1,6 +1,8 @@
 include:
   - project: "waldur/waldur-pipelines"
     file: "/templates/stages.yml"
+  - project: "waldur/waldur-pipelines"
+    file: "/templates/openapi-schema.yml"
 
 cache:
   key:
@@ -8,9 +10,13 @@ cache:
       - uv.lock
 
 .base_job:
+  extends: .download-openapi-schema
   image: registry.hpc.ut.ee/mirror/library/python:3.11-bullseye
   stage: test
   interruptible: true
+  variables:
+    SCHEMA_OUTPUT_PATH: "inputs/waldur_api.yaml"
+    WALDUR_DOCS_VERSION: ""
   rules:
     # Skip tests if said so
     - if: '$SKIP_TESTS == "true" || $SKIP_TESTS == "yes"'
@@ -20,7 +26,10 @@ cache:
     - if: '$CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/'
     # If event is related to a created merge request
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    # If triggered from waldur-docs pipeline
+    - if: '$CI_PIPELINE_SOURCE == "pipeline"'
   before_script:
+    - !reference [.download-openapi-schema, before_script]
     - apt-get update
     - pip install uv
     - uv sync --frozen
