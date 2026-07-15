@@ -1,8 +1,8 @@
 include:
   - project: "waldur/waldur-pipelines"
-    file: "/templates/stages.yml"
+    file: "/templates/utils/release-utils.yml"
   - project: "waldur/waldur-pipelines"
-    file: "/templates/openapi-schema.yml"
+    file: "/templates/stages.yml"
 
 cache:
   key:
@@ -22,13 +22,11 @@ cache:
   - git config --global user.email "$GITLAB_USER_EMAIL"
 
 .base_job:
-  extends: .download-openapi-schema
   image: registry.hpc.ut.ee/mirror/library/python:3.11-bullseye
   stage: test
   interruptible: true
   variables:
-    SCHEMA_OUTPUT_PATH: "inputs/waldur_api.yaml"
-    WALDUR_DOCS_VERSION: ""
+    RELEASE_VERSION: ""
   rules:
     # Skip tests if said so
     - if: '$SKIP_TESTS == "true" || $SKIP_TESTS == "yes"'
@@ -40,8 +38,13 @@ cache:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     # If triggered from waldur-docs pipeline
     - if: '$CI_PIPELINE_SOURCE == "pipeline"'
+  needs:
+    - pipeline: $CI_PARENT_PIPELINE_ID
+      job: Generate OpenAPI schema
+      optional: true
   before_script:
-    - !reference [.download-openapi-schema, before_script]
+    - export OPENAPI_SCHEMA_DEST="inputs/waldur_api.yaml"
+    - !reference [.release-utils, fetch_openapi_schema]
     - apt-get update
     - pip install uv
     - uv sync --frozen
@@ -49,8 +52,7 @@ cache:
 Run linters:
   extends: .base_job
   script:
-    - pip install pre-commit
-    - pre-commit run --all
+    - uvx prek run --all-files
 
 Run unit tests:
   extends: .base_job
@@ -76,8 +78,8 @@ Generate Collection:
       if [ -n "$CI_COMMIT_TAG" ]; then
         RELEASE_VERSION="$CI_COMMIT_TAG"
         echo "Building stable release version: $RELEASE_VERSION"
-      elif [ -n "$WALDUR_DOCS_VERSION" ]; then
-        RELEASE_VERSION="$WALDUR_DOCS_VERSION"
+      elif [ -n "$RELEASE_VERSION" ]; then
+        RELEASE_VERSION="$RELEASE_VERSION"
         echo "Building stable release version from docs trigger: $RELEASE_VERSION"
       else
         git fetch --tags || true
@@ -157,8 +159,8 @@ Generate Collection Changelog:
       # Determine version for changelog title and the baseline for comparison
       if [ -n "$CI_COMMIT_TAG" ]; then
         VERSION="$CI_COMMIT_TAG"
-      elif [ -n "$WALDUR_DOCS_VERSION" ]; then
-        VERSION="$WALDUR_DOCS_VERSION"
+      elif [ -n "$RELEASE_VERSION" ]; then
+        VERSION="$RELEASE_VERSION"
       else
         VERSION="develop"
       fi
@@ -295,8 +297,8 @@ Upload Collection:
     - |
       if [ -n "$CI_COMMIT_TAG" ]; then
         VERSION="$CI_COMMIT_TAG"
-      elif [ -n "$WALDUR_DOCS_VERSION" ]; then
-        VERSION="$WALDUR_DOCS_VERSION"
+      elif [ -n "$RELEASE_VERSION" ]; then
+        VERSION="$RELEASE_VERSION"
       else
         VERSION=""
       fi

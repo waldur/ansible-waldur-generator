@@ -82,7 +82,7 @@ uv run pytest ansible_waldur_generator/tests/unit/
 uv run pytest ansible_waldur_generator/tests/e2e/ --vcr-record=none   # replays VCR cassettes
 
 # Lint (ruff-format + ruff + pymarkdown)
-uv run pre-commit run --all
+uvx prek run --all-files
 ```
 
 Python 3.11+ (CI also smoke-tests the generated collection under 3.9). E2E tests use `pytest-vcr`
@@ -94,7 +94,5 @@ cassettes under `tests/e2e/cassettes/`.
 - **Commits**: `Description [WAL-1234]` (ticket IDs are used, e.g. `[WAL-9970]`, `[ONS-1190]`).
 - **Don't hardcode** service- or field-specific behavior in the generator core — drive it from
   `generator_config.yaml` (resolvers, `base_operation_id`, etc.).
-- **Lint must pass** before pushing (`pre-commit run --all`), and the generated collection must
+- **Lint must pass** before pushing (`uvx prek run --all-files`), and the generated collection must
   still build/test (CI `Generate Collection` → `Test Collection 3.11`/`3.9`).
-</content>
-</invoke>
