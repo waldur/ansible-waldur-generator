@@ -50,6 +50,9 @@ cache:
 
 Run linters:
   extends: .base_job
+  needs: []
+  before_script:
+    - pip install uv
   script:
     - uvx prek run --all-files
 
