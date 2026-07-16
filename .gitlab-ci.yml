@@ -47,6 +47,14 @@ cache:
 Run linters:
   extends: .base_job
   needs: []
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "pipeline"'
+      when: never
+    - if: '$SKIP_TESTS == "true" || $SKIP_TESTS == "yes"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
   before_script:
     - pip install uv
   script:
@@ -55,6 +63,14 @@ Run linters:
 Run unit tests:
   extends: .base_job
   needs: []
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "pipeline"'
+      when: never
+    - if: '$SKIP_TESTS == "true" || $SKIP_TESTS == "yes"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
   before_script:
     - pip install uv
   script:
@@ -124,6 +140,14 @@ Generate Collection:
 Test Collection 3.13:
   extends: .base_job
   needs: ["Generate Collection"]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "pipeline"'
+      when: never
+    - if: '$SKIP_TESTS == "true" || $SKIP_TESTS == "yes"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
   script:
     - uv run pytest ansible_waldur_generator/tests/e2e/ --junitxml=e2e_report.xml --vcr-record=none
   artifacts:
@@ -132,10 +156,19 @@ Test Collection 3.13:
       junit: e2e_report.xml
 
 Test Collection 3.12:
+  extends: .base_job
   image: registry.hpc.ut.ee/mirror/library/python:3.12-bookworm
   stage: test
   interruptible: true
   needs: ["Generate Collection"]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "pipeline"'
+      when: never
+    - if: '$SKIP_TESTS == "true" || $SKIP_TESTS == "yes"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
   before_script:
     - python --version
     - pip install uv
@@ -149,10 +182,19 @@ Test Collection 3.12:
       junit: e2e_report_3.12.xml
 
 Test Collection 3.11:
+  extends: .base_job
   image: registry.hpc.ut.ee/mirror/library/python:3.11-bookworm
   stage: test
   interruptible: true
   needs: ["Generate Collection"]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "pipeline"'
+      when: never
+    - if: '$SKIP_TESTS == "true" || $SKIP_TESTS == "yes"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
   before_script:
     - python --version
     - pip install uv
@@ -166,10 +208,19 @@ Test Collection 3.11:
       junit: e2e_report_3.11.xml
 
 Test Collection 3.9:
+  extends: .base_job
   image: registry.hpc.ut.ee/mirror/library/python:3.9-bullseye
   stage: test
   interruptible: true
   needs: ["Generate Collection"]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "pipeline"'
+      when: never
+    - if: '$SKIP_TESTS == "true" || $SKIP_TESTS == "yes"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
   before_script:
     - python --version
     - pip install uv
