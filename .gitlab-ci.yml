@@ -71,36 +71,14 @@ Run unit tests:
   coverage: '/TOTAL.*\s+(\d+%)$/'
 
 Fetch schema (pipeline):
-  stage: test
-  image: registry.hpc.ut.ee/mirror/alpine/git:latest
-  rules:
-    - if: '$SKIP_TESTS == "true" || $SKIP_TESTS == "yes"'
-      when: never
-    - if: '$CI_PIPELINE_SOURCE == "pipeline"'
-  needs:
-    - pipeline: $CI_PARENT_PIPELINE_ID
-      job: Generate OpenAPI schema
-  script:
-    - mkdir -p inputs
-    - cp waldur-openapi-schema.yaml inputs/waldur_api.yaml
-  artifacts:
-    paths:
-      - inputs/waldur_api.yaml
+  extends: .fetch-schema-pipeline
+  variables:
+    OPENAPI_SCHEMA_DEST: "inputs/waldur_api.yaml"
 
 Fetch schema (independent):
-  stage: test
-  image: registry.hpc.ut.ee/mirror/library/python:3.13-bookworm
-  rules:
-    - if: '$SKIP_TESTS == "true" || $SKIP_TESTS == "yes"'
-      when: never
-    - if: '$CI_PIPELINE_SOURCE != "pipeline"'
-  needs: []
-  script:
-    - export OPENAPI_SCHEMA_DEST="inputs/waldur_api.yaml"
-    - !reference [.release-utils, fetch_openapi_schema]
-  artifacts:
-    paths:
-      - inputs/waldur_api.yaml
+  extends: .fetch-schema-independent
+  variables:
+    OPENAPI_SCHEMA_DEST: "inputs/waldur_api.yaml"
 
 Generate Collection:
   extends: .base_job
