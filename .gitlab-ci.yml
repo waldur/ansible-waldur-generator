@@ -58,6 +58,9 @@ Run linters:
 
 Run unit tests:
   extends: .base_job
+  needs: []
+  before_script:
+    - pip install uv
   script:
     - uv run pytest ansible_waldur_generator/tests/unit/ --junitxml=unit_report.xml --cov=ansible_waldur_generator --cov-report=xml --cov-report=term-missing
   artifacts:
