@@ -38,12 +38,8 @@ cache:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     # If triggered from waldur-docs pipeline
     - if: '$CI_PIPELINE_SOURCE == "pipeline"'
-  needs:
-    - pipeline: $CI_PARENT_PIPELINE_ID
-      job: Generate OpenAPI schema
+  needs: []
   before_script:
-    - export OPENAPI_SCHEMA_DEST="inputs/waldur_api.yaml"
-    - !reference [.release-utils, fetch_openapi_schema]
     - apt-get update
     - pip install uv
     - uv sync --frozen
@@ -74,8 +70,45 @@ Run unit tests:
       - coverage.xml
   coverage: '/TOTAL.*\s+(\d+%)$/'
 
+Fetch schema (pipeline):
+  stage: test
+  image: registry.hpc.ut.ee/mirror/alpine/git:latest
+  rules:
+    - if: '$SKIP_TESTS == "true" || $SKIP_TESTS == "yes"'
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "pipeline"'
+  needs:
+    - pipeline: $CI_PARENT_PIPELINE_ID
+      job: Generate OpenAPI schema
+  script:
+    - mkdir -p inputs
+    - cp waldur-openapi-schema.yaml inputs/waldur_api.yaml
+  artifacts:
+    paths:
+      - inputs/waldur_api.yaml
+
+Fetch schema (independent):
+  stage: test
+  image: registry.hpc.ut.ee/mirror/library/python:3.13-bookworm
+  rules:
+    - if: '$SKIP_TESTS == "true" || $SKIP_TESTS == "yes"'
+      when: never
+    - if: '$CI_PIPELINE_SOURCE != "pipeline"'
+  needs: []
+  script:
+    - export OPENAPI_SCHEMA_DEST="inputs/waldur_api.yaml"
+    - !reference [.release-utils, fetch_openapi_schema]
+  artifacts:
+    paths:
+      - inputs/waldur_api.yaml
+
 Generate Collection:
   extends: .base_job
+  needs:
+    - job: Fetch schema (pipeline)
+      optional: true
+    - job: Fetch schema (independent)
+      optional: true
   script:
     - apt-get update && apt-get install -y git jq
     - pip install yq
