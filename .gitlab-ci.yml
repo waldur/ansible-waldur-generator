@@ -22,7 +22,7 @@ cache:
   - git config --global user.email "$GITLAB_USER_EMAIL"
 
 .base_job:
-  image: registry.hpc.ut.ee/mirror/library/python:3.11-bullseye
+  image: registry.hpc.ut.ee/mirror/library/python:3.13-bookworm
   stage: test
   interruptible: true
   variables:
@@ -104,7 +104,7 @@ Generate Collection:
     paths:
       - outputs/
 
-Test Collection 3.11:
+Test Collection 3.13:
   extends: .base_job
   needs: ["Generate Collection"]
   script:
@@ -113,6 +113,40 @@ Test Collection 3.11:
     when: always
     reports:
       junit: e2e_report.xml
+
+Test Collection 3.12:
+  image: registry.hpc.ut.ee/mirror/library/python:3.12-bookworm
+  stage: test
+  interruptible: true
+  needs: ["Generate Collection"]
+  before_script:
+    - python --version
+    - pip install uv
+    - uv pip install --system "ansible-core" pytest pytest-vcr
+  script:
+    - export PYTHONPATH=$PYTHONPATH:$(pwd):$(pwd)/outputs
+    - pytest ansible_waldur_generator/tests/e2e/ --junitxml=e2e_report_3.12.xml --vcr-record=none
+  artifacts:
+    when: always
+    reports:
+      junit: e2e_report_3.12.xml
+
+Test Collection 3.11:
+  image: registry.hpc.ut.ee/mirror/library/python:3.11-bookworm
+  stage: test
+  interruptible: true
+  needs: ["Generate Collection"]
+  before_script:
+    - python --version
+    - pip install uv
+    - uv pip install --system "ansible-core" pytest pytest-vcr
+  script:
+    - export PYTHONPATH=$PYTHONPATH:$(pwd):$(pwd)/outputs
+    - pytest ansible_waldur_generator/tests/e2e/ --junitxml=e2e_report_3.11.xml --vcr-record=none
+  artifacts:
+    when: always
+    reports:
+      junit: e2e_report_3.11.xml
 
 Test Collection 3.9:
   image: registry.hpc.ut.ee/mirror/library/python:3.9-bullseye
@@ -136,6 +170,8 @@ Generate Collection Changelog:
   extends: .base_job
   needs:
     - Generate Collection
+    - Test Collection 3.13
+    - Test Collection 3.12
     - Test Collection 3.11
     - Test Collection 3.9
   rules:
