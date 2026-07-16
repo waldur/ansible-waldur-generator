@@ -377,7 +377,9 @@ Upload Collection:
     name: registry.hpc.ut.ee/mirror/alpine/git:latest
     entrypoint: [""]
   needs:
-    - Generate Collection Changelog
+    - job: Generate Collection
+    - job: Generate Collection Changelog
+      optional: true
   before_script:
     - *build_before_script
   script:
@@ -425,7 +427,9 @@ Publish Galaxy:
   image:
     name: registry.hpc.ut.ee/mirror/library/python:3.12-bullseye
   needs:
-    - Generate Collection Changelog
+    - job: Generate Collection
+    - job: Generate Collection Changelog
+      optional: true
   before_script:
     - apt-get update && apt-get install -y jq
     - pip install yq ansible
