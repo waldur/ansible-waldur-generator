@@ -240,11 +240,15 @@ Generate Collection Changelog:
   stage: deploy
   extends: .base_job
   needs:
-    - Generate Collection
-    - Test Collection 3.13
-    - Test Collection 3.12
-    - Test Collection 3.11
-    - Test Collection 3.9
+    - job: Generate Collection
+    - job: Test Collection 3.13
+      optional: true
+    - job: Test Collection 3.12
+      optional: true
+    - job: Test Collection 3.11
+      optional: true
+    - job: Test Collection 3.9
+      optional: true
   rules:
     # Run for schedules, web, pipeline triggers, and commits to main
     - if: '$SKIP_TESTS == "true" || $SKIP_TESTS == "yes"'
