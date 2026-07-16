@@ -114,14 +114,17 @@ Generate Collection:
         RELEASE_VERSION="$RELEASE_VERSION"
         echo "Building stable release version from docs trigger: $RELEASE_VERSION"
       else
-        git fetch --tags || true
-        LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
+        API_VERSION=$(yq -r '.info.version // empty' inputs/waldur_api.yaml 2>/dev/null || echo "0.0.0")
+        if [ "$API_VERSION" = "0.0.0" ]; then
+          git fetch --tags || true
+          API_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
+        fi
         TIMESTAMP=$(date +%Y%m%d%H%M%S)
-        case "$LATEST_TAG" in
-          *-*) RELEASE_VERSION="${LATEST_TAG}.dev.${TIMESTAMP}" ;;
-          *)   RELEASE_VERSION="${LATEST_TAG}-dev.${TIMESTAMP}" ;;
+        case "$API_VERSION" in
+          *-*) RELEASE_VERSION="${API_VERSION}.dev.${TIMESTAMP}" ;;
+          *)   RELEASE_VERSION="${API_VERSION}-dev.${TIMESTAMP}" ;;
         esac
-        echo "Latest stable tag found: $LATEST_TAG"
+        echo "Base API version resolved: $API_VERSION"
         echo "Building development release version: $RELEASE_VERSION"
       fi
 
