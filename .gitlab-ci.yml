@@ -86,23 +86,16 @@ Run unit tests:
       - coverage.xml
   coverage: '/TOTAL.*\s+(\d+%)$/'
 
-Fetch schema (pipeline):
-  extends: .fetch-schema-pipeline
-  variables:
-    OPENAPI_SCHEMA_DEST: "inputs/waldur_api.yaml"
-
-Fetch schema (independent):
-  extends: .fetch-schema-independent
+Fetch OpenAPI schema:
+  extends: .fetch-openapi-schema
   variables:
     OPENAPI_SCHEMA_DEST: "inputs/waldur_api.yaml"
 
 Generate Collection:
   extends: .base_job
   needs:
-    - job: Fetch schema (pipeline)
-      optional: true
-    - job: Fetch schema (independent)
-      optional: true
+    - job: Fetch OpenAPI schema
+      artifacts: true
   script:
     - apt-get update && apt-get install -y git jq
     - pip install yq
