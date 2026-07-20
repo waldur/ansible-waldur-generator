@@ -38,6 +38,8 @@ cache:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     # If triggered from waldur-docs pipeline
     - if: '$CI_PIPELINE_SOURCE == "pipeline"'
+    # Manually triggered via CI/CD -> Run pipeline
+    - if: '$CI_PIPELINE_SOURCE == "web"'
   needs: []
   before_script:
     - apt-get update
