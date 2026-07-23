@@ -56,9 +56,11 @@ cache:
     - pip install uv
     - uv sync --frozen
 
-Run linters:
-  extends: .base_job
-  needs: []
+# Shared gating for repo test jobs (linters, unit, collection tests): run on
+# main, semver tags and MRs; never on docs-triggered (pipeline) runs or when
+# SKIP_TESTS is set. Referenced via `!reference` to keep a single source of truth
+# instead of copying this block into every test job.
+.test_rules:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "pipeline"'
       when: never
@@ -67,6 +69,11 @@ Run linters:
     - if: '$CI_COMMIT_BRANCH == "main"'
     - if: '$CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/'
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
+Run linters:
+  extends: .base_job
+  needs: []
+  rules: !reference [.test_rules, rules]
   before_script:
     - pip install uv
   script:
@@ -75,14 +82,7 @@ Run linters:
 Run unit tests:
   extends: .base_job
   needs: []
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "pipeline"'
-      when: never
-    - if: '$SKIP_TESTS == "true" || $SKIP_TESTS == "yes"'
-      when: never
-    - if: '$CI_COMMIT_BRANCH == "main"'
-    - if: '$CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/'
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  rules: !reference [.test_rules, rules]
   before_script:
     - pip install uv
   script:
@@ -154,17 +154,11 @@ Generate Collection:
     paths:
       - outputs/
 
+# Primary e2e run in the generator's own environment (requires Python >=3.11).
 Test Collection 3.13:
   extends: .base_job
   needs: ["Generate Collection"]
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "pipeline"'
-      when: never
-    - if: '$SKIP_TESTS == "true" || $SKIP_TESTS == "yes"'
-      when: never
-    - if: '$CI_COMMIT_BRANCH == "main"'
-    - if: '$CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/'
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  rules: !reference [.test_rules, rules]
   script:
     - uv run pytest ansible_waldur_generator/tests/e2e/ --junitxml=e2e_report.xml --vcr-record=none
   artifacts:
@@ -172,83 +166,37 @@ Test Collection 3.13:
     reports:
       junit: e2e_report.xml
 
-Test Collection 3.12:
+# Compatibility smoke-test of the GENERATED collection under older interpreters
+# with only ansible-core installed. The generator itself requires Python >=3.11,
+# so these deliberately do NOT `uv sync` — they mirror a real end-user runtime.
+# One matrix cell per interpreter; add a version by adding a matrix entry.
+Test Collection compat:
   extends: .base_job
-  image: registry.hpc.ut.ee/mirror/library/python:3.12-bookworm
-  stage: test
-  interruptible: true
+  image: "$IMAGE"
   needs: ["Generate Collection"]
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "pipeline"'
-      when: never
-    - if: '$SKIP_TESTS == "true" || $SKIP_TESTS == "yes"'
-      when: never
-    - if: '$CI_COMMIT_BRANCH == "main"'
-    - if: '$CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/'
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  rules: !reference [.test_rules, rules]
+  parallel:
+    matrix:
+      - PYTHON_VERSION: "3.12"
+        IMAGE: "registry.hpc.ut.ee/mirror/library/python:3.12-bookworm"
+        ANSIBLE_CORE: "ansible-core"
+      - PYTHON_VERSION: "3.11"
+        IMAGE: "registry.hpc.ut.ee/mirror/library/python:3.11-bookworm"
+        ANSIBLE_CORE: "ansible-core"
+      - PYTHON_VERSION: "3.9"
+        IMAGE: "registry.hpc.ut.ee/mirror/library/python:3.9-bullseye"
+        ANSIBLE_CORE: "ansible-core<2.16"
   before_script:
     - python --version
     - pip install uv
-    - uv pip install --system "ansible-core" pytest pytest-vcr
+    - uv pip install --system "$ANSIBLE_CORE" pytest pytest-vcr
   script:
     - export PYTHONPATH=$PYTHONPATH:$(pwd):$(pwd)/outputs
-    - pytest ansible_waldur_generator/tests/e2e/ --junitxml=e2e_report_3.12.xml --vcr-record=none
+    - pytest ansible_waldur_generator/tests/e2e/ --junitxml="e2e_report_${PYTHON_VERSION}.xml" --vcr-record=none
   artifacts:
     when: always
     reports:
-      junit: e2e_report_3.12.xml
-
-Test Collection 3.11:
-  extends: .base_job
-  image: registry.hpc.ut.ee/mirror/library/python:3.11-bookworm
-  stage: test
-  interruptible: true
-  needs: ["Generate Collection"]
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "pipeline"'
-      when: never
-    - if: '$SKIP_TESTS == "true" || $SKIP_TESTS == "yes"'
-      when: never
-    - if: '$CI_COMMIT_BRANCH == "main"'
-    - if: '$CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/'
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-  before_script:
-    - python --version
-    - pip install uv
-    - uv pip install --system "ansible-core" pytest pytest-vcr
-  script:
-    - export PYTHONPATH=$PYTHONPATH:$(pwd):$(pwd)/outputs
-    - pytest ansible_waldur_generator/tests/e2e/ --junitxml=e2e_report_3.11.xml --vcr-record=none
-  artifacts:
-    when: always
-    reports:
-      junit: e2e_report_3.11.xml
-
-Test Collection 3.9:
-  extends: .base_job
-  image: registry.hpc.ut.ee/mirror/library/python:3.9-bullseye
-  stage: test
-  interruptible: true
-  needs: ["Generate Collection"]
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "pipeline"'
-      when: never
-    - if: '$SKIP_TESTS == "true" || $SKIP_TESTS == "yes"'
-      when: never
-    - if: '$CI_COMMIT_BRANCH == "main"'
-    - if: '$CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/'
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-  before_script:
-    - python --version
-    - pip install uv
-    - uv pip install --system "ansible-core<2.16" pytest pytest-vcr
-  script:
-    - export PYTHONPATH=$PYTHONPATH:$(pwd):$(pwd)/outputs
-    - pytest ansible_waldur_generator/tests/e2e/ --junitxml=e2e_report_3.9.xml --vcr-record=none
-  artifacts:
-    when: always
-    reports:
-      junit: e2e_report_3.9.xml
+      junit: "e2e_report_${PYTHON_VERSION}.xml"
 
 Generate Collection Changelog:
   stage: deploy
