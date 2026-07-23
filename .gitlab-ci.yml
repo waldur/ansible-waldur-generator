@@ -4,10 +4,20 @@ include:
   - project: "waldur/waldur-pipelines"
     file: "/templates/stages.yml"
 
+variables:
+  # Give uv a project-relative cache dir so the cache: block below actually
+  # persists it across jobs (uv's default cache is outside $CI_PROJECT_DIR and
+  # cannot be cached by GitLab).
+  UV_CACHE_DIR: .uv-cache
+
 cache:
   key:
     files:
       - uv.lock
+  # Without `paths:` this cache block was a no-op — nothing was ever stored or
+  # restored, so every job re-ran `pip install uv` + `uv sync` cold.
+  paths:
+    - .uv-cache
 
 .build_before_script: &build_before_script
   - echo "[+] Adding SSH keys to the home directory"
@@ -90,6 +100,15 @@ Run unit tests:
 
 Fetch OpenAPI schema:
   extends: .fetch-openapi-schema
+  # Transient upstream 404/5xx from the waldur-docs repository tree API used to
+  # hard-fail the whole pipeline with no retry budget.
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+      - api_failure
+      - script_failure
   variables:
     OPENAPI_SCHEMA_DEST: "inputs/waldur_api.yaml"
 
@@ -412,6 +431,16 @@ Upload Collection:
 Publish Galaxy:
   stage: postdeploy
   extends: .base_job
+  # galaxy.ansible.com intermittently returns HTTP 500 on publish, which surfaces
+  # as a script_failure and was the dominant pipeline false-red (~28% of runs on
+  # main). Retry the transient publish instead of reding the whole pipeline.
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+      - api_failure
+      - script_failure
   rules:
     - if: '$SKIP_TESTS == "true" || $SKIP_TESTS == "yes"'
       when: never
