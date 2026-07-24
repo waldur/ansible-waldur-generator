@@ -133,6 +133,13 @@ Generate Collection:
           git fetch --tags || true
           API_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
         fi
+        # The schema's info.version already carries a dev stamp when it comes
+        # from a mastermind develop build (e.g. 8.1.0-rc.18.dev.20260724073821).
+        # Stamping it a second time pushes the version past the 32 characters
+        # Galaxy stores it in, which surfaces only as an opaque HTTP 500 at
+        # publish time, so drop any stamp that is already there.
+        API_VERSION="${API_VERSION%%.dev.*}"
+        API_VERSION="${API_VERSION%%-dev.*}"
         TIMESTAMP=$(date +%Y%m%d%H%M%S)
         case "$API_VERSION" in
           *-*) RELEASE_VERSION="${API_VERSION}.dev.${TIMESTAMP}" ;;
@@ -140,6 +147,13 @@ Generate Collection:
         esac
         echo "Base API version resolved: $API_VERSION"
         echo "Building development release version: $RELEASE_VERSION"
+      fi
+
+      # Fail here rather than at publish time, where exceeding Galaxy's limit
+      # is reported as an unexplained server error.
+      if [ ${#RELEASE_VERSION} -gt 32 ]; then
+        echo "ERROR: version '$RELEASE_VERSION' is ${#RELEASE_VERSION} characters; Ansible Galaxy accepts at most 32." >&2
+        exit 1
       fi
 
       echo "Updating inputs/generator_config.yaml to version $RELEASE_VERSION"
