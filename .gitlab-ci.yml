@@ -89,6 +89,7 @@ Run unit tests:
     - uv run pytest ansible_waldur_generator/tests/unit/ --junitxml=unit_report.xml --cov=ansible_waldur_generator --cov-report=xml --cov-report=term-missing
   artifacts:
     when: always
+    expire_in: 1 week
     reports:
       junit: unit_report.xml
       coverage_report:
@@ -165,6 +166,8 @@ Generate Collection:
 
       uv run ansible-waldur-generator --config inputs/generator_config.yaml --api-spec inputs/waldur_api.yaml --output-dir outputs/
   artifacts:
+    # Consumed by the downstream 'Test Collection *' jobs via needs:.
+    expire_in: 1 week
     paths:
       - outputs/
 
@@ -177,6 +180,7 @@ Test Collection 3.13:
     - uv run pytest ansible_waldur_generator/tests/e2e/ --junitxml=e2e_report.xml --vcr-record=none
   artifacts:
     when: always
+    expire_in: 1 week
     reports:
       junit: e2e_report.xml
 
@@ -209,6 +213,7 @@ Test Collection compat:
     - pytest ansible_waldur_generator/tests/e2e/ --junitxml="e2e_report_${PYTHON_VERSION}.xml" --vcr-record=none
   artifacts:
     when: always
+    expire_in: 1 week
     reports:
       junit: "e2e_report_${PYTHON_VERSION}.xml"
 
