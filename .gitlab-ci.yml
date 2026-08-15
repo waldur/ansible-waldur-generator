@@ -251,7 +251,20 @@ Generate Collection Changelog:
       if [ "$VERSION" != "develop" ]; then
         echo "Finding previous stable tag for comparison."
         git fetch --tags origin
-        PREVIOUS_TAG=$(git tag --sort=-v:refname | grep -A 1 "$VERSION" | tail -n 1)
+        # `grep` exits 1 when $VERSION is not among this repo's tags, and job
+        # scripts run under `set -e` with pipefail, so the unguarded pipeline
+        # aborted the job before the fallback below could run — that is what
+        # failed the 8.1.0 release here. A missing $VERSION is the normal case,
+        # not an error: ansible-waldur-module-next is tagged separately and
+        # lags the platform release (its highest tag is 7.8.7).
+        PREVIOUS_TAG=$(git tag --sort=-v:refname | grep -A 1 -x -F "$VERSION" | tail -n 1 || true)
+
+        if [ -z "$PREVIOUS_TAG" ] || [ "$PREVIOUS_TAG" == "$VERSION" ]; then
+          # $VERSION is not tagged here, so fall back to the highest tag below
+          # it. Diffing against the initial commit instead would report every
+          # module in the collection as newly added.
+          PREVIOUS_TAG=$(git tag --sort=-v:refname | grep -v -x -F "$VERSION" | head -n 1 || true)
+        fi
 
         if [ -z "$PREVIOUS_TAG" ] || [ "$PREVIOUS_TAG" == "$VERSION" ]; then
           echo "Warning: Could not find a previous tag. Will compare against the initial commit."
