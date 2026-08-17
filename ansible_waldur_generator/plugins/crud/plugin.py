@@ -350,6 +350,19 @@ class CrudPlugin(BasePlugin):
                     "choices": choices,
                 }
 
+                # A schema default has to reach argument_spec, not just the docs.
+                # Without it the module reports the field as defaulted while
+                # sending None, and anything that reads the value back -- a
+                # composite-key lookup, say -- sees nothing and fails on a
+                # parameter the user was told they could omit.
+                #
+                # Read from the unresolved property: a default sits alongside
+                # the allOf/$ref composition that carries the enum, not inside
+                # the referenced schema.
+                default = prop.get("default", resolved_prop.get("default"))
+                if default is not None:
+                    params[name]["default"] = default
+
         # 7. Add parameters required for any special update actions.
         if conf.update_config:
             for action_key, action_conf in conf.update_config.actions.items():
