@@ -253,7 +253,7 @@ interactions:
       authorization:
       - DUMMY
     method: GET
-    uri: http://127.0.0.1:8000/api/openstack-network-rbac-policies/?network_uuid=24a91363451349a2b78b2c48bb09e80a&target_tenant_uuid=05e5dc3d75c74b969bbd794f6f8ce1c2
+    uri: http://127.0.0.1:8000/api/openstack-network-rbac-policies/?network_uuid=24a91363451349a2b78b2c48bb09e80a&target_tenant_uuid=05e5dc3d75c74b969bbd794f6f8ce1c2&policy_type=access_as_shared
   response:
     body:
       string: '[]'

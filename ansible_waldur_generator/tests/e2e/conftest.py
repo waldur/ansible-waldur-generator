@@ -19,10 +19,22 @@ def run_module_harness(ansible_module, module_params):
     """
     results = {"exit_json": None, "fail_json": None}
 
+    # Real Ansible fills unsupplied parameters from argument_spec defaults before
+    # the module sees them. Handing over the raw dict instead left every
+    # defaulted field as None here, so a module could pass its tests while
+    # behaving differently under Ansible -- and a missing default in
+    # argument_spec, which breaks a real run, was invisible.
+    effective_params = {
+        name: spec["default"]
+        for name, spec in getattr(ansible_module, "ARGUMENT_SPEC", {}).items()
+        if "default" in spec
+    }
+    effective_params.update(module_params)
+
     # Patch AnsibleModule within the specific module's namespace
     with patch.object(ansible_module, "AnsibleModule") as mock_ansible_module_class:
         mock_module_instance = MagicMock()
-        mock_module_instance.params = module_params
+        mock_module_instance.params = effective_params
         mock_module_instance.check_mode = False
         mock_module_instance.exit_json.side_effect = lambda **kwargs: results.update(
             exit_json=kwargs

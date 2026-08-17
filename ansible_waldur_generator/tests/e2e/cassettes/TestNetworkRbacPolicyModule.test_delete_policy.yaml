@@ -253,7 +253,7 @@ interactions:
       authorization:
       - DUMMY
     method: GET
-    uri: http://127.0.0.1:8000/api/openstack-network-rbac-policies/?network_uuid=24a91363451349a2b78b2c48bb09e80a&target_tenant_uuid=05e5dc3d75c74b969bbd794f6f8ce1c2
+    uri: http://127.0.0.1:8000/api/openstack-network-rbac-policies/?network_uuid=24a91363451349a2b78b2c48bb09e80a&target_tenant_uuid=05e5dc3d75c74b969bbd794f6f8ce1c2&policy_type=access_as_shared
   response:
     body:
       string: '[{"url":"http://127.0.0.1:8000/api/openstack-network-rbac-policies/5f41c51ec2e74f7dbb1924cb58be028d/","uuid":"5f41c51ec2e74f7dbb1924cb58be028d","network":"http://127.0.0.1:8000/api/openstack-networks/24a91363451349a2b78b2c48bb09e80a/","network_name":"waldur-dev-farm-int-net","target_tenant":"http://127.0.0.1:8000/api/openstack-tenants/05e5dc3d75c74b969bbd794f6f8ce1c2/","target_tenant_name":"91809","backend_id":"ffa5b004-e2ff-42d5-aade-bf2aca38cf3b","policy_type":"access_as_shared","created":"2025-12-31T08:18:54.158064+00:00"}]'

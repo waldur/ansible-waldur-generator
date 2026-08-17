@@ -401,7 +401,11 @@ collections:
         resource_type: "OpenStack network RBAC policy"
         description: "Manage OpenStack Network RBAC policies in Waldur."
         base_operation_id: "openstack_network_rbac_policies"
-        composite_keys: ["network", "target_tenant"]
+        # Must mirror the backend's uniqueness, which is
+        # (network, target_tenant, policy_type). Keyed on the pair alone, asking
+        # for access_as_external where access_as_shared already exists matched
+        # the existing row, reported changed=false and created nothing.
+        composite_keys: ["network", "target_tenant", "policy_type"]
         resolvers:
           tenant:
             base: "openstack_tenants"
