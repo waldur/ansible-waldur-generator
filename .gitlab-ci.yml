@@ -3,6 +3,8 @@ include:
     file: "/templates/utils/release-utils.yml"
   - project: "waldur/waldur-pipelines"
     file: "/templates/stages.yml"
+  - project: "waldur/waldur-pipelines"
+    file: "/templates/test/license-scan.yml"
 
 variables:
   # Give uv a project-relative cache dir so the cache: block below actually
@@ -500,3 +502,16 @@ Publish Galaxy:
         echo ""
       done
     - echo "--- All collections processed ---"
+
+# Fails when a dependency arrives under a licence Waldur cannot ship — strong
+# copyleft (GPL, AGPL), source-available (SSPL, BUSL, Elastic) or non-OSI
+# use-restricted (Hippocratic, JSON). LGPL and MPL pass but stay listed in the
+# job artifact. See waldur/waldur-mastermind#285.
+#
+# This job fails today, on purpose: `ansible` is GPL-3.0-or-later while this
+# package declares MIT. That conflict is #2, and it is a licensing decision
+# rather than a dependency to remove — an Ansible module cannot be written
+# without `AnsibleModule`. allow_failure stays inherited as true until #2 is
+# resolved one way or the other.
+Check dependency licences:
+  extends: .Licence gate (python) template
