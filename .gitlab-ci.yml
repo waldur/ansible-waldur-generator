@@ -508,10 +508,9 @@ Publish Galaxy:
 # use-restricted (Hippocratic, JSON). LGPL and MPL pass but stay listed in the
 # job artifact. See waldur/waldur-mastermind#285.
 #
-# This job fails today, on purpose: `ansible` is GPL-3.0-or-later while this
-# package declares MIT. That conflict is #2, and it is a licensing decision
-# rather than a dependency to remove — an Ansible module cannot be written
-# without `AnsibleModule`. allow_failure stays inherited as true until #2 is
-# resolved one way or the other.
+# This package and the generated collections are GPL-3.0-or-later (they cannot
+# exist without `AnsibleModule` from GPL-licensed ansible-core), so GPL
+# dependencies are compatible and the gate is enforced.
 Check dependency licences:
   extends: .Licence gate (python) template
+  allow_failure: false

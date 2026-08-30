@@ -102,4 +102,8 @@ These guides explain the internal architecture and testing strategy of the gener
 
 ## License
 
-This project is licensed under the MIT License. See the LICENSE file for details.
+Copyright (C) 2026 OpenNode OÜ
+
+This project is free software: you can redistribute it and/or modify it under the terms of the
+GNU General Public License as published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version (GPL-3.0-or-later). See the LICENSE file for details.

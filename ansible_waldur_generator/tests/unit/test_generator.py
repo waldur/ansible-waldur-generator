@@ -188,6 +188,13 @@ class TestGenerator:
             assert galaxy_content["namespace"] == "test"
             assert galaxy_content["name"] == "collection"
             assert galaxy_content["version"] == "1.0.0"
+            assert galaxy_content["license"] == ["GPL-3.0-or-later"]
+
+        # Check the GPL-3.0 text ships with the collection
+        license_file = collection_path / "LICENSE"
+        assert license_file.exists()
+        assert "GNU GENERAL PUBLIC LICENSE" in license_file.read_text()
+        assert "OpenNode OÜ" in (collection_path / "README.md").read_text()
 
         # Check module was created
         module_file = collection_path / "plugins" / "modules" / "test_module.py"
