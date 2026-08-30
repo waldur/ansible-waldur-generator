@@ -4,12 +4,12 @@ version = "0.0.1"
 description = "Ansible Waldur module generator."
 readme = "README.md"
 authors = [{ name = "OpenNode Team", email = "info@opennodecloud.com" }]
-license = { text = "MIT" }
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
 dependencies = [
