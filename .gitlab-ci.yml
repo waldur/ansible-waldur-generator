@@ -5,6 +5,8 @@ include:
     file: "/templates/stages.yml"
   - project: "waldur/waldur-pipelines"
     file: "/templates/test/license-scan.yml"
+  - project: "waldur/waldur-pipelines"
+    file: "/templates/test/python-linters.yml"
 
 variables:
   # Give uv a project-relative cache dir so the cache: block below actually
@@ -73,13 +75,9 @@ cache:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
 
 Run linters:
-  extends: .base_job
+  extends: .Run linters template
   needs: []
   rules: !reference [.test_rules, rules]
-  before_script:
-    - pip install uv
-  script:
-    - uvx prek run --all-files
 
 Run unit tests:
   extends: .base_job
