@@ -231,9 +231,15 @@ Generate Collection Changelog:
     - if: '$CI_PIPELINE_SOURCE == "web"'
   before_script:
     - apt-get update && apt-get install -y git jq
+    # The deploy key the publish job below already uses. An anonymous HTTPS
+    # clone of github.com fails whenever the shared runner egress is
+    # rate-limited ("could not read Username for 'https://github.com'"), which
+    # is what broke the 2026-09-02 SDK release pipeline here; see
+    # waldur/waldur-mastermind#343 for the same failure in the linter jobs.
+    - *build_before_script
   script:
     - echo "Cloning the Ansible module repository..."
-    - git clone --depth 1 --branch main https://github.com/waldur/ansible-waldur-module-next.git /tmp/ansible-module-old
+    - git clone --depth 1 --branch main git@github.com:waldur/ansible-waldur-module-next.git /tmp/ansible-module-old
     - cd /tmp/ansible-module-old
 
     - |
