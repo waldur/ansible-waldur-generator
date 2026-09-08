@@ -434,8 +434,11 @@ Publish Galaxy:
     - if: '$CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/'
     - if: '$CI_PIPELINE_SOURCE == "pipeline"'
     - if: '$CI_PIPELINE_SOURCE == "web"'
+  # bullseye is EOL: its security repo's Release file is now permanently
+  # expired on the mirror, so `apt-get update` fails and (via &&) `jq` never
+  # installs, breaking the yq-based galaxy.yml parsing below.
   image:
-    name: registry.hpc.ut.ee/mirror/library/python:3.12-bullseye
+    name: registry.hpc.ut.ee/mirror/library/python:3.12-bookworm
   needs:
     - job: Generate Collection
     - job: Generate Collection Changelog
