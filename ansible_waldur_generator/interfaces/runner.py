@@ -358,10 +358,14 @@ class BaseRunner:
         except json.JSONDecodeError:
             # This is an exceptional case: the API returned a success status (2xx)
             # but the response body was not valid JSON, indicating a potential API bug
-            # or proxy issue.
+            # or proxy issue. The body is not echoed: a successful response may carry
+            # a secret (such as a revealed API key), and a failure message is always
+            # printed, so only its length is reported.
             self.module.fail_json(
-                msg=f"API returned a success status ({status_code}) but the response was not valid JSON.",
-                response_body=body_content.decode(errors="ignore"),
+                msg=(
+                    f"API returned a success status ({status_code}) but the response "
+                    f"was not valid JSON ({len(body_content)} bytes)."
+                ),
             )
             return None, status_code  # Unreachable
 
