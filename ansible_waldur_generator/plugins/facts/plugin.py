@@ -242,20 +242,20 @@ class FactsPlugin(BasePlugin):
         """
         # The 'retrieve' operation is the source of truth for the structure of a
         # single resource, so we use its response schema to generate the documentation.
-        if not module_config.retrieve_operation:
-            return {}
+        return_content = None
+        if module_config.retrieve_operation:
+            # The return_generator intelligently parses the OpenAPI schema and builds
+            # the documentation structure, including types, descriptions, and sample values.
+            return_content = return_generator.generate_for_operation(
+                module_config.retrieve_operation.raw_spec, module_config.resource_type
+            )
 
-        retrieve_op_spec = module_config.retrieve_operation.raw_spec
-        # The return_generator intelligently parses the OpenAPI schema and builds
-        # the documentation structure, including types, descriptions, and sample values.
-        return_content = return_generator.generate_for_operation(
-            retrieve_op_spec, module_config.resource_type
-        )
+        # Validated before any early exit, so that a stale or mistyped entry
+        # cannot pass unnoticed when the response has no documented schema.
+        self._mark_sensitive_fields(return_content, module_config.sensitive_fields)
 
         if not return_content:
             return {}
-
-        self._mark_sensitive_fields(return_content, module_config.sensitive_fields)
 
         if module_config.many:
             # Case 1: many=true. The module returns a LIST of resources.
@@ -287,14 +287,15 @@ class FactsPlugin(BasePlugin):
 
     @staticmethod
     def _mark_sensitive_fields(
-        return_content: Dict[str, Any], sensitive_fields: List[str]
+        return_content: Dict[str, Any] | None, sensitive_fields: List[str]
     ) -> None:
         """
         Flags secret-bearing fields in the RETURN documentation, so that users
         know to register the result with `no_log: true` and not print it.
+        Fails generation on a field the retrieve response does not contain.
         """
         for field_name in sensitive_fields:
-            field_doc = return_content.get(field_name)
+            field_doc = (return_content or {}).get(field_name)
             if field_doc is None:
                 raise ValueError(
                     f"Sensitive field '{field_name}' is not part of the returned object."
@@ -374,7 +375,11 @@ class FactsPlugin(BasePlugin):
             print_task = {
                 "name": "Use the result without printing the secret",
                 "ansible.builtin.debug": {
-                    "msg": "Retrieved {{ resource_info.resource.uuid }}",
+                    "msg": (
+                        "Retrieved {{ resource_info.resources | length }} item(s)"
+                        if module_config.many
+                        else "Retrieved {{ resource_info.resource.uuid }}"
+                    ),
                 },
             }
 

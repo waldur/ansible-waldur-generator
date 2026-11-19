@@ -122,9 +122,10 @@ class TestRevealPlugin:
         context = _generate(dict(REVEAL_CONFIG))
         description = context.argument_spec["uuid"]
         assert description["required"] is True
-        assert "The UUID of the key." in context.documentation["options"]["uuid"][
-            "description"
-        ]
+        assert (
+            "The UUID of the key."
+            in context.documentation["options"]["uuid"]["description"]
+        )
 
     def test_sensitive_field_is_flagged_in_return_docs(self):
         context = _generate(dict(REVEAL_CONFIG))
@@ -143,6 +144,49 @@ class TestRevealPlugin:
     def test_unknown_sensitive_field_is_rejected(self):
         with pytest.raises(ValueError, match="not_there"):
             _generate({**REVEAL_CONFIG, "sensitive_fields": ["not_there"]})
+
+    def test_unknown_sensitive_field_is_rejected_without_response_schema(self):
+        # The reveal response below documents no JSON body at all.
+        spec = {
+            **API_SPEC,
+            "paths": {
+                "/api/keys/{uuid}/reveal/": {
+                    "post": {
+                        "operationId": "keys_reveal",
+                        "parameters": [
+                            {"name": "uuid", "in": "path", "required": True}
+                        ],
+                        "responses": {"200": {"description": "No schema"}},
+                    }
+                }
+            },
+        }
+        with pytest.raises(ValueError, match="api_key"):
+            FactsPlugin().generate(
+                "key_reveal",
+                dict(REVEAL_CONFIG),
+                ApiSpecParser(spec, ValidationErrorCollector()),
+                "test",
+                "keys",
+                ReturnBlockGenerator(spec),
+            )
+
+    def test_sensitive_example_follows_many(self):
+        context = _generate(
+            {
+                "plugin": "facts",
+                "resource_type": "key",
+                "many": True,
+                "identifier_param": "uuid",
+                "base_operation_id": "keys",
+                "operations": {"retrieve": "keys_reveal"},
+                "sensitive_fields": ["api_key"],
+            }
+        )
+        message = context.examples[0]["tasks"][1]["ansible.builtin.debug"]["msg"]
+        assert "resource_info.resources" in message
+        assert "resource_info.resource." not in message
+        assert "api_key" in context.return_block["resources"]["contains"]
 
     def test_missing_explicit_operation_is_rejected(self):
         with pytest.raises(ValueError, match="keys_missing"):
@@ -200,6 +244,46 @@ class TestRevealRunner:
         )
 
     @patch("ansible_waldur_generator.plugins.facts.runner.FactsRunner.send_request")
+    def test_non_get_retrieve_is_skipped_in_check_mode(
+        self, mock_send_request, mock_ansible_module, reveal_context
+    ):
+        mock_ansible_module.params = {**AUTH_FIXTURE, "uuid": uuid.uuid4().hex}
+        mock_ansible_module.check_mode = True
+
+        FactsRunner(mock_ansible_module, reveal_context).run()
+
+        mock_send_request.assert_not_called()
+        mock_ansible_module.exit_json.assert_called_once()
+        result = mock_ansible_module.exit_json.call_args.kwargs
+        assert result["changed"] is False
+        assert result["skipped"] is True
+        assert "check mode" in result["msg"]
+        assert "resource" not in result
+
+    @patch("ansible_waldur_generator.plugins.facts.runner.FactsRunner.send_request")
+    def test_get_retrieve_still_runs_in_check_mode(
+        self, mock_send_request, mock_ansible_module, reveal_context
+    ):
+        key_uuid = uuid.uuid4().hex
+        context = {
+            **reveal_context,
+            "retrieve_url": "/api/keys/{uuid}/",
+            "retrieve_method": "GET",
+        }
+        mock_ansible_module.params = {**AUTH_FIXTURE, "uuid": key_uuid}
+        mock_ansible_module.check_mode = True
+        mock_send_request.return_value = ({"uuid": key_uuid}, 200)
+
+        FactsRunner(mock_ansible_module, context).run()
+
+        mock_send_request.assert_called_once_with(
+            "GET", "/api/keys/{uuid}/", path_params={"uuid": key_uuid}
+        )
+        mock_ansible_module.exit_json.assert_called_once_with(
+            changed=False, resource={"uuid": key_uuid}
+        )
+
+    @patch("ansible_waldur_generator.plugins.facts.runner.FactsRunner.send_request")
     def test_name_is_rejected_without_name_lookup(
         self, mock_send_request, mock_ansible_module, reveal_context
     ):
@@ -209,9 +293,9 @@ class TestRevealRunner:
         with pytest.raises(Exception, match="FailJsonCalled"):
             FactsRunner(mock_ansible_module, reveal_context).run()
 
-        assert "must be the UUID" in mock_ansible_module.fail_json.call_args.kwargs[
-            "msg"
-        ]
+        assert (
+            "must be the UUID" in mock_ansible_module.fail_json.call_args.kwargs["msg"]
+        )
         mock_send_request.assert_not_called()
 
     @patch("ansible_waldur_generator.plugins.facts.runner.FactsRunner.send_request")

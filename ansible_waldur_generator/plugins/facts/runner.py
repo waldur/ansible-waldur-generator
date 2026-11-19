@@ -51,6 +51,23 @@ class FactsRunner(BaseRunner):
         The main execution entry point for the runner. It orchestrates the entire
         workflow of finding resources and exiting with the results.
         """
+        # A retrieve operation that is not a GET (e.g. revealing a secret) has a
+        # side effect on the server, such as an audit event, so check mode must
+        # not send it. Nothing is returned, in particular no secret.
+        identifier = self.module.params.get(self.context["identifier_param"])
+        retrieve_method = self.context.get("retrieve_method", "GET")
+        if (
+            self.module.check_mode
+            and retrieve_method != "GET"
+            and self._is_uuid(identifier)
+        ):
+            self.module.exit_json(
+                changed=False,
+                skipped=True,
+                msg=f"Skipped in check mode: {retrieve_method} {self.context['retrieve_url']} is not sent.",
+            )
+            return
+
         # Step 1: Query the API to find all resources matching the user's criteria.
         resources = self._find_resources()
 
