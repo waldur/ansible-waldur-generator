@@ -95,3 +95,29 @@ def test_http_error_still_fails_task(mock_fetch_url, mock_ansible_module):
         runner.send_request("GET", "/api/openstack-instances/")
 
     mock_ansible_module.fail_json.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "token, expected_header",
+    [
+        ("w_personal-access-token", "Bearer w_personal-access-token"),
+        (
+            "b83557fd8e2066e98f27dee8f3b3433cdc4183ce",
+            "Token b83557fd8e2066e98f27dee8f3b3433cdc4183ce",
+        ),
+    ],
+)
+@patch("ansible_waldur_generator.interfaces.runner.fetch_url")
+def test_authorization_scheme_follows_token_kind(
+    mock_fetch_url, mock_ansible_module, token, expected_header
+):
+    """A personal access token is sent as Bearer, a user's API token as Token."""
+    mock_ansible_module.params["access_token"] = token
+    response = MagicMock()
+    response.read.return_value = b"[]"
+    mock_fetch_url.return_value = (response, {"status": 200, "msg": "OK"})
+
+    _make_runner(mock_ansible_module).send_request("GET", "/api/projects/")
+
+    headers = mock_fetch_url.call_args.kwargs["headers"]
+    assert headers["Authorization"] == expected_header

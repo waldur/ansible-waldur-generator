@@ -15,7 +15,10 @@ OPENAPI_TO_ANSIBLE_TYPE_MAP = {
 
 AUTH_OPTIONS = {
     "access_token": {
-        "description": "An access token.",
+        "description": (
+            "An access token: either a user's API token or a personal access token. "
+            "A personal access token (prefixed with C(w_)) is sent as a Bearer token."
+        ),
         "required": True,
         "type": "str",
         "no_log": True,  # Sensitive information, do not log

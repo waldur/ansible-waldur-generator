@@ -14,6 +14,10 @@ from .command import Command
 # data conversions (e.g., from user-friendly GiB to API-required MiB).
 TRANSFORMATION_MAP = {"gb_to_mb": lambda x: int(x) * 1024}
 
+# Waldur personal access tokens carry this prefix and are accepted only as
+# `Authorization: Bearer <token>`; a user's API token is sent as `Token <token>`.
+PERSONAL_ACCESS_TOKEN_PREFIX = "w_"
+
 
 class BaseRunner:
     """
@@ -258,7 +262,7 @@ class BaseRunner:
 
         # Define the standard headers for all API requests.
         headers = {
-            "Authorization": f"token {self.module.params['access_token']}",
+            "Authorization": self._authorization_header(),
             "Content-Type": "application/json",
         }
 
@@ -360,6 +364,19 @@ class BaseRunner:
                 response_body=body_content.decode(errors="ignore"),
             )
             return None, status_code  # Unreachable
+
+    def _authorization_header(self) -> str:
+        """
+        Builds the 'Authorization' header value for the configured access token.
+
+        A personal access token (prefixed with 'w_') is only accepted by Waldur
+        as a Bearer token; any other value is a user's API token, which Waldur
+        expects with the 'Token' keyword.
+        """
+        token = self.module.params["access_token"]
+        if token.startswith(PERSONAL_ACCESS_TOKEN_PREFIX):
+            return f"Bearer {token}"
+        return f"Token {token}"
 
     def _get_next_page_url(self) -> Optional[str]:
         """
