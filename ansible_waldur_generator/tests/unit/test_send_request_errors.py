@@ -95,3 +95,46 @@ def test_http_error_still_fails_task(mock_fetch_url, mock_ansible_module):
         runner.send_request("GET", "/api/openstack-instances/")
 
     mock_ansible_module.fail_json.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "token, expected_header",
+    [
+        ("w_personal-access-token", "Bearer w_personal-access-token"),
+        (
+            "b83557fd8e2066e98f27dee8f3b3433cdc4183ce",
+            "Token b83557fd8e2066e98f27dee8f3b3433cdc4183ce",
+        ),
+    ],
+)
+@patch("ansible_waldur_generator.interfaces.runner.fetch_url")
+def test_authorization_scheme_follows_token_kind(
+    mock_fetch_url, mock_ansible_module, token, expected_header
+):
+    """A personal access token is sent as Bearer, a user's API token as Token."""
+    mock_ansible_module.params["access_token"] = token
+    response = MagicMock()
+    response.read.return_value = b"[]"
+    mock_fetch_url.return_value = (response, {"status": 200, "msg": "OK"})
+
+    _make_runner(mock_ansible_module).send_request("GET", "/api/projects/")
+
+    headers = mock_fetch_url.call_args.kwargs["headers"]
+    assert headers["Authorization"] == expected_header
+
+
+@patch("ansible_waldur_generator.interfaces.runner.fetch_url")
+def test_invalid_json_success_body_is_not_echoed(mock_fetch_url, mock_ansible_module):
+    """A 2xx body that is not JSON may still hold a secret, so it is never echoed."""
+    truncated = MagicMock()
+    truncated.read.return_value = b'{"api_key": "s3cr3t-value", "client_id'
+    mock_fetch_url.return_value = (truncated, {"status": 200})
+
+    runner = _make_runner(mock_ansible_module)
+
+    with pytest.raises(Exception, match="FailJsonCalled"):
+        runner.send_request("POST", "/api/marketplace-resource-api-keys/x/reveal/")
+
+    kwargs = mock_ansible_module.fail_json.call_args.kwargs
+    assert "s3cr3t-value" not in repr(kwargs)
+    assert "not valid JSON" in kwargs["msg"]

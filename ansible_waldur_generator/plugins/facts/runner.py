@@ -51,6 +51,23 @@ class FactsRunner(BaseRunner):
         The main execution entry point for the runner. It orchestrates the entire
         workflow of finding resources and exiting with the results.
         """
+        # A retrieve operation that is not a GET (e.g. revealing a secret) has a
+        # side effect on the server, such as an audit event, so check mode must
+        # not send it. Nothing is returned, in particular no secret.
+        identifier = self.module.params.get(self.context["identifier_param"])
+        retrieve_method = self.context.get("retrieve_method", "GET")
+        if (
+            self.module.check_mode
+            and retrieve_method != "GET"
+            and self._is_uuid(identifier)
+        ):
+            self.module.exit_json(
+                changed=False,
+                skipped=True,
+                msg=f"Skipped in check mode: {retrieve_method} {self.context['retrieve_url']} is not sent.",
+            )
+            return
+
         # Step 1: Query the API to find all resources matching the user's criteria.
         resources = self._find_resources()
 
@@ -77,10 +94,20 @@ class FactsRunner(BaseRunner):
         # resource directly from its specific endpoint, bypassing the need for a search.
         if self._is_uuid(value):
             resource, _ = self.send_request(
-                "GET", self.context["retrieve_url"], path_params={"uuid": value}
+                self.context.get("retrieve_method", "GET"),
+                self.context["retrieve_url"],
+                path_params={"uuid": value},
             )
             # We wrap the single result in a list to maintain a consistent return type.
             return [resource] if resource else []
+
+        # When the API cannot search by name, a name would be silently ignored
+        # and every object returned, so only a UUID is accepted.
+        if value and not self.context.get("name_lookup", True):
+            self.module.fail_json(
+                msg=f"'{identifier_param}' must be the UUID of the {self.context['resource_type']}, got '{value}'."
+            )
+            return []  # Unreachable
 
         # --- Path 2: Filtered Search by Name and/or Context ---
         # If the identifier is not a UUID (i.e., it's a name) or is not provided at all,

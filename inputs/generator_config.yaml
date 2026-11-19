@@ -108,6 +108,28 @@ collections:
         resolvers:
           <<: *project_context_resolver
 
+      - name: resource_api_key_facts
+        plugin: facts
+        many: true
+        resource_type: "resource API key"
+        description: "List the API keys (access credentials) of marketplace resources. The secret is never included; use resource_api_key_reveal to read it."
+        base_operation_id: "marketplace_resource_api_keys"
+        identifier_param: "uuid"
+        resolvers:
+          resource:
+            base: "marketplace_resources"
+            check_filter_key: "resource_uuid"
+
+      - name: resource_api_key_reveal
+        plugin: facts
+        resource_type: "resource API key"
+        description: "Reveal the secret of a marketplace resource API key. Reading the secret does not change it, so the module reports no change. Run the task with no_log: true."
+        identifier_param: "uuid"
+        operations:
+          retrieve: "marketplace_resource_api_keys_reveal"
+        sensitive_fields:
+          - api_key
+
       - name: order
         plugin: crud
         base_operation_id: "marketplace_orders"

@@ -13,6 +13,12 @@ class FactsModuleConfig(BaseModel):
     many: bool = False
     identifier_param: str = "name"
     resolvers: dict[str, PluginModuleResolver] = Field(default_factory=dict)
+    # Fields of the returned object that hold secrets. They are flagged as
+    # sensitive in the module's RETURN documentation.
+    sensitive_fields: list[str] = Field(default_factory=list)
+    # Set by the plugin from the API spec: whether the list operation can find
+    # the object by name ('name_exact'); otherwise the identifier is a UUID.
+    name_lookup: bool = False
 
     @field_validator("description", mode="before")
     def set_description(cls, v, values):

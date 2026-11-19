@@ -14,6 +14,10 @@ from .command import Command
 # data conversions (e.g., from user-friendly GiB to API-required MiB).
 TRANSFORMATION_MAP = {"gb_to_mb": lambda x: int(x) * 1024}
 
+# Waldur personal access tokens carry this prefix and are accepted only as
+# `Authorization: Bearer <token>`; a user's API token is sent as `Token <token>`.
+PERSONAL_ACCESS_TOKEN_PREFIX = "w_"
+
 
 class BaseRunner:
     """
@@ -258,7 +262,7 @@ class BaseRunner:
 
         # Define the standard headers for all API requests.
         headers = {
-            "Authorization": f"token {self.module.params['access_token']}",
+            "Authorization": self._authorization_header(),
             "Content-Type": "application/json",
         }
 
@@ -354,12 +358,29 @@ class BaseRunner:
         except json.JSONDecodeError:
             # This is an exceptional case: the API returned a success status (2xx)
             # but the response body was not valid JSON, indicating a potential API bug
-            # or proxy issue.
+            # or proxy issue. The body is not echoed: a successful response may carry
+            # a secret (such as a revealed API key), and a failure message is always
+            # printed, so only its length is reported.
             self.module.fail_json(
-                msg=f"API returned a success status ({status_code}) but the response was not valid JSON.",
-                response_body=body_content.decode(errors="ignore"),
+                msg=(
+                    f"API returned a success status ({status_code}) but the response "
+                    f"was not valid JSON ({len(body_content)} bytes)."
+                ),
             )
             return None, status_code  # Unreachable
+
+    def _authorization_header(self) -> str:
+        """
+        Builds the 'Authorization' header value for the configured access token.
+
+        A personal access token (prefixed with 'w_') is only accepted by Waldur
+        as a Bearer token; any other value is a user's API token, which Waldur
+        expects with the 'Token' keyword.
+        """
+        token = self.module.params["access_token"]
+        if token.startswith(PERSONAL_ACCESS_TOKEN_PREFIX):
+            return f"Bearer {token}"
+        return f"Token {token}"
 
     def _get_next_page_url(self) -> Optional[str]:
         """

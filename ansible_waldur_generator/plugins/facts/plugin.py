@@ -75,12 +75,29 @@ class FactsPlugin(BasePlugin):
         if retrieve_op_id:
             raw_config["retrieve_operation"] = api_parser.get_operation(retrieve_op_id)
 
+        # An operation named explicitly in the 'operations' block must exist;
+        # silently generating a module without it would ship a broken module.
+        for key, config_key in (
+            ("check", "list_operation"),
+            ("retrieve", "retrieve_operation"),
+        ):
+            explicit_id = operations_config.get(key)
+            if explicit_id and not raw_config.get(config_key):
+                raise ValueError(
+                    f"Module '{module_key}': operation '{explicit_id}' configured as "
+                    f"'{key}' was not found in the API specification."
+                )
+
         # 4. Parse resolvers before validation.
         parsed_resolvers = self._parse_resolvers(raw_config, api_parser)
         raw_config["resolvers"] = parsed_resolvers
 
         # 5. Instantiate the Pydantic model, which validates the final structure.
         module_config = FactsModuleConfig(**raw_config)
+
+        module_config.name_lookup = self._supports_name_lookup(
+            module_config, api_parser
+        )
 
         # 6. Perform build-time validation of resolver filter keys.
         self._validate_resolvers(
@@ -90,6 +107,22 @@ class FactsPlugin(BasePlugin):
             target_operation=module_config.list_operation,
         )
         return module_config
+
+    @staticmethod
+    def _supports_name_lookup(
+        module_config: FactsModuleConfig, api_parser: ApiSpecParser
+    ) -> bool:
+        """
+        Whether the identifier can be a name: only when the list operation
+        accepts the 'name_exact' filter. Otherwise the API would ignore the
+        filter and return every object, so the identifier must be a UUID.
+        """
+        if not module_config.list_operation:
+            return False
+        query_params = api_parser.get_query_parameters_for_operation(
+            module_config.list_operation.operation_id
+        )
+        return "name_exact" in query_params
 
     def _infer_filter_params(
         self, module_config: FactsModuleConfig, api_parser: ApiSpecParser
@@ -172,8 +205,9 @@ class FactsPlugin(BasePlugin):
         # Add the primary identifier for the resource (e.g., 'name').
         # This parameter is optional if `many: true`, as the user might want to
         # fetch all resources without specifying a name.
+        identifier_kind = "name or UUID" if conf.name_lookup else "UUID"
         params[conf.identifier_param] = {
-            "description": f"The name or UUID of the {conf.resource_type}.",
+            "description": f"The {identifier_kind} of the {conf.resource_type}.",
             "type": "str",
             "required": not conf.many,
         }
@@ -208,15 +242,17 @@ class FactsPlugin(BasePlugin):
         """
         # The 'retrieve' operation is the source of truth for the structure of a
         # single resource, so we use its response schema to generate the documentation.
-        if not module_config.retrieve_operation:
-            return {}
+        return_content = None
+        if module_config.retrieve_operation:
+            # The return_generator intelligently parses the OpenAPI schema and builds
+            # the documentation structure, including types, descriptions, and sample values.
+            return_content = return_generator.generate_for_operation(
+                module_config.retrieve_operation.raw_spec, module_config.resource_type
+            )
 
-        retrieve_op_spec = module_config.retrieve_operation.raw_spec
-        # The return_generator intelligently parses the OpenAPI schema and builds
-        # the documentation structure, including types, descriptions, and sample values.
-        return_content = return_generator.generate_for_operation(
-            retrieve_op_spec, module_config.resource_type
-        )
+        # Validated before any early exit, so that a stale or mistyped entry
+        # cannot pass unnoticed when the response has no documented schema.
+        self._mark_sensitive_fields(return_content, module_config.sensitive_fields)
 
         if not return_content:
             return {}
@@ -248,6 +284,32 @@ class FactsPlugin(BasePlugin):
                     "contains": return_content,
                 }
             }
+
+    @staticmethod
+    def _mark_sensitive_fields(
+        return_content: Dict[str, Any] | None, sensitive_fields: List[str]
+    ) -> None:
+        """
+        Flags secret-bearing fields in the RETURN documentation, so that users
+        know to register the result with `no_log: true` and not print it.
+        Fails generation on a field the retrieve response does not contain.
+        """
+        for field_name in sensitive_fields:
+            field_doc = (return_content or {}).get(field_name)
+            if field_doc is None:
+                raise ValueError(
+                    f"Sensitive field '{field_name}' is not part of the returned object."
+                )
+            description = str(field_doc.get("description") or "").strip()
+            if description and not description.endswith("."):
+                description += "."
+            notice = (
+                "This value is a secret: run the task with C(no_log: true) "
+                "and do not print or log the registered result."
+            )
+            field_doc["description"] = f"{description} {notice}".strip()
+            # Never show a realistic-looking secret in the documentation.
+            field_doc.pop("sample", None)
 
     def _build_examples(
         self,
@@ -283,7 +345,11 @@ class FactsPlugin(BasePlugin):
         )
 
         # Replace the auto-generated identifier with a more instructive placeholder.
-        example_params[module_config.identifier_param] = "My Resource Name"
+        example_params[module_config.identifier_param] = (
+            "My Resource Name"
+            if module_config.name_lookup
+            else "a1b2c3d4e5f647a8b9c0d1e2f3a4b5c6"
+        )
 
         # Add standard authentication parameters to the example.
         example_params.update(AUTH_FIXTURE)
@@ -292,25 +358,36 @@ class FactsPlugin(BasePlugin):
         # using the Fully Qualified Collection Name (FQCN), registering the result,
         # and using the debug module to inspect the output.
         fqcn = f"{collection_namespace}.{collection_name}.{module_name}"
-        resource_key_plural = module_config.resource_type.replace(" ", "_") + "s"
+        result_key = "resources" if module_config.many else "resource"
+
+        lookup_task: Dict[str, Any] = {
+            "name": f"Get facts about a specific {module_config.resource_type}",
+            fqcn: example_params,
+            "register": "resource_info",
+        }
+        print_task: Dict[str, Any] = {
+            "name": "Print the retrieved resource facts",
+            "ansible.builtin.debug": {"var": f"resource_info.{result_key}"},
+        }
+        if module_config.sensitive_fields:
+            # A result holding a secret must not reach the task output or logs.
+            lookup_task["no_log"] = True
+            print_task = {
+                "name": "Use the result without printing the secret",
+                "ansible.builtin.debug": {
+                    "msg": (
+                        "Retrieved {{ resource_info.resources | length }} item(s)"
+                        if module_config.many
+                        else "Retrieved {{ resource_info.resource.uuid }}"
+                    ),
+                },
+            }
 
         return [
             {
                 "name": f"Retrieve and print facts about {module_config.resource_type}s",
                 "hosts": "localhost",
-                "tasks": [
-                    {
-                        "name": f"Get facts about a specific {module_config.resource_type}",
-                        fqcn: example_params,
-                        "register": "resource_info",
-                    },
-                    {
-                        "name": "Print the retrieved resource facts",
-                        "ansible.builtin.debug": {
-                            "var": f"resource_info.{resource_key_plural}",
-                        },
-                    },
-                ],
+                "tasks": [lookup_task, print_task],
             }
         ]
 
@@ -347,8 +424,14 @@ class FactsPlugin(BasePlugin):
             "retrieve_url": conf.retrieve_operation.path
             if conf.retrieve_operation
             else "",
+            # A retrieve operation may be a POST action that returns data
+            # without changing state (e.g. revealing a secret).
+            "retrieve_method": conf.retrieve_operation.method.upper()
+            if conf.retrieve_operation
+            else "GET",
             # Tell the runner which parameter holds the main identifier.
             "identifier_param": conf.identifier_param,
+            "name_lookup": conf.name_lookup,
             # Pass the fully constructed resolver map.
             "resolvers": resolvers,
             "many": conf.many,
