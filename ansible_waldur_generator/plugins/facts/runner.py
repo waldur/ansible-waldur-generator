@@ -77,10 +77,20 @@ class FactsRunner(BaseRunner):
         # resource directly from its specific endpoint, bypassing the need for a search.
         if self._is_uuid(value):
             resource, _ = self.send_request(
-                "GET", self.context["retrieve_url"], path_params={"uuid": value}
+                self.context.get("retrieve_method", "GET"),
+                self.context["retrieve_url"],
+                path_params={"uuid": value},
             )
             # We wrap the single result in a list to maintain a consistent return type.
             return [resource] if resource else []
+
+        # When the API cannot search by name, a name would be silently ignored
+        # and every object returned, so only a UUID is accepted.
+        if value and not self.context.get("name_lookup", True):
+            self.module.fail_json(
+                msg=f"'{identifier_param}' must be the UUID of the {self.context['resource_type']}, got '{value}'."
+            )
+            return []  # Unreachable
 
         # --- Path 2: Filtered Search by Name and/or Context ---
         # If the identifier is not a UUID (i.e., it's a name) or is not provided at all,
